@@ -9,15 +9,26 @@ import {
   TerrainType,
   TERRAIN_PROPERTIES,
   TERRAIN_LABELS,
+  CombatTerrainType,
+  SEED_CONFIGS,
+  SeedId,
   PathNode,
   findPath,
 } from '@game/shared-types';
 import { useNavigate } from 'react-router-dom';
 import './ResourceMapPage.css';
 
+const COMBAT_TYPE_LABELS: Record<CombatTerrainType, string> = {
+  [CombatTerrainType.FLAT]: 'PLAT',
+  [CombatTerrainType.WALL]: 'MUR',
+  [CombatTerrainType.HOLE]: 'TROU',
+};
+
 function buildTooltipLines(terrain: TerrainType): string[] {
   const props = TERRAIN_PROPERTIES[terrain];
   const lines: string[] = [];
+
+  lines.push(`Type combat : ${COMBAT_TYPE_LABELS[props.combatType]}`);
 
   if (props.harvestable && props.resourceName) {
     lines.push(`Récolter : ${props.resourceName}`);
@@ -28,10 +39,13 @@ function buildTooltipLines(terrain: TerrainType): string[] {
     lines.push('Non traversable');
   }
   if (props.jumpable) {
-    lines.push('Peut sauter par-dessus');
+    lines.push('Peut sauter par-dessus (+1 PM)');
   }
   if (props.blockLineOfSight) {
     lines.push('Bloque la ligne de vue');
+  }
+  if (props.family) {
+    lines.push(`Famille : ${props.family}`);
   }
   return lines;
 }
@@ -59,10 +73,16 @@ export function ResourceMapPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['map'],
-    queryFn: mapApi.getMap,
+    queryKey: ['map', 'session'],
+    queryFn: mapApi.generateNew,
     staleTime: Infinity,
+    refetchOnMount: 'always',
   });
+
+  const seedConfig = useMemo(() => {
+    if (!map) return null;
+    return SEED_CONFIGS[map.seedId as SeedId] ?? null;
+  }, [map]);
 
   const currentPlayerPos = useMemo(() => {
     if (playerPos) return playerPos;
@@ -113,15 +133,20 @@ export function ResourceMapPage() {
           Retour
         </button>
         <h2>Carte des Ressources</h2>
+        {seedConfig && (
+          <div className="seed-badge">
+            {seedConfig.label} — {seedConfig.dominantBuild}
+          </div>
+        )}
         <div className="map-legend">
           <span className="legend-item legend-ground">Sol</span>
-          <span className="legend-item legend-water">Eau</span>
           <span className="legend-item legend-iron">Fer</span>
-          <span className="legend-item legend-gold">Or</span>
-          <span className="legend-item legend-wood">Bois</span>
-          <span className="legend-item legend-crystal">Cristal</span>
-          <span className="legend-item legend-herb">Herbe</span>
           <span className="legend-item legend-leather">Cuir</span>
+          <span className="legend-item legend-crystal">Cristal</span>
+          <span className="legend-item legend-fabric">Étoffe</span>
+          <span className="legend-item legend-wood">Bois</span>
+          <span className="legend-item legend-herb">Herbe</span>
+          <span className="legend-item legend-gold">Or</span>
         </div>
       </header>
 
