@@ -217,41 +217,83 @@ Chaque item équipable possède aussi un champ `grantsSpells` (liste de spell ID
 
 Il n'y a pas de classes en tant que telles. Le joueur est libre de mixer les items de n'importe quel archétype. Cependant, les items sont regroupés en 3 familles thématiques, et les **full sets d'armure** débloquent des spells bonus.
 
+#### Tiers d'armure
+
+Les pièces d'armure (Haut, Milieu, Bas) possèdent **3 tiers**. Chaque tier augmente les stats passives de la pièce. On craft directement le tier souhaité (les recettes de tier supérieur coûtent plus de ressources). **Les armes et accessoires n'ont pas de tiers.**
+
+Le Full Set Guerrier / Mage / Ninja fonctionne quel que soit le tier des pièces : il suffit d'avoir les 3 slots d'armure équipés avec des pièces du même archétype.
+
 #### Archétype Guerrier
+
+**Armes :**
 
 | Item | Type | Slot | Stats bonus | Spells débloqués | Prix / Craft |
 |------|------|------|-------------|------------------|-------------|
 | Épée | WEAPON | Arme | ATK +4, VIT +5 | Frappe | 50 or |
 | Bouclier | WEAPON | Arme | DEF +4, VIT +10 | Endurance | 60 or |
-| Heaume | ARMOR_HEAD | Haut | DEF +2, VIT +10 | — | 5 Minerai de Fer, 3 Cuir Robuste |
-| Armure | ARMOR_CHEST | Milieu | DEF +3, VIT +15 | — | 8 Minerai de Fer, 5 Cuir Robuste |
-| Bottes de Fer | ARMOR_LEGS | Bas | DEF +2, PM +1 | — | 4 Minerai de Fer, 3 Cuir Robuste |
-| **Full Set Guerrier** | — | (Heaume + Armure + Bottes de Fer) | (cumul des pièces) | Bond, Endurance | — |
-| **Combo Épée + Bouclier** | — | (les deux équipés) | (cumul) | Bond | — |
+
+**Armures (stats par tier) :**
+
+| Item | Slot | Tier 1 | Tier 2 | Tier 3 |
+|------|------|--------|--------|--------|
+| Heaume | Haut | DEF +2, VIT +10 | DEF +3, VIT +15 | DEF +5, VIT +20 |
+| Armure | Milieu | DEF +3, VIT +15 | DEF +5, VIT +20 | DEF +7, VIT +30 |
+| Bottes de Fer | Bas | DEF +2, PM +1 | DEF +3, PM +1, VIT +5 | DEF +5, PM +1, VIT +10 |
+
+**Combos :**
+
+| Combo | Condition | Spells débloqués |
+|-------|-----------|------------------|
+| **Full Set Guerrier** | Heaume + Armure + Bottes de Fer (tout tier) | Bond, Endurance |
+| **Combo Épée + Bouclier** | Les deux équipés | Bond |
 
 #### Archétype Mage
+
+**Armes :**
 
 | Item | Type | Slot | Stats bonus | Spells débloqués | Prix / Craft |
 |------|------|------|-------------|------------------|-------------|
 | Bâton Magique | WEAPON | Arme | MAG +6, INI +2 | Boule de Feu | 70 or |
 | Grimoire | WEAPON | Arme | MAG +4, PA +1 | Menhir | 80 or |
-| Chapeau de Mage | ARMOR_HEAD | Haut | MAG +2, RES +2 | — | 3 Cristal d'Ombre, 2 Herbe Médicinale |
-| Toge de Mage | ARMOR_CHEST | Milieu | RES +3, VIT +10, PA +1 | — | 4 Cristal d'Ombre, 3 Cuir Robuste |
-| Bottes de Mage | ARMOR_LEGS | Bas | RES +2, INI +3, PM +1 | — | 2 Cristal d'Ombre, 2 Herbe Médicinale |
-| **Full Set Mage** | — | (Chapeau de Mage + Toge de Mage + Bottes de Mage) | (cumul des pièces) | Menhir, Soin | — |
-| **Combo Bâton + Grimoire** | — | (les deux équipés) | (cumul) | Soin | — |
+
+**Armures (stats par tier) :**
+
+| Item | Slot | Tier 1 | Tier 2 | Tier 3 |
+|------|------|--------|--------|--------|
+| Chapeau de Mage | Haut | MAG +2, RES +2 | MAG +3, RES +3 | MAG +5, RES +5 |
+| Toge de Mage | Milieu | RES +3, VIT +10, PA +1 | RES +5, VIT +15, PA +1 | RES +7, VIT +20, PA +1 |
+| Bottes de Mage | Bas | RES +2, INI +3, PM +1 | RES +3, INI +4, PM +1 | RES +5, INI +5, PM +1 |
+
+**Combos :**
+
+| Combo | Condition | Spells débloqués |
+|-------|-----------|------------------|
+| **Full Set Mage** | Chapeau + Toge + Bottes de Mage (tout tier) | Menhir, Soin |
+| **Combo Bâton + Grimoire** | Les deux équipés | Soin |
 
 #### Archétype Ninja
+
+**Armes :**
 
 | Item | Type | Slot | Stats bonus | Spells débloqués | Prix / Craft |
 |------|------|------|-------------|------------------|-------------|
 | Kunaï | WEAPON | Arme | ATK +5, INI +3 | Lancer de Kunaï | 55 or |
 | Bombe du Ninja | WEAPON | Arme | ATK +3, INI +2 | Bombe de Repousse | 65 or |
-| Bandeau | ARMOR_HEAD | Haut | INI +4, PM +1 | — | 3 Cuir Robuste, 2 Herbe Médicinale |
-| Kimono | ARMOR_CHEST | Milieu | INI +3, PM +1 | — | 5 Cuir Robuste, 3 Herbe Médicinale |
-| Geta | ARMOR_LEGS | Bas | PM +2, INI +2 | — | 4 Cuir Robuste, 2 Minerai de Fer |
-| **Full Set Ninja** | — | (Bandeau + Kimono + Geta) | (cumul des pièces) | Bombe de Repousse, Vélocité | — |
-| **Combo Kunaï + Bombe du Ninja** | — | (les deux équipés) | (cumul) | Vélocité | — |
+
+**Armures (stats par tier) :**
+
+| Item | Slot | Tier 1 | Tier 2 | Tier 3 |
+|------|------|--------|--------|--------|
+| Bandeau | Haut | INI +4, PM +1 | INI +6, PM +1 | INI +8, PM +2 |
+| Kimono | Milieu | INI +3, PM +1 | INI +5, PM +1 | INI +7, PM +2 |
+| Geta | Bas | PM +2, INI +2 | PM +2, INI +4 | PM +3, INI +6 |
+
+**Combos :**
+
+| Combo | Condition | Spells débloqués |
+|-------|-----------|------------------|
+| **Full Set Ninja** | Bandeau + Kimono + Geta (tout tier) | Bombe de Repousse, Vélocité |
+| **Combo Kunaï + Bombe du Ninja** | Les deux équipés | Vélocité |
 
 #### Anneaux d'archétype (Accessoires)
 
@@ -298,27 +340,45 @@ graph TD
 
 #### Armures Guerrier
 
-| Item crafté | Ingrédients |
-|-------------|-------------|
-| Heaume | 5× Minerai de Fer, 3× Cuir Robuste |
-| Armure | 8× Minerai de Fer, 5× Cuir Robuste |
-| Bottes de Fer | 4× Minerai de Fer, 3× Cuir Robuste |
+| Item crafté | Tier | Ingrédients |
+|-------------|------|-------------|
+| Heaume | T1 | 5× Minerai de Fer, 3× Cuir Robuste |
+| Heaume | T2 | 10× Minerai de Fer, 6× Cuir Robuste |
+| Heaume | T3 | 18× Minerai de Fer, 10× Cuir Robuste, 2× Cristal d'Ombre |
+| Armure | T1 | 8× Minerai de Fer, 5× Cuir Robuste |
+| Armure | T2 | 15× Minerai de Fer, 10× Cuir Robuste |
+| Armure | T3 | 25× Minerai de Fer, 16× Cuir Robuste, 3× Cristal d'Ombre |
+| Bottes de Fer | T1 | 4× Minerai de Fer, 3× Cuir Robuste |
+| Bottes de Fer | T2 | 8× Minerai de Fer, 6× Cuir Robuste |
+| Bottes de Fer | T3 | 14× Minerai de Fer, 10× Cuir Robuste, 2× Cristal d'Ombre |
 
 #### Armures Mage
 
-| Item crafté | Ingrédients |
-|-------------|-------------|
-| Chapeau de Mage | 3× Cristal d'Ombre, 2× Herbe Médicinale |
-| Toge de Mage | 4× Cristal d'Ombre, 3× Cuir Robuste |
-| Bottes de Mage | 2× Cristal d'Ombre, 2× Herbe Médicinale |
+| Item crafté | Tier | Ingrédients |
+|-------------|------|-------------|
+| Chapeau de Mage | T1 | 3× Cristal d'Ombre, 2× Herbe Médicinale |
+| Chapeau de Mage | T2 | 6× Cristal d'Ombre, 4× Herbe Médicinale |
+| Chapeau de Mage | T3 | 10× Cristal d'Ombre, 7× Herbe Médicinale, 2× Minerai de Fer |
+| Toge de Mage | T1 | 4× Cristal d'Ombre, 3× Cuir Robuste |
+| Toge de Mage | T2 | 8× Cristal d'Ombre, 6× Cuir Robuste |
+| Toge de Mage | T3 | 14× Cristal d'Ombre, 10× Cuir Robuste, 3× Herbe Médicinale |
+| Bottes de Mage | T1 | 2× Cristal d'Ombre, 2× Herbe Médicinale |
+| Bottes de Mage | T2 | 5× Cristal d'Ombre, 4× Herbe Médicinale |
+| Bottes de Mage | T3 | 9× Cristal d'Ombre, 7× Herbe Médicinale, 2× Cuir Robuste |
 
 #### Armures Ninja
 
-| Item crafté | Ingrédients |
-|-------------|-------------|
-| Bandeau | 3× Cuir Robuste, 2× Herbe Médicinale |
-| Kimono | 5× Cuir Robuste, 3× Herbe Médicinale |
-| Geta | 4× Cuir Robuste, 2× Minerai de Fer |
+| Item crafté | Tier | Ingrédients |
+|-------------|------|-------------|
+| Bandeau | T1 | 3× Cuir Robuste, 2× Herbe Médicinale |
+| Bandeau | T2 | 6× Cuir Robuste, 4× Herbe Médicinale |
+| Bandeau | T3 | 10× Cuir Robuste, 7× Herbe Médicinale, 2× Cristal d'Ombre |
+| Kimono | T1 | 5× Cuir Robuste, 3× Herbe Médicinale |
+| Kimono | T2 | 10× Cuir Robuste, 6× Herbe Médicinale |
+| Kimono | T3 | 16× Cuir Robuste, 10× Herbe Médicinale, 3× Cristal d'Ombre |
+| Geta | T1 | 4× Cuir Robuste, 2× Minerai de Fer |
+| Geta | T2 | 8× Cuir Robuste, 4× Minerai de Fer |
+| Geta | T3 | 14× Cuir Robuste, 7× Minerai de Fer, 2× Cristal d'Ombre |
 
 #### Anneaux
 
@@ -688,17 +748,17 @@ Le stuff Guerrier et Ninja donne principalement ATK et DEF. Le stuff Mage donne 
 
 ### Stats effectives
 
-Les stats effectives sont calculées à partir des **items équipés sur le mannequin** uniquement :
+Les stats effectives sont calculées à partir des **items équipés sur le mannequin** uniquement. Pour les armures, les stats dépendent du **tier** de la pièce équipée :
 
 ```
-stat_effective = stat_base + somme(statsBonus de chaque item ÉQUIPÉ)
+stat_effective = stat_base + somme(statsBonus de chaque item ÉQUIPÉ selon son tier)
 ```
 
 Seuls les items placés sur un slot du mannequin contribuent aux stats. Les items stockés dans l'inventaire n'ont aucun effet passif.
 
-Par exemple, un joueur avec 5 ATK de base qui équipe une Épée (ATK +4) et une Armure (DEF +3, VIT +15) aura : ATK 9, DEF 3, VIT 115, MAG 0.
+Par exemple, un joueur avec 5 ATK de base qui équipe une Épée (ATK +4) et une Armure T1 (DEF +3, VIT +15) aura : ATK 9, DEF 3, VIT 115, MAG 0. S'il upgrade son Armure en T3 (DEF +7, VIT +30) : ATK 9, DEF 7, VIT 130, MAG 0.
 
-Un mage avec un Bâton Magique (MAG +6) et une Toge de Mage (RES +3, VIT +10) aura : MAG 6, RES 3, VIT 110.
+Un mage avec un Bâton Magique (MAG +6) et une Toge de Mage T2 (RES +5, VIT +15) aura : MAG 6, RES 5, VIT 115.
 
 ### Spells débloqués par l'équipement
 
