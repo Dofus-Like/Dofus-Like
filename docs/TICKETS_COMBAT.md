@@ -6,43 +6,47 @@ Ce document regroupe les tickets de développement et les user stories pour l'é
 
 ## ÉPIC 1 : Fondations de l'Arène et du Moteur de Jeu
 
-### [COMBAT-001] Génération de l'Arène de Combat
-**Description :** Lors de l'acceptation d'un défi, le système doit créer une copie figée (snapshot) de l'instance de la carte de farm du joueur.
+### [COMBAT-001] Génération de l'Arène de Combat dans Redis
+**Description :** Lors de l'acceptation d'un défi, le système doit créer une copie figée (snapshot) de l'instance de la carte de farm du joueur et la stocker en mémoire cache.
 **Critères d'acceptation :**
 - Récupérer l'état de la grille 20x20.
-- Conserver les types de terrains et leurs propriétés (eau, arbres, minerais, etc.).
+- Conserver les types de terrains et leurs propriétés quantitatives (eau, arbres, minerais, etc.).
 - Placer le Joueur 1 et le Joueur 2 dans leurs zones de spawn respectives.
-- S'assurer que les nodes récoltés ou disparus du farm ne réapparaissent pas en plein combat.
+- Initialiser l'état du combat (`CombatState` défini dans `@game/shared-types`) dans **Redis**.
+- S'assurer que la carte de combat n'évolue pas avec le farming (pas de respawn).
 
-### [COMBAT-002] Initialisation des Joueurs et Système de Tours
+### [COMBAT-002] Initialisation des Joueurs et Système de Tours (Redis / API)
 **Description :** Le combat doit se dérouler au tour par tour (round-robin), basé sur l'Initiative (INI).
 **Critères d'acceptation :**
-- Charger les stats effectives des joueurs (VIT, ATK, MAG, DEF, RES, INI, PA, PM) depuis leur équipement (Équipe A).
+- Charger les stats effectives des joueurs (via `PlayerStatsService`) depuis les événements stockés suite aux actions de l'Équipe A.
 - Déterminer le premier joueur à agir avec le jet d'Initiative (`score = INI + random(0, 9)`).
-- Gérer le cycle de tour :
+- Gérer le cycle de tour dans **Redis** :
   - Au début de son tour, le joueur récupère tous ses PA et PM.
   - Décrémenter les cooldowns des sorts et la durée des buffs.
   - Annuler les menhirs/barricades si leur durée expire au début du tour.
+- Émettre un évènement SSE `TURN_STARTED` aux deux clients.
 
-### [COMBAT-003] Ligne de Vue (Line of Sight - LoS)
-**Description :** Implémenter l'algorithme de ligne de vue pour les attaques à distance.
+### [COMBAT-003] Algorithme de Ligne de Vue (libs/game-engine)
+**Description :** Implémenter l'algorithme agnostique de ligne de vue (Line of Sight - LoS) dans la librairie partagée.
 **Critères d'acceptation :**
-- Calculer une droite entre la case du lanceur et la case ciblée.
+- Calculer une droite entre la case d'origine et la case ciblée dans `libs/game-engine`.
 - Vérifier si des entités bloquantes sont sur la trajectoire (Minerais, Arbres, Cristaux, Menhirs).
 - L'eau et les petites ressources (herbes/cuir) ne bloquent pas la vue.
-- Retourner une erreur explicite côté front ("Ligne de vue bloquée") si le joueur tente de cibler.
+- Retourner un boolean utilisable à la fois par le validator NestJS API et le frontend UI.
 
 ---
 
 ## ÉPIC 2 : Actions et Mouvements
 
-### [COMBAT-004] Déplacements Classiques (MOVE)
+### [COMBAT-004] Déplacements Classiques dans l'Engine
 **Description :** Permettre aux joueurs de se déplacer sur la grille en dépensant des Points de Mouvement (PM).
 **Critères d'acceptation :**
+- Coder la fonction `movePlayer(state, player, targetTile)` dans `lib/game-engine`.
 - Vérifier que la case de destination est libre (pas d'obstacle, d'eau ou de joueur).
 - Calculer la distance de Manhattan.
-- Déduire 1 PM par case parcourue.
+- Déduire le bon nombre de PM et mettre à jour la BDD temps réel (**Redis**).
 - Impossible de se déplacer en diagonale.
+- Émettre un SSE `STATE_UPDATED`.
 
 ### [COMBAT-005] Déplacement Spécial (JUMP)
 **Description :** Ajouter la mécanique de saut par-dessus l'eau ou petit obstacle adjacents (si applicable).
@@ -55,14 +59,14 @@ Ce document regroupe les tickets de développement et les user stories pour l'é
 
 ## ÉPIC 3 : Compétences et Dégâts
 
-### [COMBAT-006] Moteur de Sorts : Calculs de dommages et soins
-**Description :** Mettre en place la fonction de base pour la résolution des sorts lancés.
+### [COMBAT-006] Bibliothèque de Dégâts (libs/game-engine)
+**Description :** Mettre en place les fonctions pures pour la résolution des sorts.
 **Critères d'acceptation :**
-- Prendre en compte le coût en PA, la distance (Manhattan) par rapport à la portée autorisée du sort et les cooldowns.
-- Canal Physique : `(Dégâts de base + ATK) - DEF`.
-- Canal Magique : `(Dégâts de base + MAG) - RES`.
-- Soins : `Soin de base + (MAG * 0.5)`.
-- Mettre à jour la Vitalité (VIT) de la cible sans descendre sous 0.
+- Valider le coût en PA, la distance (Manhattan) et cooldowns dans la logique pure métier.
+- Formule Physique : `(Dégâts de base + ATK) - DEF`.
+- Formule Magique : `(Dégâts de base + MAG) - RES`.
+- Formule Soins : `Soin de base + (MAG * 0.5)`.
+- La fonction retourne un delta (dégâts, effets statuts) qui sera appliqué sur l'état **Redis** par le contrôleur API.
 
 ### [COMBAT-007] Implémentation des 3 Sorts de Dégâts Communs
 **Description :** Intégrer les attaques classiques dans le moteur de sorts, selon leur rang (R1 à R3).
@@ -89,20 +93,19 @@ Ce document regroupe les tickets de développement et les user stories pour l'é
 
 ## ÉPIC 4 : Fin de Combat et Intégration
 
-### [COMBAT-010] Détection de victoire et Inter-Équipes
-**Description :** Gérer la fin de la boucle de gameplay d'un combat et notifier l'autre équipe.
+### [COMBAT-010] Event-Emitter de victoire (Couplage inter-équipes)
+**Description :** Gérer la fin de la boucle de gameplay d'un combat et notifier l'équipe A via les events NestJS.
 **Critères d'acceptation :**
 - Détecter si la VIT d'un joueur tombe à <= 0.
-- Stopper le système de boucle de tours.
-- Émettre l'événement backend `combat.ended` avec l'`Id` du vainqueur et du perdant.
-- Émettre `combat.player.died` si besoin de feed temps réel pour le front.
-- Clôturer l'instance (garbage collection de l'arène).
+- Transmettre l'Event `COMBAT_ENDED` (défini dans `libs/shared-types`) à l'Event Bus NestJS, avec le payload `{ sessionId, winnerId, loserId }`.
+- (Optionnel) Émettre `COMBAT_PLAYER_DIED` au cas où ça pop up côté stats/log admin.
+- Fermer le scope temps réel, détruire l'état dans **Redis** et clore la session SSE des deux clients.
 
-### [COMBAT-011] UI HUD de Combat (Frontend)
-**Description :** Créer l'interface de combat côté client.
+### [COMBAT-011] Frontend de Combat (Zustand & Three.js)
+**Description :** Connecter l'interface de combat côté web au Stream SSE.
 **Critères d'acceptation :**
-- Barres de vie, PA, PM.
-- Rendu isométrique 3D de l'arène (`CombatMapScene`).
-- Barre d'action affichant la liste des sorts disponibles (récupérée de l'inventaire/stats actuelles).
-- Highlight des cases pour déplacement et prévisualisation des attaques.
-- Bouton clair pour passer son tour.
+- Initialiser un Store Zustand (`useCombatStore`) qui se branche aux événements émis depuis le back (Server-Sent Events).
+- Intégrer les variables d'UI : Barres de vie, PA, PM.
+- Pousser l'état Zustand vers la `CombatMapScene` sous `@react-three/fiber` (Rendu isométrique 3D de l'arène).
+- Utiliser la lib partagée `@game/game-engine` pour pré-calculer la ligne de vue (Highlight Rouge vs Highlight Vert) sur l'UI côté front sans requête backend.
+- Lancer les actions formelles (déplacement, attack) via des requêtes HTTP (ex: Axios POST `/combat/action`) qui mettront à jour le serveur, lequel relancera un point d'entrée SSE.
