@@ -90,7 +90,7 @@ export function FarmingPage() {
   }, [map, playerPosition, movePlayer]);
 
   const previewPath = useMemo(() => {
-    if (!map || !hoverInfo || isMoving) return [];
+    if (!map || !hoverInfo) return [];
     const target = { x: hoverInfo.x, y: hoverInfo.y };
     if (target.x === currentPlayerPos.x && target.y === currentPlayerPos.y) return [];
     

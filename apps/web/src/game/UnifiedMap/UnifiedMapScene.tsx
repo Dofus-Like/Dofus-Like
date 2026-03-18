@@ -109,7 +109,7 @@ export const UnifiedMapScene = React.memo(({
 
   // Déclenchement manuel si la caméra ou le perso s'arrête, ou si le perso change de case
   useEffect(() => {
-    if (!isCameraMoving && !isMoving) {
+    if (!isCameraMoving) {
       performRaycastHover();
     }
   }, [isCameraMoving, isMoving, playerPosition, performRaycastHover]);
