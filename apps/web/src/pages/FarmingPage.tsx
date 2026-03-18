@@ -69,16 +69,36 @@ export function FarmingPage() {
 
   useEffect(() => {
     if (!controls) return;
+    let timeoutId: NodeJS.Timeout;
 
-    const start = () => setIsCameraMoving(true);
-    const end = () => setIsCameraMoving(false);
+    const start = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      setIsCameraMoving(true);
+    };
+
+    const end = () => {
+      // On attend un court instant (300ms) avant de réactiver le hover
+      // Cela couvre l'inertie de la caméra et évite les stutters de "fin de clic"
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setIsCameraMoving(false);
+      }, 300);
+    };
+
+    const immediateEnd = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      setIsCameraMoving(false);
+    };
 
     controls.addEventListener('controlstart', start);
-    controls.addEventListener('rest', end);
+    controls.addEventListener('controlend', end);
+    controls.addEventListener('rest', immediateEnd);
 
     return () => {
+      if (timeoutId) clearTimeout(timeoutId);
       controls.removeEventListener('controlstart', start);
-      controls.removeEventListener('rest', end);
+      controls.removeEventListener('controlend', end);
+      controls.removeEventListener('rest', immediateEnd);
     };
   }, [controls]); 
 

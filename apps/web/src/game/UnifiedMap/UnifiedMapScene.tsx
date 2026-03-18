@@ -108,10 +108,9 @@ export const UnifiedMapScene = React.memo(({
   }, [isCameraMoving, performRaycastHover]);
 
   // Déclenchement manuel si la caméra ou le perso s'arrête, ou si le perso change de case
+  // On ne met AUCUNE condition de blocage ici (contrairement au pointerMove) pour servir de "sécurité"
   useEffect(() => {
-    if (!isCameraMoving) {
-      performRaycastHover();
-    }
+    performRaycastHover();
   }, [isCameraMoving, isMoving, playerPosition, performRaycastHover]);
 
   useEffect(() => {
