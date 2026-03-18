@@ -15,6 +15,7 @@ import {
   SeedId,
   PathNode,
   findPath,
+  findPathToAdjacent,
 } from '@game/shared-types';
 import './ResourceMapPage.css';
 
@@ -115,30 +116,7 @@ export function FarmingPage() {
     if (target.x === currentPlayerPos.x && target.y === currentPlayerPos.y) return [];
     
     if (TERRAIN_PROPERTIES[hoverInfo.terrain].harvestable) {
-       const adjacentTiles = [
-         { x: target.x + 1, y: target.y },
-         { x: target.x - 1, y: target.y },
-         { x: target.x, y: target.y + 1 },
-         { x: target.x, y: target.y - 1 },
-       ].filter(t => 
-         t.x >= 0 && t.x < map.width && 
-         t.y >= 0 && t.y < map.height && 
-         TERRAIN_PROPERTIES[map.grid[t.y][t.x]].traversable
-       );
-
-       if (adjacentTiles.some(t => t.x === currentPlayerPos.x && t.y === currentPlayerPos.y)) {
-         return [];
-       }
-
-       if (adjacentTiles.length === 0) return [];
-
-       const closestTile = adjacentTiles.reduce((prev, curr) => {
-         const distPrev = Math.abs(prev.x - currentPlayerPos.x) + Math.abs(prev.y - currentPlayerPos.y);
-         const distCurr = Math.abs(curr.x - currentPlayerPos.x) + Math.abs(curr.y - currentPlayerPos.y);
-         return distCurr < distPrev ? curr : prev;
-       }, adjacentTiles[0]);
-
-       return findPath(map, currentPlayerPos, closestTile) ?? [];
+       return findPathToAdjacent(map, currentPlayerPos, target) ?? [];
     }
 
     if (!TERRAIN_PROPERTIES[hoverInfo.terrain].traversable) return [];
