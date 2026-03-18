@@ -104,10 +104,10 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
   },
   [TerrainType.GOLD]: {
     family: ResourceFamily.SPECIAL,
-    combatType: CombatTerrainType.HOLE,
+    combatType: CombatTerrainType.WALL,
     traversable: false,
-    blockLineOfSight: false,
-    jumpable: true,
+    blockLineOfSight: true,
+    jumpable: false,
     harvestable: true,
     resourceName: 'Or',
   },

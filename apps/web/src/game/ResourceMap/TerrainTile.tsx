@@ -10,7 +10,7 @@ const TERRAIN_COLORS: Record<TerrainType, { base: string; hover: string }> = {
   [TerrainType.FABRIC]: { base: '#a855f7', hover: '#c084fc' },
   [TerrainType.WOOD]: { base: '#166534', hover: '#22c55e' },
   [TerrainType.HERB]: { base: '#4ade80', hover: '#86efac' },
-  [TerrainType.GOLD]: { base: '#d97706', hover: '#fbbf24' },
+  [TerrainType.GOLD]: { base: '#eab308', hover: '#fde047' },
 };
 
 export interface TileHoverInfo {

@@ -75,7 +75,7 @@
 .legend-fabric::before { background: #a855f7; }
 .legend-wood::before { background: #166534; }
 .legend-herb::before { background: #4ade80; }
-.legend-gold::before { background: #d97706; }
+.legend-gold::before { background: #eab308; }
 
 .resource-map-canvas {
   flex: 1;
