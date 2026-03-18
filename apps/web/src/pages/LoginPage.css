@@ -100,3 +100,55 @@
   font-size: 0.85rem;
   text-align: center;
 }
+
+.quick-login {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--color-border);
+    text-align: center;
+}
+
+.quick-login-title {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+    font-weight: 700;
+}
+
+.quick-login-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.quick-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--color-text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.quick-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+}
+
+.quick-login-tip {
+    margin-top: 16px;
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+}
+
+.quick-login-tip strong {
+    color: var(--color-primary);
+}

@@ -17,20 +17,15 @@ export class SessionService {
     private readonly mapService: MapService,
   ) {}
 
-  async challenge(challengerId: string, targetId: string) {
-    if (challengerId === targetId) {
+  async challenge(challengerId: string, targetId?: string) {
+    if (targetId && challengerId === targetId) {
       throw new BadRequestException('Impossible de se défier soi-même');
-    }
-
-    const target = await this.prisma.player.findUnique({ where: { id: targetId } });
-    if (!target) {
-      throw new NotFoundException('Joueur cible introuvable');
     }
 
     const session = await this.prisma.combatSession.create({
       data: {
         player1Id: challengerId,
-        player2Id: targetId,
+        player2Id: targetId || null,
         status: 'WAITING',
       },
     });
@@ -38,8 +33,23 @@ export class SessionService {
     return session;
   }
 
-  async accept(sessionId: string) {
-    const session = await this.prisma.combatSession.findUnique({
+  async getRooms() {
+    return this.prisma.combatSession.findMany({
+        where: { 
+            status: 'WAITING',
+            player2Id: null 
+        },
+        include: {
+            player1: {
+                select: { username: true }
+            }
+        },
+        orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async accept(sessionId: string, player2Id?: string) {
+    let session = await this.prisma.combatSession.findUnique({
       where: { id: sessionId },
     });
 
@@ -50,6 +60,20 @@ export class SessionService {
     if (session.status !== 'WAITING') {
       throw new BadRequestException('Cette session ne peut plus être acceptée');
     }
+
+    // Si la session n'a pas de player2, le joueur qui accepte devient le player2
+    if (!session.player2Id) {
+        if (!player2Id) throw new BadRequestException('ID du joueur 2 manquant');
+        if (session.player1Id === player2Id) throw new BadRequestException('Impossible de rejoindre sa propre room');
+        
+        session = await this.prisma.combatSession.update({
+            where: { id: sessionId },
+            data: { player2Id }
+        });
+    }
+
+    // Sécurité: vérifier que player2Id est maintenant bien présent
+    if (!session.player2Id) throw new Error('Échec de liaison du joueur 2');
 
     // Récupérer les stats effectives des joueurs
     const statsP1 = await this.playerStatsService.getEffectiveStats(session.player1Id);
@@ -72,8 +96,9 @@ export class SessionService {
     console.log(`[SessionService] Spells P1:`, spellsP1.map(s => s.name));
     console.log(`[SessionService] Spells P2:`, spellsP2.map(s => s.name));
 
-    // Générer la carte (snapshot)
-    const tiles = this.mapService.generateCombatMap();
+    // Récupérer les données de profil (pour le username)
+    const p1 = await this.prisma.player.findUnique({ where: { id: session.player1Id } });
+    const p2 = await this.prisma.player.findUnique({ where: { id: session.player2Id } });
 
     const initialState: CombatState = {
       sessionId,
@@ -82,6 +107,7 @@ export class SessionService {
       players: {
         [session.player1Id]: {
           playerId: session.player1Id,
+          username: p1?.username || 'Joueur 1',
           stats: statsP1,
           currentVit: statsP1.vit,
           position: { x: 1, y: 1 },
@@ -92,9 +118,10 @@ export class SessionService {
         },
         [session.player2Id]: {
           playerId: session.player2Id,
+          username: p2?.username || 'Joueur 2',
           stats: statsP2,
           currentVit: statsP2.vit,
-          position: { x: 18, y: 18 },
+          position: { x: 8, y: 8 },
           spells: spellsP2,
           remainingPa: statsP2.pa,
           remainingPm: statsP2.pm,
@@ -102,9 +129,9 @@ export class SessionService {
         },
       },
       map: {
-        width: 20,
-        height: 20,
-        tiles,
+        width: 10,
+        height: 10,
+        tiles: this.mapService.generateCombatMap(10, 10),
       },
     };
 

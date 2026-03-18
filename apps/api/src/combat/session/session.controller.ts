@@ -17,6 +17,16 @@ export class SessionController {
     return this.sessionService.startTestCombat(req.user.id);
   }
 
+  @Get('rooms')
+  async getRooms() {
+    return this.sessionService.getRooms();
+  }
+
+  @Post('challenge')
+  async createRoom(@Request() req: { user: { id: string } }) {
+    return this.sessionService.challenge(req.user.id);
+  }
+
   @Post('challenge/:targetId')
   async challenge(
     @Param('targetId') targetId: string,
@@ -26,8 +36,11 @@ export class SessionController {
   }
 
   @Post('accept/:sessionId')
-  async accept(@Param('sessionId') sessionId: string) {
-    return this.sessionService.accept(sessionId);
+  async accept(
+    @Param('sessionId') sessionId: string,
+    @Request() req: { user: { id: string } },
+  ) {
+    return this.sessionService.accept(sessionId, req.user.id);
   }
 
   @Get('session/:id')

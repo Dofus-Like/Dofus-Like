@@ -32,6 +32,7 @@ export interface Tile {
 
 export interface CombatPlayer {
   playerId: string;
+  username: string;
   stats: PlayerStats;
   position: CombatPosition;
   spells: SpellDefinition[];

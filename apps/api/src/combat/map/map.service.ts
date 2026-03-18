@@ -6,9 +6,9 @@ import { canMoveTo } from '@game/game-engine';
 export class MapService {
   /**
    * Génère une carte de combat (snapshot simplifié pour l'instant).
-   * 20x20 par défaut comme dans le GDD.
+   * 10x10 par défaut.
    */
-  generateCombatMap(width = 20, height = 20): Tile[] {
+  generateCombatMap(width = 10, height = 10): Tile[] {
     const tiles: Tile[] = [];
     
     for (let y = 0; y < height; y++) {

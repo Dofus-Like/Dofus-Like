@@ -460,8 +460,11 @@ export function CombatMapScene({ sessionId }: { sessionId: string }) {
 
   return (
     <group>
-      <gridHelper args={[20, 20, '#444444', '#222222']} position={[9.5, -0.01, 9.5]} />
-      <color attach="background" args={['#0f172a']} />
+      <color attach="background" args={['#3f3f46']} />
+      <gridHelper 
+        args={[combatState.map.width, combatState.map.width, '#ffffff', '#888888']} 
+        position={[combatState.map.width / 2 - 0.5, -0.01, combatState.map.height / 2 - 0.5]} 
+      />
       
       {combatState.map.tiles.map((tile) => {
         let isReachable = false;
@@ -506,7 +509,7 @@ export function CombatMapScene({ sessionId }: { sessionId: string }) {
           gridPosition={p.position}
           color={p.playerId === user?.id ? '#6366f1' : '#f59e0b'}
           isCurrent={combatState.currentTurnPlayerId === p.playerId}
-          name={p.playerId === user?.id ? 'Vous (Warrior)' : 'Adversaire (Mage)'}
+          name={p.playerId === user?.id ? `Vous (${p.username})` : p.username}
           path={playerPaths[p.playerId]}
           onPathComplete={() => setPlayerPaths(prev => {
               const next = { ...prev };

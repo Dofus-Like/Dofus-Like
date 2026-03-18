@@ -91,6 +91,51 @@ export function LoginPage() {
             {isRegister ? 'Créer un compte' : 'Se connecter'}
           </button>
         </form>
+
+        {!isRegister && (
+            <div className="quick-login">
+                <p className="quick-login-title">⚡ Test: Connexion Rapide</p>
+                <div className="quick-login-buttons">
+                    <button 
+                        type="button"
+                        className="quick-btn warrior"
+                        onClick={async () => {
+                            try {
+                                const res = await authApi.login({ email: 'warrior@test.com', password: 'password123' });
+                                setToken(res.data.accessToken);
+                                const me = await authApi.getMe();
+                                setPlayer(me.data);
+                                navigate('/');
+                            } catch (e) { 
+                                console.error('Quick login error:', e);
+                                setError('Seed non effectuée ou API hors ligne ?'); 
+                            }
+                        }}
+                    >
+                        🛡️ Warrior
+                    </button>
+                    <button 
+                        type="button"
+                        className="quick-btn mage"
+                        onClick={async () => {
+                            try {
+                                const res = await authApi.login({ email: 'mage@test.com', password: 'password123' });
+                                setToken(res.data.accessToken);
+                                const me = await authApi.getMe();
+                                setPlayer(me.data);
+                                navigate('/');
+                            } catch (e) { 
+                                console.error('Quick login error:', e);
+                                setError('Seed non effectuée ou API hors ligne ?'); 
+                            }
+                        }}
+                    >
+                        🧙 Mage
+                    </button>
+                </div>
+                <p className="quick-login-tip">💡 Pour jouer à deux, utilisez un <strong>onglet navigation privée</strong> pour la 2ème instance.</p>
+            </div>
+        )}
       </div>
     </div>
   );

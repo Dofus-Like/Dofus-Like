@@ -50,12 +50,13 @@ export function CombatPage() {
           />
           <MapControls 
             enableRotate={false} 
-            target={[10, 0, 10]} 
-            minZoom={10} 
+            target={[5, 0, 5]} 
+            minZoom={20} 
             maxZoom={100} 
           />
-          <ambientLight intensity={0.8} />
-          <directionalLight position={[10, 20, 10]} intensity={1.2} castShadow />
+          <ambientLight intensity={1.0} />
+          <hemisphereLight intensity={0.6} groundColor="#27272a" />
+          <directionalLight position={[10, 25, 10]} intensity={1.5} castShadow />
           <CombatMapScene sessionId={sessionId} />
         </Canvas>
 

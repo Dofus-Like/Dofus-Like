@@ -2,6 +2,8 @@ import { apiClient } from './client';
 import { CombatAction } from '@game/shared-types';
 
 export const combatApi = {
+  getRooms: () => apiClient.get('/combat/rooms'),
+  createRoom: () => apiClient.post('/combat/challenge'),
   challengePlayer: (targetId: string) => apiClient.post(`/combat/challenge/${targetId}`),
   acceptChallenge: (sessionId: string) => apiClient.post(`/combat/accept/${sessionId}`),
   playAction: (sessionId: string, action: CombatAction) =>

@@ -39,8 +39,8 @@ Utilisez ces comptes pré-configurés pour tester le jeu immédiatement :
 
 | Archétype | Email | Mot de passe |
 | :--- | :--- | :--- |
-| **🛡️ Warrior** | `warrior@test.com` | `password` |
-| **🧙 Mage** | `mage@test.com` | `password` |
+| **🛡️ Warrior** | `warrior@test.com` | `password123` |
+| **🧙 Mage** | `mage@test.com` | `password123` |
 
 > [!TIP]
 > Pour tester un combat, connectez-vous avec le **Warrior** dans un onglet et le **Mage** dans un autre (navigation privée). Le Warrior peut alors défier le Mage via le lobby.

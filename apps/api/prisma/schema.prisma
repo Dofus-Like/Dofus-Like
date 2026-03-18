@@ -108,10 +108,10 @@ model CombatSession {
   id        String        @id @default(uuid())
   status    SessionStatus @default(WAITING)
   player1Id String
-  player2Id String
+  player2Id String?
   winnerId  String?
   player1   Player        @relation("Player1", fields: [player1Id], references: [id])
-  player2   Player        @relation("Player2", fields: [player2Id], references: [id])
+  player2   Player?       @relation("Player2", fields: [player2Id], references: [id])
   turns     CombatTurn[]
   createdAt DateTime      @default(now())
   endedAt   DateTime?
