@@ -6,21 +6,28 @@ export interface CombatPosition {
   y: number;
 }
 
+export enum SpellType {
+  DAMAGE = 'DAMAGE',
+  HEAL = 'HEAL',
+  BUFF = 'BUFF',
+}
+
+export enum SpellVisualType {
+  PHYSICAL = 'PHYSICAL',
+  PROJECTILE = 'PROJECTILE',
+  UTILITY = 'UTILITY',
+}
+
 export interface SpellDefinition {
   id: string;
   name: string;
-  paCost: number;     // Renamed from apCost
+  paCost: number;     
   minRange: number;
   maxRange: number;
   damage: { min: number; max: number };
   cooldown: number;
   type: SpellType;
-}
-
-export enum SpellType {
-  DAMAGE = 'DAMAGE',
-  HEAL = 'HEAL',
-  BUFF = 'BUFF',
+  visualType: SpellVisualType;
 }
 
 

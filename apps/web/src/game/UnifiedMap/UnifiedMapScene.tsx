@@ -4,7 +4,7 @@ import { TerrainType, CombatActionType, findPath, GameMap, PathNode, TERRAIN_PRO
 import { useThree, ThreeEvent, useFrame } from '@react-three/fiber';
 import { TerrainTile, TerrainTileProps } from '../ResourceMap/TerrainTile';
 import { TileHoverEffect } from '../ResourceMap/TileHoverEffect';
-import { PlayerPawn } from '../ResourceMap/PlayerPawn';
+import { PlayerPawn, PlayerPawnHandle } from '../ResourceMap/PlayerPawn';
 import { PathPreview } from '../ResourceMap/PathPreview';
 import { CombatHighlightsLayer } from './CombatHighlights';
 import { SpellVFX } from './overlays/SpellVFX';
@@ -61,6 +61,34 @@ export const UnifiedMapScene = React.memo(({
 
   const { raycaster, mouse, camera, scene } = useThree();
   const lastRaycastTimeRef = useRef<number>(0);
+  
+  // Dictionnaire de refs pour les personnages
+  const pawnRefs = useRef(new Map<string, PlayerPawnHandle>());
+  const lastSpellCast = useCombatStore((s) => s.lastSpellCast);
+
+  // Écouter les lancers de sorts pour animer les persos
+  useEffect(() => {
+    if (lastSpellCast) {
+        // 1. Animer le perso (Attaque)
+        if (pawnRefs.current.has(lastSpellCast.casterId)) {
+            console.log('Triggering attack animation for:', lastSpellCast.casterId);
+            pawnRefs.current.get(lastSpellCast.casterId)?.triggerAttack();
+        }
+
+        // 2. Déclencher le projectile si PROJECTILE
+        if (lastSpellCast.visualType === 'PROJECTILE') {
+            const caster = combatState?.players[lastSpellCast.casterId];
+            if (caster) {
+              setVfx((prev: any) => [...prev, {
+                  id: `vfx-${Date.now()}-${Math.random()}`,
+                  type: lastSpellCast.spellId.includes('kunai') ? 'spell-kunai' : 'spell-fireball',
+                  from: caster.position,
+                  to: { x: lastSpellCast.targetX, y: lastSpellCast.targetY }
+              }]);
+            }
+        }
+    }
+  }, [lastSpellCast]);
 
   const gameMap = useMemo(() => {
     if (mode === 'farming') return map;
@@ -150,8 +178,29 @@ export const UnifiedMapScene = React.memo(({
         ]);
       }
     };
+
+    const healHandler = (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      const player = combatState.players[data.targetId];
+      const gridSize = combatState.map.width;
+      if (player) {
+        setPopups((prev) => [
+          ...prev,
+          {
+            id: Math.random().toString(),
+            pos: [player.position.x - gridSize / 2 + 0.5, 0.5, player.position.y - gridSize / 2 + 0.5],
+            val: -data.heal, // négatif pour couleur verte
+          },
+        ]);
+      }
+    };
+
     sseConnection.addEventListener('DAMAGE_DEALT', damageHandler);
-    return () => sseConnection.removeEventListener('DAMAGE_DEALT', damageHandler);
+    sseConnection.addEventListener('HEAL_DEALT', healHandler);
+    return () => {
+      sseConnection.removeEventListener('DAMAGE_DEALT', damageHandler);
+      sseConnection.removeEventListener('HEAL_DEALT', healHandler);
+    };
   }, [mode, sseConnection, combatState]);
 
   useEffect(() => {
@@ -281,15 +330,6 @@ export const UnifiedMapScene = React.memo(({
       try {
         let res;
         if (selectedSpellId) {
-          setVfx((prev) => [
-            ...prev,
-            {
-              id: Math.random().toString(),
-              type: selectedSpellId,
-              from: { x: currentPlayer.position.x - activeMap!.width / 2 + 0.5, y: currentPlayer.position.y - activeMap!.width / 2 + 0.5 },
-              to: { x: x - activeMap!.width / 2 + 0.5, y: y - activeMap!.width / 2 + 0.5 },
-            },
-          ]);
           res = await combatApi.playAction(sessionId, { type: CombatActionType.CAST_SPELL, spellId: selectedSpellId, targetX: x, targetY: y });
           setSelectedSpell(null);
         } else {
@@ -388,6 +428,7 @@ export const UnifiedMapScene = React.memo(({
           gridSize={activeMap.width}
           path={movePath || null}
           onPathComplete={onPathComplete || noop}
+          playerData={{ username: user?.username || 'Joueur' } as any}
         />
       );
     }
@@ -397,9 +438,14 @@ export const UnifiedMapScene = React.memo(({
         return (
           <PlayerPawn
             key={p.playerId}
+            ref={(el) => {
+              if (el) pawnRefs.current.set(p.playerId, el);
+              else pawnRefs.current.delete(p.playerId);
+            }}
             gridPosition={pos}
             gridSize={activeMap!.width}
             path={playerPaths[p.playerId] || null}
+            playerData={p}
             onPathComplete={() => {
               setPlayerPaths((prev) => {
                 const next = { ...prev };

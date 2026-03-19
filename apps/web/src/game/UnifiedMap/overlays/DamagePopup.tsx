@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Text } from '@react-three/drei';
+import React, { useState, useRef } from 'react';
+import { Text, Billboard } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 
 interface DamagePopupProps {
   position: [number, number, number];
@@ -8,43 +10,42 @@ interface DamagePopupProps {
 }
 
 export function DamagePopup({ position, value, onComplete }: DamagePopupProps) {
-  const [opacity, setOpacity] = useState(1);
-  const [yOffset, setYOffset] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const textRef = useRef<any>(null);
 
-  useEffect(() => {
-    const start = Date.now();
-    const duration = 1000;
+  useFrame((_, delta) => {
+    if (progress >= 1) {
+      onComplete();
+      return;
+    }
+    // Animation dure 1 seconde
+    const next = progress + delta;
+    setProgress(next);
+  });
 
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - start;
-      const progress = elapsed / duration;
-
-      if (progress >= 1) {
-        clearInterval(interval);
-        onComplete();
-      } else {
-        setOpacity(1 - progress);
-        setYOffset(progress * 1);
-      }
-    }, 16);
-
-    return () => clearInterval(interval);
-  }, [onComplete]);
+  const opacity = 1 - progress;
+  const yOffset = progress * 1.5; // Monte plus haut pour la visibilité
 
   return (
-    <Text
-      position={[position[0], position[1] + yOffset, position[2]]}
-      fontSize={0.5}
-      color="#ef4444"
-      anchorX="center"
-      anchorY="middle"
-      outlineWidth={0.04}
-      outlineColor="black"
-      renderOrder={999}
-      material-depthTest={false}
-    >
-      {value}
-      <meshStandardMaterial opacity={opacity} transparent depthTest={false} />
-    </Text>
+    <Billboard position={[position[0], position[1] + yOffset, position[2]]}>
+      <Text
+        ref={textRef}
+        fontSize={0.8}
+        color={value > 0 ? "#ef4444" : "#22c55e"} // Rouge dégâts, vert soin
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.06}
+        outlineColor="black"
+        renderOrder={1000}
+      >
+        {Math.abs(value)}
+        <meshBasicMaterial 
+           transparent 
+           opacity={opacity} 
+           depthTest={false} 
+           color={value > 0 ? "#ef4444" : "#22c55e"}
+        />
+      </Text>
+    </Billboard>
   );
 }
