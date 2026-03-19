@@ -27,6 +27,12 @@ enum SpellType {
   BUFF
 }
 
+enum SpellVisualType {
+  PHYSICAL
+  PROJECTILE
+  UTILITY
+}
+
 enum SessionStatus {
   WAITING
   ACTIVE
@@ -93,9 +99,10 @@ model Spell {
   maxRange  Int           @default(3)
   damageMin Int           @default(10)
   damageMax Int           @default(20)
-  cooldown  Int           @default(0)
-  type      SpellType     @default(DAMAGE)
-  players   PlayerSpell[]
+  cooldown   Int             @default(0)
+  type       SpellType       @default(DAMAGE)
+  visualType SpellVisualType @default(PHYSICAL)
+  players    PlayerSpell[]
 }
 
 model PlayerSpell {

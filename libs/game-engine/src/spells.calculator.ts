@@ -1,4 +1,4 @@
-import { SpellDefinition, SpellType, ItemDefinition, ItemType } from '@game/shared-types';
+import { SpellDefinition, SpellType, SpellVisualType, ItemDefinition, ItemType } from '@game/shared-types';
 
 export function calculatePlayerSpells(items: ItemDefinition[]): SpellDefinition[] {
   const spells: SpellDefinition[] = [];
@@ -44,7 +44,7 @@ export function calculatePlayerSpells(items: ItemDefinition[]): SpellDefinition[
   // Bond
   if (hasEpee && hasBouclier) sources['spell-bond'] += 1;
   if (hasAnneauGuerrier) sources['spell-bond'] += 1;
-  if (hasFullSetGuerrier) sources['spell-bond'] += 1;
+  if (hasFullSetGuerrier) sources['bond'] += 1; // Correction nom interne si nécessaire
 
   // Endurance
   if (hasBouclier) sources['spell-endurance'] += 1;
@@ -103,7 +103,8 @@ function getSpellDefinition(id: string, level: number): SpellDefinition {
         maxRange: 1,
         damage: { min: [10, 15, 22][level - 1], max: [14, 20, 30][level - 1] },
         cooldown: 0,
-        type: SpellType.DAMAGE
+        type: SpellType.DAMAGE,
+        visualType: SpellVisualType.PHYSICAL
       };
     case 'spell-bond':
       return {
@@ -114,7 +115,8 @@ function getSpellDefinition(id: string, level: number): SpellDefinition {
         maxRange: [2, 3, 4][level - 1],
         damage: { min: 0, max: 0 },
         cooldown: [2, 1, 0][level - 1],
-        type: SpellType.BUFF // Mobilité
+        type: SpellType.BUFF,
+        visualType: SpellVisualType.UTILITY
       };
     case 'spell-endurance':
       return {
@@ -125,7 +127,8 @@ function getSpellDefinition(id: string, level: number): SpellDefinition {
         maxRange: 0,
         damage: { min: 0, max: 0 },
         cooldown: [3, 3, 2][level - 1],
-        type: SpellType.BUFF
+        type: SpellType.BUFF,
+        visualType: SpellVisualType.UTILITY
       };
     case 'spell-boule-de-feu':
       return {
@@ -136,7 +139,8 @@ function getSpellDefinition(id: string, level: number): SpellDefinition {
         maxRange: [5, 6, 7][level - 1],
         damage: { min: [12, 18, 25][level - 1], max: [20, 28, 35][level - 1] },
         cooldown: [1, 1, 0][level - 1],
-        type: SpellType.DAMAGE
+        type: SpellType.DAMAGE,
+        visualType: SpellVisualType.PROJECTILE
       };
     case 'spell-kunai':
         return {
@@ -147,7 +151,20 @@ function getSpellDefinition(id: string, level: number): SpellDefinition {
           maxRange: [4, 5, 6][level - 1],
           damage: { min: [8, 12, 16][level - 1], max: [14, 20, 24][level - 1] },
           cooldown: 0,
-          type: SpellType.DAMAGE
+          type: SpellType.DAMAGE,
+          visualType: SpellVisualType.PROJECTILE
+        };
+    case 'spell-soin':
+        return {
+            id,
+            name: 'Soin',
+            paCost: 3,
+            minRange: 0,
+            maxRange: 4,
+            damage: { min: 10, max: 20 },
+            cooldown: 1,
+            type: SpellType.HEAL,
+            visualType: SpellVisualType.UTILITY
         };
     // TODO: Implémenter les autres si nécessaire, mais on a les bases pour le playtest
     default:
@@ -159,7 +176,8 @@ function getSpellDefinition(id: string, level: number): SpellDefinition {
             maxRange: 1,
             damage: { min: 5, max: 10 },
             cooldown: 0,
-            type: SpellType.DAMAGE
+            type: SpellType.DAMAGE,
+            visualType: SpellVisualType.PHYSICAL
         };
   }
 }
