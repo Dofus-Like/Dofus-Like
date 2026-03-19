@@ -5,8 +5,9 @@ import { inventoryApi } from '../api/inventory.api';
 import { equipmentApi } from '../api/equipment.api';
 import { playerApi } from '../api/player.api';
 import { Mannequin } from '../components/Mannequin';
-import { EquipmentSlotType, InventoryItem } from '@game/shared-types';
+import { EquipmentSlotType, InventoryItem, ItemType } from '@game/shared-types';
 import './InventoryPage.css';
+
 
 export function InventoryPage() {
   const navigate = useNavigate();
@@ -50,6 +51,31 @@ export function InventoryPage() {
     e.dataTransfer.setData('inventoryItemId', id);
   };
 
+  const handleDoubleClick = (inv: InventoryItem) => {
+    const type = inv.item.type;
+    let targetSlot: EquipmentSlotType | null = null;
+
+    if (type === ItemType.WEAPON) {
+      // Priorité à droite si vide, sinon gauche (écrase gauche si les deux sont pleins)
+      targetSlot = equipment?.data?.WEAPON_RIGHT 
+        ? EquipmentSlotType.WEAPON_LEFT 
+        : EquipmentSlotType.WEAPON_RIGHT;
+    } else if (type === ItemType.ARMOR_HEAD) {
+      targetSlot = EquipmentSlotType.ARMOR_HEAD;
+    } else if (type === ItemType.ARMOR_CHEST) {
+      targetSlot = EquipmentSlotType.ARMOR_CHEST;
+    } else if (type === ItemType.ARMOR_LEGS) {
+      targetSlot = EquipmentSlotType.ARMOR_LEGS;
+    } else if (type === ItemType.ACCESSORY) {
+      targetSlot = EquipmentSlotType.ACCESSORY;
+    }
+
+    if (targetSlot) {
+      equipMutation.mutate({ slot: targetSlot, id: inv.id });
+    }
+  };
+
+
   return (
     <div className="inventory-page">
       <header className="inventory-header">
@@ -58,36 +84,57 @@ export function InventoryPage() {
       </header>
 
       <div className="inventory-main-content">
-        <aside className="mannequin-section">
-          <h3>Personnage</h3>
-          {eqLoading ? (
-            <p>Chargement du mannequin...</p>
-          ) : (
-            <Mannequin 
-              equipment={equipment?.data || {}} 
-              onEquip={(slot, id) => equipMutation.mutate({ slot, id })}
-              onUnequip={(slot) => unequipMutation.mutate(slot)}
-            />
-          )}
-
-          <div className="stats-preview">
-            <h3>Statistiques</h3>
+        <aside className="hero-section">
+          <div className="stats-column main-stats">
+            <h3>Stats</h3>
             {statsLoading ? (
-              <p>Calcul...</p>
+              <p>...</p>
             ) : (
-              <div className="stats-grid">
-                <div className="stat-row"><span>VIT</span> <span>{stats?.data.vit}</span></div>
-                <div className="stat-row"><span>ATK</span> <span>{stats?.data.atk}</span></div>
-                <div className="stat-row"><span>MAG</span> <span>{stats?.data.mag}</span></div>
-                <div className="stat-row"><span>DEF</span> <span>{stats?.data.def}</span></div>
-                <div className="stat-row"><span>RES</span> <span>{stats?.data.res}</span></div>
-                <div className="stat-row"><span>INI</span> <span>{stats?.data.ini}</span></div>
-                <div className="stat-row"><span>PA</span> <span className="stat-pa">{stats?.data.pa}</span></div>
-                <div className="stat-row"><span>PM</span> <span className="stat-pm">{stats?.data.pm}</span></div>
+              <div className="stats-vertical-list">
+                {(
+                  [
+                    { label: 'VIT', current: stats?.data.vit ?? 100, base: stats?.data.baseVit ?? 100 },
+                    { label: 'ATK', current: stats?.data.atk ?? 0, base: stats?.data.baseAtk ?? 0 },
+                    { label: 'MAG', current: stats?.data.mag ?? 0, base: stats?.data.baseMag ?? 0 },
+                    { label: 'DEF', current: stats?.data.def ?? 0, base: stats?.data.baseDef ?? 0 },
+                    { label: 'RES', current: stats?.data.res ?? 0, base: stats?.data.baseRes ?? 0 },
+                    { label: 'INI', current: stats?.data.ini ?? 0, base: stats?.data.baseIni ?? 0 },
+                    { label: 'PA', current: stats?.data.pa ?? 6, base: stats?.data.basePa ?? 6, className: 'stat-pa' },
+                    { label: 'PM', current: stats?.data.pm ?? 3, base: stats?.data.basePm ?? 3, className: 'stat-pm' },
+                  ] as { label: string; current: number; base: number; className?: string }[]
+                ).map((stat) => (
+
+                  <div key={stat.label} className="stat-item">
+                    <span>{stat.label}</span>
+                    <div className="stat-value-container">
+                      <strong className={stat.className || ''}>{stat.current}</strong>
+                      {stat.current !== stat.base && (
+                        <span className="stat-delta">
+                          {stat.current > stat.base ? `(+${stat.current - stat.base})` : `(${stat.current - stat.base})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
+
+          <div className="mannequin-container">
+            {eqLoading ? (
+              <p>Chargement...</p>
+            ) : (
+              <Mannequin 
+                equipment={equipment?.data || {}} 
+                onEquip={(slot, id) => equipMutation.mutate({ slot, id })}
+                onUnequip={(slot) => unequipMutation.mutate(slot)}
+              />
+            )}
+          </div>
         </aside>
+
+
+
 
         <main className="inventory-list-section">
           <h3>Inventaire</h3>
@@ -99,7 +146,9 @@ export function InventoryPage() {
                 className="inventory-card"
                 draggable
                 onDragStart={(e) => handleDragStart(e, inv.id)}
+                onDoubleClick={() => handleDoubleClick(inv)}
               >
+
                 <div className="item-icon">{inv.item.type[0]}</div>
                 <div className="item-info">
                   <span className="item-name">{inv.item.name}</span>
