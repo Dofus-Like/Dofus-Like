@@ -64,6 +64,10 @@ jobs:
           tags: |
             ${{ env.WEB_IMAGE }}:latest
             ${{ env.WEB_IMAGE }}:${{ github.sha }}
+          # VITE_API_URL est baked dans le bundle au build. /api/v1 est la valeur
+          # de prod : nginx (dans le container web) proxifie /api -> api:3000.
+          build-args: |
+            VITE_API_URL=/api/v1
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
