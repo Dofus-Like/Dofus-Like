@@ -25,12 +25,7 @@ export function CombatPage() {
     authInitialize();
   }, [authInitialize]);
 
-  useEffect(() => {
-    if (controlsRef.current) {
-      controlsRef.current.mouseButtons.left = CameraControlsImpl.ACTION.TRUCK;
-      controlsRef.current.mouseButtons.right = CameraControlsImpl.ACTION.ROTATE;
-    }
-  }, []);
+
 
   useEffect(() => {
     if (sessionId) {
@@ -91,6 +86,8 @@ export function CombatPage() {
             ref={(node) => {
               if (node) {
                 node.addEventListener('rest', onRest);
+                node.mouseButtons.left = CameraControlsImpl.ACTION.NONE;
+                node.mouseButtons.right = CameraControlsImpl.ACTION.TRUCK;
               } else if (controlsRef.current) {
                 controlsRef.current.removeEventListener('rest', onRest);
               }

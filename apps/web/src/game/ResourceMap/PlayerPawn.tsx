@@ -15,7 +15,7 @@ interface PlayerPawnProps {
 }
 
 function toWorld(gx: number, gy: number, gridSize: number): [number, number, number] {
-  return [gx - gridSize / 2, 0, gy - gridSize / 2];
+  return [gx - gridSize / 2 + 0.5, 0, gy - gridSize / 2 + 0.5];
 }
 
 export function PlayerPawn({ gridPosition, gridSize, path, onPathComplete }: PlayerPawnProps) {

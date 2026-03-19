@@ -20,8 +20,8 @@ const HOVER_COLORS: Record<TerrainType, string> = {
 };
 
 export const TileHoverEffect = React.memo(({ x, y, terrain, gridSize }: TileHoverEffectProps) => {
-  const worldX = x - gridSize / 2;
-  const worldZ = y - gridSize / 2;
+  const worldX = x - gridSize / 2 + 0.5;
+  const worldZ = y - gridSize / 2 + 0.5;
   const props = TERRAIN_PROPERTIES[terrain];
   const color = HOVER_COLORS[terrain];
 

@@ -47,6 +47,7 @@ export const UnifiedMapScene = React.memo(({
   const targetPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
   const [visualPositions, setVisualPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [hoveredTile, setHoveredTile] = useState<{ x: number; y: number } | null>(null);
+  const [mapRotation, setMapRotation] = useState(0);
   
   const selectedSpellId = useCombatStore((s) => s.selectedSpellId);
   const setSelectedSpell = useCombatStore((s) => s.setSelectedSpell);
@@ -124,7 +125,7 @@ export const UnifiedMapScene = React.memo(({
           ...prev,
           {
             id: Math.random().toString(),
-            pos: [player.position.x - gridSize / 2, 0.5, player.position.y - gridSize / 2],
+            pos: [player.position.x - gridSize / 2 + 0.5, 0.5, player.position.y - gridSize / 2 + 0.5],
             val: data.damage,
           },
         ]);
@@ -234,8 +235,8 @@ export const UnifiedMapScene = React.memo(({
             {
               id: Math.random().toString(),
               type: selectedSpellId,
-              from: { x: currentPlayer.position.x - activeMap!.width / 2, y: currentPlayer.position.y - activeMap!.width / 2 },
-              to: { x: x - activeMap!.width / 2, y: y - activeMap!.width / 2 },
+              from: { x: currentPlayer.position.x - activeMap!.width / 2 + 0.5, y: currentPlayer.position.y - activeMap!.width / 2 + 0.5 },
+              to: { x: x - activeMap!.width / 2 + 0.5, y: y - activeMap!.width / 2 + 0.5 },
             },
           ]);
           res = await combatApi.playAction(sessionId, { type: CombatActionType.CAST_SPELL, spellId: selectedSpellId, targetX: x, targetY: y });
@@ -277,6 +278,35 @@ export const UnifiedMapScene = React.memo(({
       if (duration < 250) setSelectedSpell(null);
     }
   }, [mode, selectedSpellId, setSelectedSpell]);
+
+  useEffect(() => {
+    let isDragging = false;
+    let prevX = 0;
+    const onDown = (e: PointerEvent) => {
+      if (e.button === 0) {
+        isDragging = true;
+        prevX = e.clientX;
+      }
+    };
+    const onMove = (e: PointerEvent) => {
+      if (isDragging) {
+        const delta = e.clientX - prevX;
+        setMapRotation(r => r + delta * 0.005);
+        prevX = e.clientX;
+      }
+    };
+    const onUp = (e: PointerEvent) => {
+      if (e.button === 0) isDragging = false;
+    };
+    window.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, []);
 
   const tiles = useMemo(() => {
     if (!activeMap) return [];
@@ -366,27 +396,29 @@ export const UnifiedMapScene = React.memo(({
         <meshBasicMaterial transparent opacity={0} />
       </mesh>
       
-      {tiles}
+      <group rotation={[0, mapRotation, 0]}>
+        {tiles}
 
-      {/* Hover Effect Layer (Decoupled) */}
-      {hoveredTile && activeMap && (
-        <TileHoverEffect 
-          x={hoveredTile.x} 
-          y={hoveredTile.y} 
-          terrain={activeMap.grid[hoveredTile.y][hoveredTile.x] as TerrainType} 
-          gridSize={activeMap.width} 
-        />
-      )}
+        {/* Hover Effect Layer (Decoupled) */}
+        {hoveredTile && activeMap && (
+          <TileHoverEffect 
+            x={hoveredTile.x} 
+            y={hoveredTile.y} 
+            terrain={activeMap.grid[hoveredTile.y][hoveredTile.x] as TerrainType} 
+            gridSize={activeMap.width} 
+          />
+        )}
 
-      {mode === 'farming' && previewPath && <PathPreview path={previewPath} gridSize={activeMap.width} />}
-      {mode === 'combat' && <PathPreview path={combatPreviewPath} gridSize={activeMap.width} />}
-      {renderPlayers()}
-      {mode === 'combat' && vfx.map((v) => (
-        <SpellVFX key={v.id} type={v.type} from={v.from} to={v.to} onComplete={() => setVfx((prev: any[]) => prev.filter((x: any) => x.id !== v.id))} />
-      ))}
-      {mode === 'combat' && popups.map((popup) => (
-        <DamagePopup key={popup.id} position={popup.pos} value={popup.val} onComplete={() => setPopups((prev: any[]) => prev.filter((p: any) => p.id !== popup.id))} />
-      ))}
+        {mode === 'farming' && previewPath && !isMoving && <PathPreview path={previewPath} gridSize={activeMap.width} />}
+        {mode === 'combat' && !Object.keys(playerPaths).length && <PathPreview path={combatPreviewPath} gridSize={activeMap.width} />}
+        {renderPlayers()}
+        {mode === 'combat' && vfx.map((v) => (
+          <SpellVFX key={v.id} type={v.type} from={v.from} to={v.to} onComplete={() => setVfx((prev: any[]) => prev.filter((x: any) => x.id !== v.id))} />
+        ))}
+        {mode === 'combat' && popups.map((popup) => (
+          <DamagePopup key={popup.id} position={popup.pos} value={popup.val} onComplete={() => setPopups((prev: any[]) => prev.filter((p: any) => p.id !== popup.id))} />
+        ))}
+      </group>
     </group>
   );
 });

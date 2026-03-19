@@ -99,8 +99,8 @@ export const TerrainTile = React.memo(({ x, y, terrain, gridSize, onTileClick, i
   const colors = TERRAIN_COLORS[terrain];
   const props = TERRAIN_PROPERTIES[terrain];
 
-  const worldX = x - gridSize / 2;
-  const worldZ = y - gridSize / 2;
+  const worldX = x - gridSize / 2 + 0.5;
+  const worldZ = y - gridSize / 2 + 0.5;
   const pos: [number, number, number] = [worldX, 0, worldZ];
 
   const baseColor = props.combatType === CombatTerrainType.HOLE

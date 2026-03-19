@@ -12,8 +12,8 @@ export function PathPreview({ path, gridSize }: PathPreviewProps) {
   return (
     <group>
       {path.map((node, i) => {
-        const wx = node.x - gridSize / 2;
-        const wz = node.y - gridSize / 2;
+        const wx = node.x - gridSize / 2 + 0.5;
+        const wz = node.y - gridSize / 2 + 0.5;
         const isLast = i === path.length - 1;
 
         return (

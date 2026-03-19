@@ -42,7 +42,7 @@ export function FarmingPage() {
 
   const [isCameraMoving, setIsCameraMoving] = useState(false);
   const { map, playerPosition, movePlayer, inventory, fetchState, gatherNode, endPhase, debugRefill } = useFarmingStore();
-  const controlsRef = useRef<CameraControlsImpl>(null);
+
 
   const seedConfig = useMemo(() => {
     if (!map) return null;
@@ -58,13 +58,6 @@ export function FarmingPage() {
   useEffect(() => {
     fetchState();
   }, [fetchState]);
-
-  useEffect(() => {
-    if (controlsRef.current) {
-      controlsRef.current.mouseButtons.left = CameraControlsImpl.ACTION.TRUCK;
-      controlsRef.current.mouseButtons.right = CameraControlsImpl.ACTION.ROTATE;
-    }
-  }, []);
 
   const [controls, setControls] = useState<CameraControlsImpl | null>(null);
 
@@ -94,6 +87,9 @@ export function FarmingPage() {
     controls.addEventListener('controlstart', start);
     controls.addEventListener('controlend', end);
     controls.addEventListener('rest', immediateEnd);
+
+    controls.mouseButtons.left = CameraControlsImpl.ACTION.NONE;
+    controls.mouseButtons.right = CameraControlsImpl.ACTION.TRUCK;
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
