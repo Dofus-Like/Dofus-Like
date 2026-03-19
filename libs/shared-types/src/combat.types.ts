@@ -54,6 +54,7 @@ export enum CombatActionType {
   JUMP = 'JUMP',
   CAST_SPELL = 'CAST_SPELL',
   END_TURN = 'END_TURN',
+  SURRENDER = 'SURRENDER',
 }
 
 export interface CombatAction {
@@ -73,4 +74,5 @@ export interface CombatState {
     height: number;
     tiles: Tile[];
   };
+  winnerId?: string; // Ajout du gagnant
 }

@@ -1,26 +1,14 @@
 .combat-container {
-  display: flex;
-  flex-direction: column;
+  width: 100vw;
   height: 100vh;
-}
-
-.combat-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 24px;
-  background: var(--color-bg-secondary);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.combat-turn {
-  margin-left: auto;
-  color: var(--color-accent);
-  font-weight: 600;
+  overflow: hidden;
+  position: relative;
+  background: #0f172a;
 }
 
 .combat-arena {
-  flex: 1;
+  width: 100%;
+  height: 100%;
   position: relative;
 }
 

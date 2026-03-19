@@ -17,12 +17,14 @@ interface CombatStore {
   isSelectingTarget: boolean;
   logs: CombatLog[];
   lastSpellCast: { casterId: string; spellId: string; visualType: string; targetX: number; targetY: number; timestamp: number } | null;
+  winnerId: string | null;
   
   setCombatState: (state: CombatState) => void;
   setSelectedSpell: (spellId: string | null) => void;
   connectToSession: (sessionId: string) => Promise<void>;
   disconnect: () => void;
   addLog: (message: string, type: CombatLog['type']) => void;
+  surrender: () => Promise<void>;
 }
 
 export const useCombatStore = create<CombatStore>((set, get) => ({
@@ -33,10 +35,11 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   isSelectingTarget: false,
   logs: [],
   lastSpellCast: null,
+  winnerId: null,
 
   setCombatState: (state: CombatState) => {
     console.log('CombatStore: Updating state', state);
-    set({ combatState: { ...state } });
+    set({ combatState: { ...state }, winnerId: state.winnerId || null });
   },
 
   setSelectedSpell: (spellId: string | null) => {
@@ -95,10 +98,12 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
 
     eventSource.addEventListener('COMBAT_ENDED', (event: MessageEvent) => {
         const data = JSON.parse(event.data);
-        const displayName = data.winnerId === get().combatState?.players[Object.keys(get().combatState?.players || {})[0]]?.playerId ? 'Warrior' : 'Mage';
+        const player = get().combatState?.players[data.winnerId];
+        const isMe = data.winnerId === useAuthStore.getState().player?.id;
+        const displayName = player?.username || (isMe ? 'Vous' : 'Adversaire');
+        
         get().addLog(`🏁 Combat fini ! Vainqueur: ${displayName}`, 'victory');
-        alert(`Le combat est fini ! Gagnant: ${displayName}`);
-        get().disconnect();
+        set({ winnerId: data.winnerId });
     });
 
     eventSource.onerror = (err) => {
@@ -113,6 +118,15 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
     if (connection) {
       connection.close();
     }
-    set({ combatState: null, sessionId: null, sseConnection: null, selectedSpellId: null, isSelectingTarget: false, logs: [] });
+    set({ combatState: null, sessionId: null, sseConnection: null, selectedSpellId: null, isSelectingTarget: false, logs: [], winnerId: null });
+  },
+
+  surrender: async () => {
+    const { sessionId, combatState } = get();
+    if (!sessionId || !combatState) return;
+
+    if (window.confirm('Voulez-vous vraiment abandonner ?')) {
+        await combatApi.playAction(sessionId, { type: 'SURRENDER' as any });
+    }
   },
 }));

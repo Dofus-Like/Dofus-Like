@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ParticleTrail } from './ParticleTrail';
@@ -15,8 +15,8 @@ export function SpellVFX({ type, from, to, onComplete }: SpellVFXProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   
   // recalage -4.5 pour correspondre au toWorld des persos (gridSize: 10)
-  const startPos = new THREE.Vector3(from.x - 4.5, 0.8, from.y - 4.5);
-  const endPos = new THREE.Vector3(to.x - 4.5, 0.8, to.y - 4.5);
+  const startPos = useMemo(() => new THREE.Vector3(from.x - 4.5, 0.8, from.y - 4.5), [from.x, from.y]);
+  const endPos = useMemo(() => new THREE.Vector3(to.x - 4.5, 0.8, to.y - 4.5), [to.x, to.y]);
   const [progress, setProgress] = useState(0);
 
   useFrame((_, delta) => {
@@ -24,7 +24,14 @@ export function SpellVFX({ type, from, to, onComplete }: SpellVFXProps) {
       onComplete();
       return;
     }
-    setProgress((p) => Math.min(p + delta * 2.8, 1)); // Légèrement plus rapide
+    
+    // Sécurité anti-crash: si NaN, on termine direct
+    if (isNaN(startPos.x) || isNaN(endPos.x)) {
+      onComplete();
+      return;
+    }
+
+    setProgress((p) => Math.min(p + delta * 2.8, 1));
     if (meshRef.current) {
       meshRef.current.position.lerpVectors(startPos, endPos, progress);
     }

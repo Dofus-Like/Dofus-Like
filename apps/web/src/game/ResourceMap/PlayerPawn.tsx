@@ -15,6 +15,8 @@ interface PlayerPawnProps {
   path: PathNode[] | null;
   onPathComplete: () => void;
   playerData?: CombatPlayer;
+  lookAtPosition?: PathNode | null;
+  isJumping?: boolean;
 }
 
 export type PlayerPawnHandle = {
@@ -26,7 +28,7 @@ function toWorld(gx: number, gy: number, gridSize: number): [number, number, num
 }
 
 export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
-  ({ gridPosition, gridSize, path, onPathComplete, playerData }, ref) => {
+  ({ gridPosition, gridSize, path, onPathComplete, playerData, lookAtPosition, isJumping }, ref) => {
     const groupRef = useRef<THREE.Group>(null);
     const spriteRef = useRef<THREE.Sprite>(null);
     const { camera } = useThree();
@@ -36,7 +38,6 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
     
     const [currentPath, setCurrentPath] = useState<PathNode[]>([]);
     const [pathIndex, setPathIndex] = useState(0);
-    const [shouldFlip, setShouldFlip] = useState(false);
     
     const progressRef = useRef(0);
     const animFrameRef = useRef(0);
@@ -101,15 +102,31 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
 
     useEffect(() => {
       if (path && path.length > 0) {
+        const myWorld = groupRef.current 
+            ? [groupRef.current.position.x, 0, groupRef.current.position.z] as [number, number, number]
+            : toWorld(gridPosition.x, gridPosition.y, gridSize);
+
         setCurrentPath(path);
-        setPathIndex(0);
         setIsMoving(true);
         progressRef.current = 0;
-        const [wx, , wz] = groupRef.current
-          ? [groupRef.current.position.x, 0, groupRef.current.position.z]
-          : toWorld(gridPosition.x, gridPosition.y, gridSize);
-        fromRef.current = [wx, 0, wz];
-        toRef.current = toWorld(path[0].x, path[0].y, gridSize);
+        fromRef.current = myWorld;
+
+        // Chercher la première vraie destination (différente du point actuel)
+        let nextIdx = 0;
+        while(nextIdx < path.length) {
+            const pt = toWorld(path[nextIdx].x, path[nextIdx].y, gridSize);
+            const dSquare = (pt[0]-myWorld[0])**2 + (pt[2]-myWorld[2])**2;
+            if (dSquare > 0.01) break; // Assez loin
+            nextIdx++;
+        }
+
+        if (nextIdx < path.length) {
+            setPathIndex(nextIdx);
+            toRef.current = toWorld(path[nextIdx].x, path[nextIdx].y, gridSize);
+        } else {
+            setIsMoving(false);
+            setPathIndex(0);
+        }
       }
     }, [path]);
 
@@ -152,11 +169,19 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
               groupRef.current.position.lerp(new THREE.Vector3(targetPos[0], 0, targetPos[2]), 0.1);
           }
       } else {
-          progressRef.current += delta * MOVE_SPEED;
+          const nextSpeed = isJumping ? MOVE_SPEED * 1.5 : MOVE_SPEED;
+          progressRef.current += delta * nextSpeed;
           const t = Math.min(progressRef.current, 1);
           const x = THREE.MathUtils.lerp(fromRef.current[0], toRef.current[0], t);
           const z = THREE.MathUtils.lerp(fromRef.current[2], toRef.current[2], t);
-          groupRef.current.position.set(x, 0, z);
+          
+          // Arc de saut si besoin
+          let y = 0;
+          if (isJumping) {
+            y = Math.sin(t * Math.PI) * 3.5;
+          }
+
+          groupRef.current.position.set(x, y, z);
 
           if (t >= 1) {
             const nextIndex = pathIndex + 1;
@@ -175,12 +200,27 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
           }
       }
 
-      // 3. Orientation dynamique
-      if (groupRef.current) {
-          const screenPos = new THREE.Vector3().setFromMatrixPosition(groupRef.current.matrixWorld).project(camera);
-          const isRightScreen = screenPos.x > 0;
+      // 3. Orientation dynamique (Face-à-Face)
+      if (groupRef.current && camera) {
+          const myPos = new THREE.Vector3().setFromMatrixPosition(groupRef.current.matrixWorld);
+          const myScreen = myPos.clone().project(camera);
+
+          // Cible (adversaire ou centre si solo)
+          let targetX = 0; 
+          if (lookAtPosition) {
+             const targetWorld = toWorld(lookAtPosition.x, lookAtPosition.y, gridSize);
+             const targetScreen = new THREE.Vector3(targetWorld[0], 0, targetWorld[2]).project(camera);
+             targetX = targetScreen.x;
+          }
+
+          const isTargetAtRight = targetX > myScreen.x;
           const isOrc = spriteType === 'orc';
-          setShouldFlip(isOrc ? isRightScreen : !isRightScreen);
+          
+          // L'orc regarde par défaut à gauche, le guerrier à droite
+          const finalFlip = isOrc ? isTargetAtRight : !isTargetAtRight;
+          if (spriteRef.current) {
+            spriteRef.current.scale.x = finalFlip ? -6.0 : 6.0;
+          }
       }
     });
 
@@ -196,7 +236,7 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
         <sprite 
           ref={spriteRef} 
           position={[0, 0.45, 0]} 
-          scale={[shouldFlip ? -6.0 : 6.0, 6.0, 1]}
+          scale={[6, 6, 1]}
         >
           <spriteMaterial 
               map={textureIdle} 

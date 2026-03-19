@@ -62,16 +62,6 @@ export function CombatPage() {
 
   return (
     <div className="combat-container">
-      <header className="combat-header">
-        <button className="back-button" onClick={() => navigate('/')}>
-          ← Quitter
-        </button>
-        <h2>⚔️ Combat</h2>
-        {combatState && (
-          <span className="combat-turn">Tour {combatState.turnNumber}</span>
-        )}
-      </header>
-
       {!combatState && (
         <div className="combat-overlay">
           <div className="loading-spinner"></div>
