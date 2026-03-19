@@ -98,7 +98,7 @@ function getSpellDefinition(id: string, level: number): SpellDefinition {
       return {
         id,
         name: 'Épée',
-        paCost: 3,
+        paCost: 1,
         minRange: 1,
         maxRange: 1,
         damage: { min: [10, 15, 22][level - 1], max: [14, 20, 30][level - 1] },
@@ -134,7 +134,7 @@ function getSpellDefinition(id: string, level: number): SpellDefinition {
       return {
         id,
         name: 'Boule de Feu',
-        paCost: 4,
+        paCost: 1,
         minRange: 1,
         maxRange: [5, 6, 7][level - 1],
         damage: { min: [12, 18, 25][level - 1], max: [20, 28, 35][level - 1] },
