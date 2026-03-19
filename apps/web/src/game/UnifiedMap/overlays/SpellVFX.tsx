@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ParticleTrail } from './ParticleTrail';
+import { FireballParticles } from './FireballVFX';
 
 interface SpellVFXProps {
   type: string;
@@ -12,8 +13,10 @@ interface SpellVFXProps {
 
 export function SpellVFX({ type, from, to, onComplete }: SpellVFXProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const startPos = new THREE.Vector3(from.x, 1, from.y);
-  const endPos = new THREE.Vector3(to.x, 1, to.y);
+  
+  // recalage -4.5 pour correspondre au toWorld des persos (gridSize: 10)
+  const startPos = new THREE.Vector3(from.x - 4.5, 0.8, from.y - 4.5);
+  const endPos = new THREE.Vector3(to.x - 4.5, 0.8, to.y - 4.5);
   const [progress, setProgress] = useState(0);
 
   useFrame((_, delta) => {
@@ -21,26 +24,28 @@ export function SpellVFX({ type, from, to, onComplete }: SpellVFXProps) {
       onComplete();
       return;
     }
-    setProgress((p) => Math.min(p + delta * 2.5, 1));
+    setProgress((p) => Math.min(p + delta * 2.8, 1)); // Légèrement plus rapide
     if (meshRef.current) {
       meshRef.current.position.lerpVectors(startPos, endPos, progress);
-      if (type === 'Épée' || type === 'spell-frappe') {
-        meshRef.current.rotation.z = progress * Math.PI * 2;
-      }
     }
   });
 
-  if (type === 'Boule de Feu' || type === 'spell-fireball') {
+  if (type === 'Boule de Feu' || type === 'spell-fireball' || type === 'spell-frappe' || type === 'spell-kunai') {
+    const isFire = type.includes('fire') || type.includes('Boule');
+    
     return (
       <group>
         <mesh ref={meshRef}>
-          <sphereGeometry args={[0.3, 16, 16]} />
-          <meshStandardMaterial color="#f97316" emissive="#ea580c" emissiveIntensity={2} />
-          <pointLight color="#f97316" intensity={2} distance={3} />
+          <sphereGeometry args={[isFire ? 0.35 : 0.2, 16, 16]} />
+          <meshStandardMaterial 
+             color={isFire ? "#ff0000" : "#94a3b8"} 
+             emissive={isFire ? "#cc0000" : "#64748b"} 
+             emissiveIntensity={isFire ? 8 : 2} 
+          />
+          {isFire && <pointLight color="#ff0000" intensity={5} distance={5} decay={2} />}
+          {isFire && <FireballParticles count={45} />}
+          {!isFire && <ParticleTrail position={new THREE.Vector3(0,0,0)} color="#cbd5e1" count={15} spread={0.3} />}
         </mesh>
-        {meshRef.current && (
-          <ParticleTrail position={meshRef.current.position} color="#f97316" count={30} spread={0.6} />
-        )}
       </group>
     );
   }
@@ -59,22 +64,10 @@ export function SpellVFX({ type, from, to, onComplete }: SpellVFXProps) {
           />
           <pointLight color="#22c55e" intensity={1.5} distance={2} />
         </mesh>
-        {meshRef.current && (
-          <ParticleTrail position={meshRef.current.position} color="#86efac" count={40} spread={0.8} />
-        )}
+        <ParticleTrail position={new THREE.Vector3(0,0,0)} color="#86efac" count={40} spread={0.8} />
       </group>
     );
   }
 
-  return (
-    <group>
-      <mesh ref={meshRef}>
-        <boxGeometry args={[0.1, 0.8, 0.2]} />
-        <meshStandardMaterial color="#e2e8f0" emissive="#94a3b8" />
-      </mesh>
-      {meshRef.current && (
-        <ParticleTrail position={meshRef.current.position} color="#cbd5e1" count={15} spread={0.3} />
-      )}
-    </group>
-  );
+  return null;
 }

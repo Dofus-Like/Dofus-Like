@@ -16,6 +16,7 @@ interface CombatStore {
   selectedSpellId: string | null;
   isSelectingTarget: boolean;
   logs: CombatLog[];
+  lastSpellCast: { casterId: string; spellId: string; visualType: string; targetX: number; targetY: number; timestamp: number } | null;
   
   setCombatState: (state: CombatState) => void;
   setSelectedSpell: (spellId: string | null) => void;
@@ -31,10 +32,11 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   selectedSpellId: null,
   isSelectingTarget: false,
   logs: [],
+  lastSpellCast: null,
 
   setCombatState: (state: CombatState) => {
     console.log('CombatStore: Updating state', state);
-    set({ combatState: { ...state } }); // Clone to ensure reference change
+    set({ combatState: { ...state } });
   },
 
   setSelectedSpell: (spellId: string | null) => {
@@ -52,7 +54,6 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       existing.close();
     }
 
-    // Fetch initial state
     try {
         const response = await combatApi.getState(sessionId);
         set({ combatState: response.data, logs: [] });
@@ -69,6 +70,12 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
         const data = JSON.parse(event.data);
         console.log('State received via SSE:', data);
         set({ combatState: data });
+    });
+
+    eventSource.addEventListener('SPELL_CAST', (event: MessageEvent) => {
+        const data = JSON.parse(event.data);
+        console.log('Spell cast received:', data);
+        set({ lastSpellCast: { ...data, timestamp: Date.now() } });
     });
 
     eventSource.addEventListener('TURN_STARTED', (event: MessageEvent) => {

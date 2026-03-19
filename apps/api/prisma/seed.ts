@@ -1,4 +1,4 @@
-import { PrismaClient, ItemType, SpellType } from '@prisma/client';
+import { PrismaClient, ItemType, SpellType, SpellVisualType } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -16,7 +16,8 @@ async function main() {
   await prisma.item.deleteMany();
   await prisma.spell.deleteMany();
 
-  // Sorts de base
+  // ── Sorts de base ──────────────────────────────────────────────────
+
   const fireball = await prisma.spell.create({
     data: {
       name: 'Boule de Feu',
@@ -27,6 +28,49 @@ async function main() {
       damageMax: 25,
       cooldown: 1,
       type: SpellType.DAMAGE,
+      visualType: SpellVisualType.PROJECTILE,
+    },
+  });
+
+  const kunaiSpell = await prisma.spell.create({
+    data: {
+      name: 'Kunai',
+      paCost: 3,
+      minRange: 2,
+      maxRange: 4,
+      damageMin: 10,
+      damageMax: 18,
+      cooldown: 0,
+      type: SpellType.DAMAGE,
+      visualType: SpellVisualType.PROJECTILE,
+    },
+  });
+
+  const heal = await prisma.spell.create({
+    data: {
+      name: 'Soin',
+      paCost: 3,
+      minRange: 0,
+      maxRange: 4,
+      damageMin: -10,
+      damageMax: -20,
+      cooldown: 1,
+      type: SpellType.HEAL,
+      visualType: SpellVisualType.UTILITY,
+    },
+  });
+
+  const frappe = await prisma.spell.create({
+    data: {
+      name: 'Frappe',
+      paCost: 3,
+      minRange: 1,
+      maxRange: 1,
+      damageMin: 12,
+      damageMax: 22,
+      cooldown: 0,
+      type: SpellType.DAMAGE,
+      visualType: SpellVisualType.PHYSICAL,
     },
   });
 
@@ -317,7 +361,12 @@ async function main() {
           { itemId: anneauGuerrier.id, quantity: 1 },
         ],
       },
-
+      spells: {
+        create: [
+          { spellId: frappe.id },
+          { spellId: kunaiSpell.id },
+        ]
+      }
     },
   });
 
@@ -353,6 +402,12 @@ async function main() {
           { itemId: baton.id, quantity: 1 },
         ],
       },
+      spells: {
+        create: [
+          { spellId: fireball.id },
+          { spellId: heal.id },
+        ]
+      }
     },
   });
 

@@ -186,6 +186,15 @@ export class TurnService {
 
     player.remainingPa -= spell.paCost;
 
+    // Émettre l'événement de sort pour l'animation
+    this.sse.emit(state.sessionId, 'SPELL_CAST', {
+        casterId: playerId,
+        spellId: spell.id,
+        visualType: spell.visualType, // On passe l'info visuelle !
+        targetX: action.targetX,
+        targetY: action.targetY
+    });
+
     return state;
   }
 
@@ -210,6 +219,12 @@ export class TurnService {
     const heal = calculateHeal(spell, attackerStats);
     targetPlayer.currentVit = Math.min(targetPlayer.stats.vit, targetPlayer.currentVit + heal);
     
+    this.sse.emit(state.sessionId, 'HEAL_DEALT', {
+        targetId: targetPlayer.playerId,
+        heal,
+        remainingVit: targetPlayer.currentVit
+    });
+
     this.sse.emit(state.sessionId, 'STATE_UPDATED', state);
   }
 
