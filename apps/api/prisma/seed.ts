@@ -77,8 +77,9 @@ async function main() {
   // ── Ressources ──────────────────────────────────────────────────
 
   const fer = await prisma.item.create({
-    data: { name: 'Fer', type: ItemType.RESOURCE },
+    data: { name: 'Fer', type: ItemType.RESOURCE, description: 'Un morceau de métal qui sent le vieux clou.' },
   });
+
   const cuir = await prisma.item.create({
     data: { name: 'Cuir', type: ItemType.RESOURCE },
   });
@@ -104,31 +105,40 @@ async function main() {
     data: {
       name: 'Épée',
       type: ItemType.WEAPON,
+      description: "Tranchante, mais surtout utile pour couper le saucisson.",
       statsBonus: { atk: 5 },
+
       craftCost: { [fer.id]: 2, [cuir.id]: 1 },
       shopPrice: 4,
     },
   });
 
+
   const bouclier = await prisma.item.create({
     data: {
       name: 'Bouclier',
       type: ItemType.WEAPON,
+      description: "Plus efficace qu'une planche en bois, mais moins qu'un mur en briques.",
       statsBonus: { def: 5 },
+
       craftCost: { [fer.id]: 3 },
       shopPrice: 4,
     },
   });
 
+
   const baton = await prisma.item.create({
     data: {
       name: 'Bâton magique',
       type: ItemType.WEAPON,
+      description: "L'extrémité brille quand on pense très fort à du fromage.",
       statsBonus: { mag: 5 },
+
       craftCost: { [cristal.id]: 2, [etoffe.id]: 1 },
       shopPrice: 4,
     },
   });
+
 
   await prisma.item.create({
     data: {
@@ -166,11 +176,14 @@ async function main() {
     data: {
       name: 'Heaume',
       type: ItemType.ARMOR_HEAD,
+      description: "Tellement lourd qu'on oublie de réfléchir avant de charger.",
       statsBonus: { def: 3 },
+
       craftCost: { [fer.id]: 2 },
       shopPrice: 3,
     },
   });
+
 
   await prisma.item.create({
     data: {
@@ -340,16 +353,25 @@ async function main() {
           ini: 10,
           pa: 6,
           pm: 3,
+          baseVit: 100,
+          baseAtk: 5,
+          baseMag: 0,
+          baseDef: 0,
+          baseRes: 0,
+          baseIni: 10,
+          basePa: 6,
+          basePm: 3,
         },
       },
+
       inventory: {
         create: [
-          { itemId: epee.id, quantity: 1, equipped: true },
-          { itemId: bouclier.id, quantity: 1, equipped: true },
-          { itemId: heaume.id, quantity: 1, equipped: true },
-          { itemId: armure.id, quantity: 1, equipped: true },
-          { itemId: bottes.id, quantity: 1, equipped: true },
-          { itemId: anneauGuerrier.id, quantity: 1, equipped: true },
+          { itemId: epee.id, quantity: 1 },
+          { itemId: bouclier.id, quantity: 1 },
+          { itemId: heaume.id, quantity: 1 },
+          { itemId: armure.id, quantity: 1 },
+          { itemId: bottes.id, quantity: 1 },
+          { itemId: anneauGuerrier.id, quantity: 1 },
         ],
       },
       spells: {
@@ -377,11 +399,20 @@ async function main() {
           ini: 12,
           pa: 7,
           pm: 3,
+          baseVit: 80,
+          baseAtk: 2,
+          baseMag: 8,
+          baseDef: 0,
+          baseRes: 2,
+          baseIni: 12,
+          basePa: 7,
+          basePm: 3,
         },
       },
+
       inventory: {
         create: [
-          { itemId: baton.id, quantity: 1, equipped: true },
+          { itemId: baton.id, quantity: 1 },
         ],
       },
       spells: {
