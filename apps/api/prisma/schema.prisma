@@ -3,11 +3,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// binaryTargets : Alpine (node:22-alpine) utilise musl + OpenSSL 3.x.
+// Sans cette declaration, prisma generate defaulte sur openssl-1.1.x
+// et le moteur natif crash au runtime avec "libssl.so.1.1 not found".
 generator client {
   provider      = "prisma-client-js"
-  # Alpine Linux (node:22-alpine) utilise musl + OpenSSL 3.x.
-  # Sans cette declaration, prisma generate defaulte a openssl-1.1.x
-  # et le moteur natif ne peut pas charger libssl.so.1.1 au runtime.
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
