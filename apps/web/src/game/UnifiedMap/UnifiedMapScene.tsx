@@ -388,6 +388,7 @@ export const UnifiedMapScene = React.memo(({
           gridSize={activeMap.width}
           path={movePath || null}
           onPathComplete={onPathComplete || noop}
+          playerData={{ username: user?.username || 'Joueur' } as any}
         />
       );
     }
@@ -400,6 +401,7 @@ export const UnifiedMapScene = React.memo(({
             gridPosition={pos}
             gridSize={activeMap!.width}
             path={playerPaths[p.playerId] || null}
+            playerData={p}
             onPathComplete={() => {
               setPlayerPaths((prev) => {
                 const next = { ...prev };
