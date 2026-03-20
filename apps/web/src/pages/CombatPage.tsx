@@ -9,6 +9,8 @@ import { CombatHUD } from '../game/HUD/CombatHUD';
 import { useCombatStore } from '../store/combat.store';
 import { useAuthStore } from '../store/auth.store';
 import { TerrainType } from '@game/shared-types';
+import { useGameSession } from './GameTunnel';
+import { gameSessionApi } from '../api/game-session.api';
 import './CombatPage.css';
 
 /**
@@ -35,6 +37,7 @@ export function CombatPage() {
   const navigate = useNavigate();
   
   const combatState = useCombatStore((s) => s.combatState);
+  const winnerId = useCombatStore((s) => s.winnerId);
   const connectToSession = useCombatStore((s) => s.connectToSession);
   const disconnect = useCombatStore((s) => s.disconnect);
   const setSelectedSpell = useCombatStore((s) => s.setSelectedSpell);
@@ -44,8 +47,23 @@ export function CombatPage() {
   const [isCameraMoving, setIsCameraMoving] = React.useState(false);
   const controlsRef = React.useRef<CameraControlsImpl>(null);
 
+  const { activeSession, refreshSession } = useGameSession();
   const onRest = React.useCallback(() => setIsCameraMoving(false), []);
   const onStart = React.useCallback(() => setIsCameraMoving(true), []);
+
+  const handleAbandon = React.useCallback(async () => {
+    if (!activeSession) return;
+    const ok = window.confirm("Êtes-vous sûr de vouloir abandonner la partie ? Cela mettra fin au match pour tous les joueurs.");
+    if (!ok) return;
+
+    try {
+      await gameSessionApi.endSession(activeSession.id);
+      await refreshSession({ silent: true });
+      navigate('/');
+    } catch (error) {
+      console.error('Erreur abandon:', error);
+    }
+  }, [activeSession, refreshSession, navigate]);
 
   useEffect(() => {
     authInitialize();
@@ -59,6 +77,37 @@ export function CombatPage() {
       disconnect();
     };
   }, [sessionId, connectToSession, disconnect]);
+
+  const prevGamePhaseRef = React.useRef<string | null>(null);
+
+  // Repli si le SSE game-session arrive en retard : le backend a déjà mis à jour la session
+  useEffect(() => {
+    if (!winnerId) return;
+    void refreshSession({ silent: true });
+  }, [winnerId, refreshSession]);
+
+  // Fin de manche : le serveur repasse la game session en FARMING (manche suivante) → retour farming
+  useEffect(() => {
+    if (!activeSession) {
+      prevGamePhaseRef.current = null;
+      return;
+    }
+    if (activeSession.status === 'FINISHED') {
+      navigate('/', { replace: true });
+      prevGamePhaseRef.current = null;
+      return;
+    }
+    const phase = activeSession.phase;
+    const wasFighting = prevGamePhaseRef.current === 'FIGHTING';
+    const backToFarming =
+      phase === 'FARMING' &&
+      activeSession.status === 'ACTIVE' &&
+      (wasFighting || winnerId != null);
+    if (backToFarming) {
+      navigate('/farming', { replace: true });
+    }
+    prevGamePhaseRef.current = phase ?? null;
+  }, [activeSession, navigate, winnerId]);
 
   // Construire une GameMap fictive à partir de combatState pour UnifiedMapScene
   const gameMap = useMemo(() => {
@@ -86,6 +135,18 @@ export function CombatPage() {
 
   return (
     <div className="combat-page-container">
+      <header className="combat-toolbar">
+        <button type="button" className="combat-toolbar-back" onClick={() => navigate('/')}>
+          ← Quitter
+        </button>
+        <button type="button" className="combat-toolbar-abandon" onClick={handleAbandon}>
+          Abandonner
+        </button>
+        <h2 className="combat-toolbar-title">Combat</h2>
+        {combatState && (
+          <span className="combat-toolbar-turn">Tour {combatState.turnNumber}</span>
+        )}
+      </header>
       {!combatState && (
         <div className="combat-overlay">
           <div className="loading-spinner"></div>

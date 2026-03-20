@@ -6,14 +6,15 @@ import { LoginPage } from './pages/LoginPage';
 import { LobbyPage } from './pages/LobbyPage';
 import { ShopPage } from './pages/ShopPage';
 import { InventoryPage } from './pages/InventoryPage';
-import { CraftingPage } from './pages/CraftingPage';
 import { DebugPage } from './pages/DebugPage';
 import { useAuthStore } from './store/auth.store';
+import { GameSessionProvider, GameTunnelGuard } from './pages/GameTunnel';
 import './styles/global.css';
 
 const queryClient = new QueryClient();
 const FarmingPage = lazy(() => import('./pages/FarmingPage').then((module) => ({ default: module.FarmingPage })));
 const CombatPage = lazy(() => import('./pages/CombatPage').then((module) => ({ default: module.CombatPage })));
+const CraftingPage = lazy(() => import('./pages/CraftingPage').then((module) => ({ default: module.CraftingPage })));
 
 function PageLoader() {
   return <div className="loading-screen">Chargement...</div>;
@@ -46,17 +47,77 @@ root.render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<ProtectedRoute><LobbyPage /></ProtectedRoute>} />
-          <Route path="/farming" element={<ProtectedRoute><LazyPage><FarmingPage /></LazyPage></ProtectedRoute>} />
-          <Route path="/shop" element={<ProtectedRoute><ShopPage /></ProtectedRoute>} />
-          <Route path="/crafting" element={<ProtectedRoute><CraftingPage /></ProtectedRoute>} />
-          <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
-          <Route path="/combat/:sessionId" element={<ProtectedRoute><LazyPage><CombatPage /></LazyPage></ProtectedRoute>} />
-          <Route path="/debug" element={<ProtectedRoute><DebugPage /></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+        <GameSessionProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <GameTunnelGuard>
+                    <LobbyPage />
+                  </GameTunnelGuard>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/farming"
+              element={
+                <ProtectedRoute>
+                  <GameTunnelGuard>
+                    <LazyPage>
+                      <FarmingPage />
+                    </LazyPage>
+                  </GameTunnelGuard>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/shop"
+              element={
+                <ProtectedRoute>
+                  <GameTunnelGuard>
+                    <ShopPage />
+                  </GameTunnelGuard>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/inventory"
+              element={
+                <ProtectedRoute>
+                  <GameTunnelGuard>
+                    <InventoryPage />
+                  </GameTunnelGuard>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/crafting"
+              element={
+                <ProtectedRoute>
+                  <GameTunnelGuard>
+                    <LazyPage>
+                      <CraftingPage />
+                    </LazyPage>
+                  </GameTunnelGuard>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/combat/:sessionId"
+              element={
+                <ProtectedRoute>
+                  <LazyPage>
+                    <CombatPage />
+                  </LazyPage>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/debug" element={<ProtectedRoute><DebugPage /></ProtectedRoute>} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </GameSessionProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,

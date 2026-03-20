@@ -9,6 +9,8 @@ async function main() {
   // Nettoyage (ordre inverse des clés étrangères)
   await prisma.combatTurn.deleteMany();
   await prisma.combatSession.deleteMany();
+  await prisma.sessionItem.deleteMany();
+  await prisma.gameSession.deleteMany();
   await prisma.playerSpell.deleteMany();
   await prisma.inventoryItem.deleteMany();
   await prisma.playerStats.deleteMany();

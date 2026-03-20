@@ -1,13 +1,16 @@
 import { CameraControls, OrthographicCamera } from '@react-three/drei';
 import CameraControlsImpl from 'camera-controls';
 import { Canvas } from '@react-three/fiber';
-import React, { useEffect, useState, useMemo, useCallback, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { FarmingHUD } from '../game/HUD/FarmingHUD';
 import { UnifiedMapScene } from '../game/UnifiedMap/UnifiedMapScene';
 import { useAutoHarvest } from '../game/UnifiedMap/hooks/useAutoHarvest';
 import { useFarmingStore } from '../store/farming.store';
+import { gameSessionApi } from '../api/game-session.api';
+import { useGameSession } from './GameTunnel';
+import { useAuthStore } from '../store/auth.store';
 import {
   TerrainType,
   TERRAIN_PROPERTIES,
@@ -33,6 +36,9 @@ function findSpawnPosition(grid: TerrainType[][]): PathNode {
 
 export function FarmingPage() {
   const navigate = useNavigate();
+  const { player } = useAuthStore();
+  const { activeSession, refreshSession } = useGameSession();
+  const currentPlayerId = player?.id;
   const [hoverInfo, setHoverInfo] = useState<{ x: number; y: number; terrain: TerrainType } | null>(null);
   const [movePath, setMovePath] = useState<PathNode[] | null>(null);
   const [isMoving, setIsMoving] = useState(false);
@@ -233,7 +239,7 @@ export function FarmingPage() {
         if (currentRound > 5) {
           navigate('/lobby'); // Transition vers PvP
         } else {
-          navigate('/crafting'); // Transition vers Shop/Craft
+          navigate(isDebugMode ? '/crafting?debug=true' : '/crafting');
         }
       }
     } catch (e) {
@@ -241,6 +247,71 @@ export function FarmingPage() {
       showActionMessage('Impossible de terminer la manche.', 'error');
     }
   }, [isDebugMode, debugRefill, nextRound, navigate, showActionMessage]);
+
+  const handleStartVsAi = useCallback(async () => {
+    try {
+      await gameSessionApi.startVsAi();
+      await refreshSession({ silent: true });
+      navigate(`/farming`);
+    } catch (error) {
+      console.error('Erreur lancement combat VS AI:', error);
+    }
+  }, [navigate, refreshSession]);
+
+  const handleEndSession = useCallback(async () => {
+    if (!activeSession) return;
+    const ok = window.confirm("Êtes-vous sûr de vouloir abandonner la partie ? Cela mettra fin au match pour tous les joueurs.");
+    if (!ok) return;
+
+    try {
+      await gameSessionApi.endSession(activeSession.id);
+      await refreshSession({ silent: true });
+      navigate('/');
+    } catch (error) {
+      console.error('Erreur fin de session:', error);
+    }
+  }, [activeSession, refreshSession, navigate]);
+
+  const handleToggleReady = useCallback(async () => {
+    if (!activeSession) return;
+    try {
+      const isReady = activeSession.player1Id === currentPlayerId ? activeSession.player1Ready : activeSession.player2Ready;
+      await gameSessionApi.toggleReady(!isReady);
+      await refreshSession({ silent: true });
+    } catch (error) {
+      console.error('Erreur toggle ready:', error);
+    }
+  }, [activeSession, refreshSession, currentPlayerId]);
+
+  const combatListRefreshKey = useRef<string | null>(null);
+  // Si phase FIGHTING mais pas encore de combats (SSE partiel / course), recharger une fois par manche
+  useEffect(() => {
+    if (activeSession?.phase !== 'FIGHTING') {
+      combatListRefreshKey.current = null;
+      return;
+    }
+    const combats = activeSession.combats;
+    if (combats && combats.length > 0) return;
+    const key = `${activeSession.id}-${activeSession.currentRound}`;
+    if (combatListRefreshKey.current === key) return;
+    combatListRefreshKey.current = key;
+    void refreshSession({ silent: true });
+  }, [activeSession?.phase, activeSession?.id, activeSession?.currentRound, activeSession?.combats, refreshSession]);
+
+  // Redirection automatique vers le combat si la phase change
+  useEffect(() => {
+    if (activeSession?.phase === 'FIGHTING') {
+      const list = activeSession.combats;
+      const latestCombat = list?.length ? list[list.length - 1] : undefined;
+      if (latestCombat && latestCombat.status === 'ACTIVE') {
+        navigate(`/combat/${latestCombat.id}`);
+      }
+    }
+  }, [activeSession?.phase, activeSession?.combats, navigate]);
+
+  const p1IsMe = activeSession?.player1Id === currentPlayerId;
+  const amIReady = p1IsMe ? activeSession?.player1Ready : activeSession?.player2Ready;
+  const isOpponentReady = p1IsMe ? activeSession?.player2Ready : activeSession?.player1Ready;
 
   const currentTerrain = map ? map.grid[currentPlayerPos.y]?.[currentPlayerPos.x] : TerrainType.GROUND;
   useAutoHarvest({
@@ -256,11 +327,90 @@ export function FarmingPage() {
     <div className="resource-map-container">
       <header className="resource-map-header">
         <button className="back-button" onClick={() => navigate('/')}>
-          Retour
+          Lobby
         </button>
-        <button className="inventory-button" onClick={() => navigate('/inventory')} style={{ marginLeft: '10px', background: '#444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
-          🎒 Inventaire
+        <button className="nav-link-btn" onClick={() => navigate('/inventory')}>
+          Inventaire
         </button>
+        <button className="nav-link-btn" onClick={() => navigate('/shop')}>
+          Boutique
+        </button>
+
+        {activeSession && (
+          <div className="session-round-info" style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            background: 'rgba(0,0,0,0.3)', 
+            padding: '4px 12px', 
+            borderRadius: '20px',
+            marginLeft: '12px',
+            fontSize: '0.9rem',
+            border: '1px solid var(--color-accent)'
+          }}>
+            <span style={{ fontWeight: 'bold', color: 'var(--color-accent)', marginRight: '8px' }}>
+              MANCHE {activeSession.currentRound}
+            </span>
+            <span style={{ color: 'white' }}>
+              {activeSession.player1Wins} - {activeSession.player2Wins}
+            </span>
+          </div>
+        )}
+
+        {activeSession && activeSession.player2Id && (
+          <button 
+            className={`ready-btn ${amIReady ? 'ready' : ''}`}
+            onClick={handleToggleReady}
+            style={{ 
+              background: amIReady ? '#22c55e' : 'var(--color-accent)', 
+              color: 'white', 
+              border: 'none', 
+              padding: '8px 16px', 
+              borderRadius: '4px', 
+              cursor: 'pointer', 
+              fontWeight: 'bold',
+              marginLeft: '12px',
+              opacity: isOpponentReady ? 1 : 0.8
+            }}
+          >
+            {amIReady ? '✓ PRÊT !' : 'PRÊT ?'}
+            {isOpponentReady && !amIReady && ' (Adversaire prêt !)'}
+          </button>
+        )}
+
+        <button 
+          className="vs-ai-btn" 
+          onClick={handleStartVsAi}
+          style={{ 
+            background: 'var(--color-accent)', 
+            color: 'white', 
+            border: 'none', 
+            padding: '8px 16px', 
+            borderRadius: '4px', 
+            cursor: 'pointer', 
+            fontWeight: 'bold',
+            marginLeft: '12px'
+          }}
+        >
+          ⚔️ VS AI
+        </button>
+        {activeSession && (
+          <button 
+            className="end-session-btn" 
+            onClick={handleEndSession}
+            style={{ 
+              background: '#ef4444', 
+              color: 'white', 
+              border: 'none', 
+              padding: '8px 16px', 
+              borderRadius: '4px', 
+              cursor: 'pointer', 
+              fontWeight: 'bold',
+              marginLeft: '12px'
+            }}
+          >
+            🏳️ Abandonner
+          </button>
+        )}
         <h2>Mode Farming</h2>
         {seedConfig && (
           <div className="seed-badge">
