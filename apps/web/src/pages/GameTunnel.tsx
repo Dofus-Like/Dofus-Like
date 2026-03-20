@@ -1,6 +1,7 @@
 import React, { useEffect, useState, createContext, useContext } from 'react';
 import { useLocation, Navigate } from 'react-router-dom';
 import { gameSessionApi } from '../api/game-session.api';
+import { useAuthStore } from '../store/auth.store';
 
 interface GameSession {
   id: string;
@@ -14,6 +15,7 @@ interface GameSession {
   player1Id: string;
   player2Id: string | null;
   gold: number;
+  combats: any[];
 }
 
 interface GameSessionContextType {
@@ -30,11 +32,18 @@ export function GameSessionProvider({ children }: { children: React.ReactNode })
   const location = useLocation();
 
   const refreshSession = async () => {
+    const token = useAuthStore.getState().token;
+    if (!token) {
+      setActiveSession(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await gameSessionApi.getActiveSession();
       setActiveSession(res.data);
     } catch (err) {
-      console.error('No active session found', err);
+      // 401 sera géré par l'intercepteur (logout)
       setActiveSession(null);
     } finally {
       setLoading(false);
@@ -49,7 +58,8 @@ export function GameSessionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!activeSession) return;
 
-    const eventSource = new EventSource(`/api/v1/sse/events?channel=game-session:${activeSession.id}`);
+    const token = useAuthStore.getState().token;
+    const eventSource = new EventSource(`/api/v1/game-session/session/${activeSession.id}/events?token=${token}`);
     
     eventSource.onmessage = (event) => {
       try {
@@ -86,10 +96,18 @@ export function GameTunnelGuard({ children }: { children: React.ReactNode }) {
 
   if (loading) return <div className="loading-screen">Chargement de la session...</div>;
 
-  // Si on a une session active, on RESTREINT l'accès au Lobby (/)
-  if (activeSession && location.pathname === '/') {
-    // Rediriger vers la map de farming par défaut dans le tunnel ?
+  // Si on a une session ACTIVE, on RESTREINT l'accès au Lobby (/)
+  if (activeSession && activeSession.status === 'ACTIVE' && location.pathname === '/') {
+    // Rediriger vers la map de farming par défaut dans le tunnel
     return <Navigate to="/farming" replace />;
+  }
+
+  // Si on est sur une page de jeu sans session ACTIVE, on repart au lobby ?
+  const gamePaths = ['/farming', '/combat', '/inventory', '/shop'];
+  const isGamePath = gamePaths.some(path => location.pathname.startsWith(path));
+  
+  if (isGamePath && (!activeSession || activeSession.status !== 'ACTIVE')) {
+     return <Navigate to="/" replace />;
   }
 
   // Si on n'a PAS de session active, on RESTREINT l'accès aux pages de jeu (farming, combat, etc.) ?

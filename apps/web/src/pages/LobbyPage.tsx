@@ -117,7 +117,7 @@ export function LobbyPage() {
       <header className="lobby-header">
         <div className="lobby-title-group">
           <h1>⚔️ RokeTag Arena</h1>
-          <button className="vs-ai-btn" onClick={handleStartVsAiCombat}>
+          <button type="button" className="vs-ai-btn" onClick={handleStartVsAiCombat}>
             VS AI <span className="hot-badge">PROG</span>
           </button>
         </div>
@@ -128,7 +128,7 @@ export function LobbyPage() {
             <span className="lobby-username">{player?.username ?? 'Joueur'}</span>
             <span className="lobby-skin-tag">{getSkinById(player?.skin || 'soldier-classic').name}</span>
           </div>
-          <button className="lobby-logout" onClick={handleLogout}>
+          <button type="button" className="lobby-logout" onClick={handleLogout}>
             Déconnexion
           </button>
         </div>
@@ -178,12 +178,12 @@ export function LobbyPage() {
                 <span>.</span>
               </div>
               <span>Recherche d&apos;un adversaire...</span>
-              <button className="leave-queue-btn" onClick={handleLeaveQueue}>
+              <button type="button" className="leave-queue-btn" onClick={handleLeaveQueue}>
                 Annuler
               </button>
             </div>
           ) : (
-            <button className="join-queue-btn" onClick={handleJoinQueue} disabled={!!activeSession}>
+            <button type="button" className="join-queue-btn" onClick={handleJoinQueue} disabled={!!activeSession}>
               Lancer une recherche
             </button>
           )}
@@ -194,7 +194,7 @@ export function LobbyPage() {
         <div className="lobby-section-header">
           <h2>⚔️ Rooms personnalisées</h2>
           <div className="lobby-combat-actions">
-            <button className="lobby-btn action" onClick={handleCreateRoom} disabled={!!activeSession}>
+            <button type="button" className="lobby-btn action" onClick={handleCreateRoom} disabled={!!activeSession}>
               Créer une room
             </button>
           </div>
@@ -213,6 +213,7 @@ export function LobbyPage() {
                   <span className="room-date">{new Date(room.createdAt).toLocaleTimeString()}</span>
                 </div>
                 <button
+                  type="button"
                   className="room-join-btn"
                   onClick={() => handleJoinRoom(room.id)}
                   disabled={room.player1Id === player?.id || !!activeSession}
@@ -226,7 +227,7 @@ export function LobbyPage() {
       </section>
 
       <nav className="lobby-nav-grid">
-        <button className="lobby-nav-card farming" onClick={() => navigate('/farming')}>
+        <button type="button" className="lobby-nav-card farming" onClick={() => navigate('/farming')}>
           <div className="nav-card-icon">🌲</div>
           <div className="nav-card-content">
             <span className="nav-card-title">Farming</span>
@@ -234,7 +235,7 @@ export function LobbyPage() {
           </div>
         </button>
 
-        <button className="lobby-nav-card inventory" onClick={() => navigate('/inventory')}>
+        <button type="button" className="lobby-nav-card inventory" onClick={() => navigate('/inventory')}>
           <div className="nav-card-icon">🎒</div>
           <div className="nav-card-content">
             <span className="nav-card-title">Inventaire</span>
@@ -242,7 +243,7 @@ export function LobbyPage() {
           </div>
         </button>
 
-        <button className="lobby-nav-card shop" onClick={() => navigate('/shop')}>
+        <button type="button" className="lobby-nav-card shop" onClick={() => navigate('/shop')}>
           <div className="nav-card-icon">🏪</div>
           <div className="nav-card-content">
             <span className="nav-card-title">Shop</span>
@@ -250,7 +251,7 @@ export function LobbyPage() {
           </div>
         </button>
 
-        <button className="lobby-nav-card debug" onClick={() => navigate('/debug')}>
+        <button type="button" className="lobby-nav-card debug" onClick={() => navigate('/debug')}>
           <div className="nav-card-icon">🛠️</div>
           <div className="nav-card-content">
             <span className="nav-card-title">Debug</span>

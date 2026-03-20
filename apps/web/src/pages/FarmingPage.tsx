@@ -8,7 +8,6 @@ import { FarmingHUD } from '../game/HUD/FarmingHUD';
 import { UnifiedMapScene } from '../game/UnifiedMap/UnifiedMapScene';
 import { useAutoHarvest } from '../game/UnifiedMap/hooks/useAutoHarvest';
 import { useFarmingStore } from '../store/farming.store';
-import { combatApi } from '../api/combat.api';
 import { gameSessionApi } from '../api/game-session.api';
 import { useGameSession } from './GameTunnel';
 import { useAuthStore } from '../store/auth.store';
@@ -37,8 +36,9 @@ function findSpawnPosition(grid: TerrainType[][]): PathNode {
 
 export function FarmingPage() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const currentPlayerId = user?.id;
+  const { player } = useAuthStore();
+  const { activeSession, refreshSession } = useGameSession();
+  const currentPlayerId = player?.id;
   const [hoverInfo, setHoverInfo] = useState<{ x: number; y: number; terrain: TerrainType } | null>(null);
   const [movePath, setMovePath] = useState<PathNode[] | null>(null);
   const [isMoving, setIsMoving] = useState(false);
@@ -250,15 +250,27 @@ export function FarmingPage() {
 
   const handleStartVsAi = useCallback(async () => {
     try {
-      const response = await combatApi.startVsAiCombat();
-      const initialState = response.data;
-      navigate(`/combat/${initialState.sessionId}`);
+      await gameSessionApi.startVsAi();
+      await refreshSession();
+      navigate(`/farming`);
     } catch (error) {
       console.error('Erreur lancement combat VS AI:', error);
     }
-  }, [navigate]);
+  }, [navigate, refreshSession]);
 
-  const { activeSession, refreshSession } = useGameSession();
+  const handleEndSession = useCallback(async () => {
+    if (!activeSession) return;
+    const ok = window.confirm("Êtes-vous sûr de vouloir abandonner la partie ? Cela mettra fin au match pour tous les joueurs.");
+    if (!ok) return;
+
+    try {
+      await gameSessionApi.endSession(activeSession.id);
+      await refreshSession();
+      navigate('/');
+    } catch (error) {
+      console.error('Erreur fin de session:', error);
+    }
+  }, [activeSession, refreshSession, navigate]);
 
   const handleToggleReady = useCallback(async () => {
     if (!activeSession) return;
@@ -382,7 +394,7 @@ export function FarmingPage() {
               marginLeft: '12px'
             }}
           >
-            ⏹ Terminer Session
+            🏳️ Abandonner
           </button>
         )}
         <h2>Mode Farming</h2>
