@@ -82,11 +82,9 @@ export class SessionService {
     // Sécurité: vérifier que player2Id est maintenant bien présent
     if (!session.player2Id) throw new Error('Échec de liaison du joueur 2');
 
-    const [statsP1, statsP2, itemsP1, itemsP2, p1, p2] = await Promise.all([
-      this.playerStatsService.getEffectiveStats(session.player1Id),
-      this.playerStatsService.getEffectiveStats(session.player2Id),
-      this.playerStatsService.getEquippedItems(session.player1Id),
-      this.playerStatsService.getEquippedItems(session.player2Id),
+    const [loadoutP1, loadoutP2, p1, p2] = await Promise.all([
+      this.playerStatsService.getCombatLoadout(session.player1Id),
+      this.playerStatsService.getCombatLoadout(session.player2Id),
       this.prisma.player.findUnique({
         where: { id: session.player1Id },
         select: { username: true, skin: true },
@@ -96,6 +94,10 @@ export class SessionService {
         select: { username: true, skin: true },
       }),
     ]);
+    const statsP1 = loadoutP1.stats;
+    const statsP2 = loadoutP2.stats;
+    const itemsP1 = loadoutP1.items;
+    const itemsP2 = loadoutP2.items;
 
     // Déterminer l'initiative
     const init1 = calculateInitiativeJet(statsP1);

@@ -9,7 +9,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const repoRoot = path.resolve(__dirname, '../..');
 export const perfDir = path.join(repoRoot, 'tmp', 'perf');
-export const defaultApiBaseUrl = process.env.PERF_API_BASE_URL ?? 'http://localhost:3000/api/v1';
+export const defaultApiBaseUrl =
+  process.env.PERF_API_BASE_URL ??
+  `http://localhost:${process.env.PERF_API_PORT ?? '3100'}/api/v1`;
 
 export async function ensurePerfDir() {
   await fs.mkdir(perfDir, { recursive: true });
@@ -31,7 +33,10 @@ export function computeStats(values) {
   const sorted = [...values].sort((left, right) => left - right);
   const total = sorted.reduce((accumulator, value) => accumulator + value, 0);
   const percentile = (ratio) => {
-    const index = Math.min(sorted.length - 1, Math.floor(sorted.length * ratio));
+    const index = Math.min(
+      sorted.length - 1,
+      Math.floor(sorted.length * ratio),
+    );
     return round(sorted[index]);
   };
 
@@ -42,6 +47,7 @@ export function computeStats(values) {
     avg: round(total / sorted.length),
     p50: percentile(0.5),
     p95: percentile(0.95),
+    p99: percentile(0.99),
   };
 }
 
@@ -51,7 +57,11 @@ export async function writeJson(filePath, payload) {
 
 export async function writeJsonl(filePath, records) {
   const content = records.map((record) => JSON.stringify(record)).join('\n');
-  await fs.writeFile(filePath, content.length > 0 ? `${content}\n` : '', 'utf8');
+  await fs.writeFile(
+    filePath,
+    content.length > 0 ? `${content}\n` : '',
+    'utf8',
+  );
 }
 
 export async function readJson(filePath) {
@@ -62,7 +72,9 @@ export async function readJson(filePath) {
 export async function findLatestPerfFile(prefix) {
   try {
     const entries = await fs.readdir(perfDir);
-    const candidates = entries.filter((entry) => entry.startsWith(prefix)).sort();
+    const candidates = entries
+      .filter((entry) => entry.startsWith(prefix))
+      .sort();
     if (candidates.length === 0) {
       return null;
     }
@@ -85,6 +97,40 @@ export function aggregateByName(records) {
   return Object.fromEntries(
     [...buckets.entries()].map(([name, values]) => [name, computeStats(values)]),
   );
+}
+
+export function aggregateMetricByName(records) {
+  const buckets = new Map();
+  for (const record of records) {
+    if (typeof record.metric_value !== 'number') {
+      continue;
+    }
+
+    const key = record.name;
+    const values = buckets.get(key) ?? [];
+    values.push(record.metric_value);
+    buckets.set(key, values);
+  }
+
+  return Object.fromEntries(
+    [...buckets.entries()].map(([name, values]) => [name, computeStats(values)]),
+  );
+}
+
+export function buildGaugeSummary(records) {
+  const values = records
+    .map((record) => record.metric_value)
+    .filter((value) => typeof value === 'number');
+
+  const stats = computeStats(values);
+  if (!stats) {
+    return null;
+  }
+
+  return {
+    ...stats,
+    last: round(values[values.length - 1]),
+  };
 }
 
 export function parsePerfRecord(line) {
@@ -116,6 +162,14 @@ function collectStreamLines(stream, streamName, logLines, perfRecords, onReady) 
 
     const parsed = parsePerfRecord(line);
     if (!parsed) {
+      const portMatch = line.match(/API running on http:\/\/localhost:(\d+)/);
+      if (portMatch) {
+        onReady({
+          name: 'api.ready.fallback',
+          port: portMatch[1],
+          scope: 'bootstrap',
+        });
+      }
       return;
     }
 
@@ -126,7 +180,61 @@ function collectStreamLines(stream, streamName, logLines, perfRecords, onReady) 
   });
 }
 
+function collectPlainLines(stream, output) {
+  if (!stream) {
+    return;
+  }
+
+  const reader = readline.createInterface({ input: stream });
+  reader.on('line', (line) => {
+    output.push(line);
+  });
+}
+
 export async function startApiServer() {
+  const buildRun = await runCommand('yarn', ['nx', 'run', 'api:build:development'], {
+    env: {
+      NODE_ENV: 'development',
+    },
+  });
+
+  const server = await startDevBuildOutputServer();
+
+  return {
+    ...server,
+    apiBuildMs: buildRun.durationMs,
+    apiProcessReadyMs: server.wallReadyMs,
+    wallReadyMs: round(buildRun.durationMs + server.wallReadyMs),
+  };
+}
+
+export async function startDevBuildOutputServer() {
+  return startCommandServer({
+    command: 'node',
+    args: ['dist/apps/api/main.js'],
+    env: {
+      NODE_ENV: 'development',
+      PORT: process.env.PERF_API_PORT ?? '3100',
+    },
+    runtimeMode: 'development',
+  });
+}
+
+export async function startProdBuildOutputServer(env = {}) {
+  return startCommandServer({
+    command: 'node',
+    args: ['dist/apps/api/main.js'],
+    env,
+    runtimeMode: 'production',
+  });
+}
+
+export async function startCommandServer({
+  command,
+  args,
+  env: envOverrides = {},
+  runtimeMode = 'development',
+}) {
   await ensurePerfDir();
 
   const logLines = [];
@@ -136,14 +244,16 @@ export async function startApiServer() {
     ...process.env,
     PERF_LOGS: process.env.PERF_LOGS ?? '1',
     PERF_LOG_SAMPLE_RATE: process.env.PERF_LOG_SAMPLE_RATE ?? '1',
+    PERF_RUNTIME_MODE: envOverrides.PERF_RUNTIME_MODE ?? runtimeMode,
     NODE_OPTIONS: '',
     NX_TUI: 'false',
     NX_TERMINAL_OUTPUT_FORMAT: 'plain',
     FORCE_COLOR: '0',
     NO_COLOR: '1',
+    ...envOverrides,
   };
 
-  const child = spawn('yarn', ['dev:api'], {
+  const child = spawn(command, args, {
     cwd: repoRoot,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -175,7 +285,9 @@ export async function startApiServer() {
 
   const timeout = setTimeout(() => {
     if (!resolved) {
-      readyReject(new Error('Timed out while waiting for the API to become ready.'));
+      readyReject(
+        new Error('Timed out while waiting for the API to become ready.'),
+      );
     }
   }, 90000);
 
@@ -183,7 +295,9 @@ export async function startApiServer() {
     if (!resolved) {
       clearTimeout(timeout);
       readyReject(
-        new Error(`API process exited before readiness. code=${code ?? 'null'} signal=${signal ?? 'null'}`),
+        new Error(
+          `API process exited before readiness. code=${code ?? 'null'} signal=${signal ?? 'null'}`,
+        ),
       );
     }
   });
@@ -232,6 +346,50 @@ export async function sleep(milliseconds) {
   await new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+export async function runCommand(command, args, options = {}) {
+  const startedAt = performance.now();
+  const env = {
+    ...process.env,
+    ...options.env,
+  };
+
+  return await new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd ?? repoRoot,
+      env,
+      stdio: options.captureOutput ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+    });
+
+    const stdout = [];
+    const stderr = [];
+    if (options.captureOutput) {
+      collectPlainLines(child.stdout, stdout);
+      collectPlainLines(child.stderr, stderr);
+    }
+
+    child.on('error', reject);
+    child.on('exit', (code, signal) => {
+      const durationMs = round(performance.now() - startedAt);
+      if (code === 0) {
+        resolve({
+          code,
+          durationMs,
+          signal,
+          stderr,
+          stdout,
+        });
+        return;
+      }
+
+      reject(
+        new Error(
+          `${command} ${args.join(' ')} exited with code=${code ?? 'null'} signal=${signal ?? 'null'}`,
+        ),
+      );
+    });
+  });
+}
+
 export async function timedRequest(url, options = {}) {
   const startedAt = performance.now();
   const response = await fetch(url, options);
@@ -242,5 +400,49 @@ export async function timedRequest(url, options = {}) {
     durationMs: round(durationMs),
     response,
     bodyText,
+  };
+}
+
+export async function openSseConnection(url, headers = {}) {
+  const controller = new AbortController();
+  const response = await fetch(url, {
+    headers: {
+      accept: 'text/event-stream',
+      ...headers,
+    },
+    signal: controller.signal,
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(`Failed to open SSE stream ${url}: status=${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const drainPromise = (async () => {
+    try {
+      while (true) {
+        const { done } = await reader.read();
+        if (done) {
+          break;
+        }
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        throw error;
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  })();
+
+  return {
+    close: async () => {
+      controller.abort();
+      try {
+        await drainPromise;
+      } catch {
+        // Ignore abort races while closing the stream.
+      }
+    },
   };
 }

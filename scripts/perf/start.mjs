@@ -18,9 +18,16 @@ async function main() {
       generated_at: new Date().toISOString(),
       startup: {
         api_dev_ready_ms: server.wallReadyMs,
-        api_bootstrap_ms: server.readyRecord.api_dev_ready_ms ?? null,
+        api_bootstrap_ms:
+          server.readyRecord.api_bootstrap_ms ??
+          server.readyRecord.api_dev_ready_ms ??
+          null,
         rss_mb_at_ready: server.readyRecord.rss_mb_at_ready ?? null,
         heap_mb_at_ready: server.readyRecord.heap_mb_at_ready ?? null,
+        event_loop_lag_p95_ms: server.readyRecord.event_loop_lag_p95_ms ?? null,
+        active_sse_streams: server.readyRecord.active_sse_streams ?? null,
+        active_sse_subscribers:
+          server.readyRecord.active_sse_subscribers ?? null,
         port: server.readyRecord.port ?? null,
       },
     };

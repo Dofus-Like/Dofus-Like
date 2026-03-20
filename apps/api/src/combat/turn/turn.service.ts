@@ -15,6 +15,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { GAME_EVENTS } from '@game/shared-types';
 import { PerfLoggerService } from '../../shared/perf/perf-logger.service';
+import { RuntimePerfService } from '../../shared/perf/runtime-perf.service';
 
 @Injectable()
 export class TurnService {
@@ -25,6 +26,7 @@ export class TurnService {
     private readonly sse: SseService,
     private readonly eventEmitter: EventEmitter2,
     private readonly perfLogger: PerfLoggerService,
+    private readonly runtimePerf: RuntimePerfService,
   ) {}
 
   async playAction(
@@ -42,6 +44,7 @@ export class TurnService {
     }
     this.sessionLocks.add(sessionId);
     const startedAt = performance.now();
+    const sseEventsBefore = this.runtimePerf.getTotalSseEvents();
 
     try {
       const state = await this.redis.getJson<CombatState>(`combat:${sessionId}`);
@@ -107,12 +110,25 @@ export class TurnService {
 
       await this.redis.setJson(`combat:${sessionId}`, newState, 3600);
       this.sse.emit(sessionId, 'STATE_UPDATED', newState);
+      const sseEventsEmitted = this.runtimePerf.getTotalSseEvents() - sseEventsBefore;
 
       this.perfLogger.logDuration('combat', 'turn.play_action', performance.now() - startedAt, {
         session_id: sessionId,
         player_id: playerId,
         action_type: action.type,
+        sse_events_emitted: sseEventsEmitted,
       });
+      this.perfLogger.logMetric(
+        'combat',
+        'action.sse_events',
+        sseEventsEmitted,
+        {
+          session_id: sessionId,
+          player_id: playerId,
+          action_type: action.type,
+        },
+        { decimals: 0, force: true },
+      );
 
       return newState;
     } catch (error) {
@@ -329,7 +345,6 @@ export class TurnService {
 
       if (finalPos.x !== targetPlayer.position.x || finalPos.y !== targetPlayer.position.y) {
           targetPlayer.position = finalPos;
-          this.sse.emit(state.sessionId, 'STATE_UPDATED', state);
       }
   }
 
@@ -374,8 +389,6 @@ export class TurnService {
         heal,
         remainingVit: targetPlayer.currentVit
     });
-
-    this.sse.emit(state.sessionId, 'STATE_UPDATED', state);
   }
 
   private async handleSurrender(state: CombatState, playerId: string): Promise<CombatState> {
@@ -462,6 +475,8 @@ export class TurnService {
     asPlayerId: string,
     action: CombatAction,
   ): Promise<CombatState> {
+    const startedAt = performance.now();
+    const sseEventsBefore = this.runtimePerf.getTotalSseEvents();
     const state = await this.redis.getJson<CombatState>(`combat:${sessionId}`);
     if (!state) throw new BadRequestException('Session introuvable');
 
@@ -484,6 +499,26 @@ export class TurnService {
     await this.checkVictory(newState);
     await this.redis.setJson(`combat:${sessionId}`, newState, 3600);
     this.sse.emit(sessionId, 'STATE_UPDATED', newState);
+    const sseEventsEmitted = this.runtimePerf.getTotalSseEvents() - sseEventsBefore;
+
+    this.perfLogger.logDuration('combat', 'turn.force_play_action', performance.now() - startedAt, {
+      session_id: sessionId,
+      player_id: asPlayerId,
+      action_type: action.type,
+      sse_events_emitted: sseEventsEmitted,
+    });
+    this.perfLogger.logMetric(
+      'combat',
+      'action.sse_events',
+      sseEventsEmitted,
+      {
+        session_id: sessionId,
+        player_id: asPlayerId,
+        action_type: action.type,
+        forced: true,
+      },
+      { decimals: 0, force: true },
+    );
 
     return newState;
   }

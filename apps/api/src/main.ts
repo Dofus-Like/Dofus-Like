@@ -5,12 +5,14 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { performance } from 'node:perf_hooks';
 import { AppModule } from './app/app.module';
 import { PerfLoggerService } from './shared/perf/perf-logger.service';
+import { RuntimePerfService } from './shared/perf/runtime-perf.service';
 
 async function bootstrap() {
   const bootstrapStartedAt = performance.now();
   const app = await NestFactory.create(AppModule);
   const perfLogger = app.get(PerfLoggerService);
   const configService = app.get(ConfigService);
+  const runtimePerf = app.get(RuntimePerfService);
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -57,10 +59,13 @@ async function bootstrap() {
     'bootstrap',
     'api.ready',
     {
+      api_bootstrap_ms: Number((performance.now() - bootstrapStartedAt).toFixed(2)),
       api_dev_ready_ms: Number((performance.now() - bootstrapStartedAt).toFixed(2)),
+      runtime_mode: process.env.PERF_RUNTIME_MODE ?? process.env.NODE_ENV ?? 'development',
       port,
       rss_mb_at_ready: Number((memoryUsage.rss / (1024 * 1024)).toFixed(2)),
       heap_mb_at_ready: Number((memoryUsage.heapUsed / (1024 * 1024)).toFixed(2)),
+      ...runtimePerf.getStartupSnapshot(),
     },
     { force: true },
   );

@@ -40,7 +40,22 @@ export class RedisService {
   }
 
   async setJson<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
-    await this.set(key, JSON.stringify(value), ttlSeconds);
+    const payload = JSON.stringify(value);
+
+    if (this.getKeyPrefix(key) === 'combat') {
+      this.perfLogger.logMetric(
+        'combat_state',
+        'payload.bytes',
+        Buffer.byteLength(payload, 'utf8'),
+        {
+          key_prefix: 'combat',
+          session_id: this.getKeySuffix(key),
+        },
+        { decimals: 0, force: true },
+      );
+    }
+
+    await this.set(key, payload, ttlSeconds);
   }
 
   private async measure<T>(operation: string, key: string, callback: () => Promise<T>): Promise<T> {
@@ -58,5 +73,10 @@ export class RedisService {
   private getKeyPrefix(key: string): string {
     const [prefix] = key.split(':');
     return prefix || 'unknown';
+  }
+
+  private getKeySuffix(key: string): string | undefined {
+    const [, suffix] = key.split(':');
+    return suffix;
   }
 }

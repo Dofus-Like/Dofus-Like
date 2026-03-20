@@ -4,6 +4,7 @@ import { RequestContextService } from './request-context.service';
 type PerfLevel = 'info' | 'warn' | 'error';
 
 interface PerfLogOptions {
+  decimals?: number;
   force?: boolean;
   level?: PerfLevel;
   slowThresholdMs?: number;
@@ -53,6 +54,32 @@ export class PerfLoggerService {
       slow,
       metadata,
       options.level ?? (slow ? 'warn' : 'info'),
+    );
+  }
+
+  logMetric(
+    scope: string,
+    name: string,
+    value: number,
+    metadata: Record<string, unknown> = {},
+    options: PerfLogOptions = {},
+  ): void {
+    if (!this.shouldLog(options.force ?? false, false)) {
+      return;
+    }
+
+    const decimals = options.decimals ?? 2;
+    const roundedValue = Number(value.toFixed(decimals));
+    this.writeRecord(
+      scope,
+      name,
+      undefined,
+      false,
+      {
+        metric_value: roundedValue,
+        ...metadata,
+      },
+      options.level ?? 'info',
     );
   }
 

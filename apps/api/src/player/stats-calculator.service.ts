@@ -1,8 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { performance } from 'node:perf_hooks';
+import type { PlayerStats as PlayerStatsModel, Prisma } from '@prisma/client';
 import { PrismaService } from '../shared/prisma/prisma.service';
 import type { PlayerStats } from '@game/shared-types';
 import { PerfLoggerService } from '../shared/perf/perf-logger.service';
+
+type EquippedSlotWithItem = Prisma.EquipmentSlotGetPayload<{
+  include: {
+    inventoryItem: {
+      include: {
+        item: true;
+      };
+    };
+  };
+}>;
 
 @Injectable()
 export class StatsCalculatorService {
@@ -33,7 +44,28 @@ export class StatsCalculatorService {
       throw new Error('Stats de base non trouvées');
     }
 
-    // 3. Sommer les bonus en partant des stats de base
+    const effectiveStats = this.computeEffectiveStatsFromSnapshot(
+      baseStats,
+      slots as EquippedSlotWithItem[],
+    );
+
+    this.perfLogger.logDuration(
+      'player',
+      'stats.compute',
+      performance.now() - startedAt,
+      {
+        player_id: playerId,
+        equipment_slot_count: slots.length,
+      },
+    );
+
+    return effectiveStats;
+  }
+
+  computeEffectiveStatsFromSnapshot(
+    baseStats: PlayerStatsModel,
+    slots: EquippedSlotWithItem[],
+  ): PlayerStats {
     const effectiveStats: PlayerStats = {
       vit: baseStats.baseVit,
       atk: baseStats.baseAtk,
@@ -43,7 +75,6 @@ export class StatsCalculatorService {
       ini: baseStats.baseIni,
       pa: baseStats.basePa,
       pm: baseStats.basePm,
-      // On recopie aussi les bases pour que l'objet soit complet selon l'interface
       baseVit: baseStats.baseVit,
       baseAtk: baseStats.baseAtk,
       baseMag: baseStats.baseMag,
@@ -54,21 +85,15 @@ export class StatsCalculatorService {
       basePm: baseStats.basePm,
     };
 
-
     slots.forEach((slot) => {
       if (slot.inventoryItem?.item.statsBonus) {
         const bonus = slot.inventoryItem.item.statsBonus as Partial<PlayerStats>;
         Object.entries(bonus).forEach(([key, value]) => {
           if (key in effectiveStats && typeof value === 'number') {
-            (effectiveStats as any)[key] += value;
+            (effectiveStats as unknown as Record<string, number>)[key] += value;
           }
         });
       }
-    });
-
-    this.perfLogger.logDuration('player', 'stats.compute', performance.now() - startedAt, {
-      player_id: playerId,
-      equipment_slot_count: slots.length,
     });
 
     return effectiveStats;
