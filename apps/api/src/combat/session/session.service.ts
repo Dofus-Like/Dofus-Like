@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { performance } from 'node:perf_hooks';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { RedisService } from '../../shared/redis/redis.service';
 import { SseService } from '../../shared/sse/sse.service';
-import { CombatState } from '@game/shared-types';
+import type { CombatState } from '@game/shared-types';
 import { PlayerStatsService } from '../../player/player-stats.service';
 import { MapService } from '../map/map.service';
 import { calculateInitiativeJet, calculatePlayerSpells } from '@game/game-engine';
+import { PerfLoggerService } from '../../shared/perf/perf-logger.service';
 
 @Injectable()
 export class SessionService {
@@ -15,6 +17,7 @@ export class SessionService {
     private readonly sse: SseService,
     private readonly playerStatsService: PlayerStatsService,
     private readonly mapService: MapService,
+    private readonly perfLogger: PerfLoggerService,
   ) {}
 
   async challenge(challengerId: string, targetId?: string) {
@@ -52,6 +55,7 @@ export class SessionService {
   }
 
   async accept(sessionId: string, player2Id?: string) {
+    const startedAt = performance.now();
     let session = await this.prisma.combatSession.findUnique({
       where: { id: sessionId },
     });
@@ -78,30 +82,30 @@ export class SessionService {
     // Sécurité: vérifier que player2Id est maintenant bien présent
     if (!session.player2Id) throw new Error('Échec de liaison du joueur 2');
 
-    // Récupérer les stats effectives des joueurs
-    const statsP1 = await this.playerStatsService.getEffectiveStats(session.player1Id);
-    const statsP2 = await this.playerStatsService.getEffectiveStats(session.player2Id);
+    const [loadoutP1, loadoutP2, p1, p2] = await Promise.all([
+      this.playerStatsService.getCombatLoadout(session.player1Id),
+      this.playerStatsService.getCombatLoadout(session.player2Id),
+      this.prisma.player.findUnique({
+        where: { id: session.player1Id },
+        select: { username: true, skin: true },
+      }),
+      this.prisma.player.findUnique({
+        where: { id: session.player2Id },
+        select: { username: true, skin: true },
+      }),
+    ]);
+    const statsP1 = loadoutP1.stats;
+    const statsP2 = loadoutP2.stats;
+    const itemsP1 = loadoutP1.items;
+    const itemsP2 = loadoutP2.items;
 
     // Déterminer l'initiative
     const init1 = calculateInitiativeJet(statsP1);
     const init2 = calculateInitiativeJet(statsP2);
     const firstPlayerId = init1 >= init2 ? session.player1Id : session.player2Id;
 
-    // Récupérer les items équipés et calculer les spells
-    const itemsP1 = await this.playerStatsService.getEquippedItems(session.player1Id);
-    const itemsP2 = await this.playerStatsService.getEquippedItems(session.player2Id);
-    
     const spellsP1 = calculatePlayerSpells(itemsP1);
     const spellsP2 = calculatePlayerSpells(itemsP2);
-
-    console.log(`[SessionService] Items P1(${session.player1Id}):`, itemsP1.map(i => i.name));
-    console.log(`[SessionService] Items P2(${session.player2Id}):`, itemsP2.map(i => i.name));
-    console.log(`[SessionService] Spells P1:`, spellsP1.map(s => s.name));
-    console.log(`[SessionService] Spells P2:`, spellsP2.map(s => s.name));
-
-    // Récupérer les données de profil (pour le username et le skin)
-    const p1 = await this.prisma.player.findUnique({ where: { id: session.player1Id } });
-    const p2 = await this.prisma.player.findUnique({ where: { id: session.player2Id } });
 
     const initialState: CombatState = {
       sessionId,
@@ -155,6 +159,12 @@ export class SessionService {
     this.sse.emit(sessionId, 'STATE_UPDATED', initialState);
     this.sse.emit(sessionId, 'TURN_STARTED', { playerId: firstPlayerId });
 
+    this.perfLogger.logDuration('combat', 'session.accept', performance.now() - startedAt, {
+      session_id: sessionId,
+      player_1_id: session.player1Id,
+      player_2_id: session.player2Id,
+    });
+
     return initialState;
   }
 
@@ -181,15 +191,21 @@ export class SessionService {
   }
 
   async getState(sessionId: string): Promise<CombatState> {
-    console.log(`[SessionService] GET State for session: ${sessionId}`);
+    const startedAt = performance.now();
     const state = await this.redis.getJson<CombatState>(`combat:${sessionId}`);
     
     if (!state) {
-      console.warn(`[SessionService] State NOT FOUND in Redis for session: ${sessionId}`);
+      this.perfLogger.logEvent('combat', 'session.state.miss', {
+        session_id: sessionId,
+      }, { level: 'warn' });
       throw new NotFoundException('État de combat introuvable');
     }
-    
-    console.log(`[SessionService] State found for session ${sessionId}. Players: ${Object.keys(state.players).join(', ')}`);
+
+    this.perfLogger.logDuration('combat', 'session.get_state', performance.now() - startedAt, {
+      session_id: sessionId,
+      player_count: Object.keys(state.players).length,
+    });
+
     return state;
   }
 
