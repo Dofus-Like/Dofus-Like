@@ -108,40 +108,55 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
         uSat: { value: skinConfig.saturation }
     }), [skinConfig]);
 
+    // Memoïser le matériau pour éviter les fuites WebGL et les recompilations massives
+    const spriteMaterial = useMemo(() => {
+        const mat = new THREE.SpriteMaterial({
+            map: textureIdle,
+            transparent: true,
+            alphaTest: 0.5,
+            precision: 'highp',
+        });
+        
+        mat.onBeforeCompile = (shader: any) => {
+            shader.uniforms.uHue = uniforms.uHue;
+            shader.uniforms.uSat = uniforms.uSat;
+
+            shader.fragmentShader = `
+                uniform float uHue;
+                uniform float uSat;
+                vec3 applyHue(vec3 rgb, float hueOffset) {
+                    const vec3 k = vec3(0.57735, 0.57735, 0.57735);
+                    float cosAngle = cos(hueOffset);
+                    return rgb * cosAngle + cross(k, rgb) * sin(hueOffset) + k * dot(k, rgb) * (1.0 - cosAngle);
+                }
+                vec3 applySat(vec3 rgb, float sat) {
+                    float intensity = dot(rgb, vec3(0.299, 0.587, 0.114));
+                    return mix(vec3(intensity), rgb, sat);
+                }
+                ${shader.fragmentShader}
+            `.replace(
+                '#include <map_fragment>',
+                `
+                #ifdef USE_MAP
+                    vec4 texelColor = texture2D( map, vMapUv );
+                    texelColor.rgb = applyHue(texelColor.rgb, uHue);
+                    texelColor.rgb = applySat(texelColor.rgb, uSat);
+                    diffuseColor *= texelColor;
+                #endif
+                `
+            );
+        };
+        mat.customProgramCacheKey = () => `pawn-mat-${skinConfig.id}`;
+        return mat;
+    }, [textureIdle, skinConfig.id, uniforms]);
+
+    // Update du map du mat en fonction de l'état (marche/attaque)
     useEffect(() => {
-        uniforms.uHue.value = (skinConfig.hue * Math.PI) / 180;
-        uniforms.uSat.value = skinConfig.saturation;
-    }, [skinConfig, uniforms]);
-
-    const handleBeforeCompile = (shader: THREE.Shader) => {
-        shader.uniforms.uHue = uniforms.uHue;
-        shader.uniforms.uSat = uniforms.uSat;
-
-        shader.fragmentShader = `
-            uniform float uHue;
-            uniform float uSat;
-            vec3 applyHue(vec3 rgb, float hueOffset) {
-                const vec3 k = vec3(0.57735, 0.57735, 0.57735);
-                float cosAngle = cos(hueOffset);
-                return rgb * cosAngle + cross(k, rgb) * sin(hueOffset) + k * dot(k, rgb) * (1.0 - cosAngle);
-            }
-            vec3 applySat(vec3 rgb, float sat) {
-                float intensity = dot(rgb, vec3(0.299, 0.587, 0.114));
-                return mix(vec3(intensity), rgb, sat);
-            }
-            ${shader.fragmentShader}
-        `.replace(
-            '#include <map_fragment>',
-            `
-            #ifdef USE_MAP
-                vec4 texelColor = texture2D( map, vMapUv );
-                texelColor.rgb = applyHue(texelColor.rgb, uHue);
-                texelColor.rgb = applySat(texelColor.rgb, uSat);
-                diffuseColor *= texelColor;
-            #endif
-            `
-        );
-    };
+        if (isAttacking) spriteMaterial.map = textureAttack;
+        else if (isMoving) spriteMaterial.map = textureWalk;
+        else spriteMaterial.map = textureIdle;
+        spriteMaterial.needsUpdate = true;
+    }, [isAttacking, isMoving, textureIdle, textureWalk, textureAttack, spriteMaterial]);
 
     // Exposer triggerAttack
     React.useImperativeHandle(ref, () => ({
@@ -288,8 +303,8 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
 
     // Calcul de la vie pour la barre
     const hpPercent = useMemo(() => {
-        if (!playerData || !playerData.stats.vit) return 1;
-        return Math.max(0, Math.min(1, playerData.currentVit / playerData.stats.vit));
+        if (!playerData?.stats?.vit) return 1;
+        return Math.max(0, Math.min(1, (playerData.currentVit ?? 100) / playerData.stats.vit));
     }, [playerData]);
 
     return (
@@ -318,12 +333,9 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
             position={[0, 0.45, 0]} 
             scale={[6, 6, 1]}
           >
-            <spriteMaterial 
-                map={textureIdle} 
-                transparent={true} 
-                alphaTest={0.5}
-                precision="highp"
-                onBeforeCompile={handleBeforeCompile}
+            <primitive 
+                object={spriteMaterial} 
+                attach="material" 
                 key={`${skinConfig.id}-${spriteType}`}
             />
           </sprite>
@@ -361,7 +373,7 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
               outlineWidth={0.025}
               outlineColor="black"
             >
-              {`${Math.ceil(playerData.currentVit)} / ${playerData.stats.vit} PV`}
+              {`${Math.ceil(playerData.currentVit ?? 100)} / ${playerData?.stats?.vit ?? 100} PV`}
             </Text>
           </Billboard>
         )}
