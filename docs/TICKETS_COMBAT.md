@@ -93,7 +93,7 @@ Ce document regroupe les tickets de développement et les user stories pour l'é
 
 ## ÉPIC 4 : Fin de Combat et Intégration
 
-### [COMBAT-010] Event-Emitter de victoire (Couplage inter-équipes)
+### [COMBAT-010] Event-Emitter de victoire (Couplage inter-équipes) [DONE]
 **Description :** Gérer la fin de la boucle de gameplay d'un combat et notifier l'équipe A via les events NestJS.
 **Critères d'acceptation :**
 - Détecter si la VIT d'un joueur tombe à <= 0.

@@ -13,13 +13,13 @@ todos:
     status: completed
   - id: epic4-equipment
     content: "EPIC 4 : Systeme d'items et equipement (mannequin, rangs, combos, spells)"
-    status: pending
+    status: in-progress
   - id: epic5-crafting
     content: "EPIC 5 : Systeme de crafting (Rang 1 + fusion + consommables)"
-    status: pending
+    status: completed
   - id: epic6-shop
     content: "EPIC 6 : Systeme de shop / economie (achat, vente, counter-build, recompenses)"
-    status: pending
+    status: in-progress
   - id: epic7-combat
     content: "EPIC 7 : Combat PvP (sessions, tours, 9 spells, terrain MUR/TROU/PLAT, reveal mannequins)"
     status: in-progress

@@ -35,6 +35,13 @@
   margin-left: 8px;
 }
 
+.shop-po-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-muted, #94a3b8);
+  line-height: 1.4;
+}
+
 .shop-gold {
   font-weight: 700;
   color: var(--color-accent);

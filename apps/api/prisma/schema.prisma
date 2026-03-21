@@ -131,8 +131,10 @@ model EquipmentSlot {
   playerId        String
   slot            EquipmentSlotType
   inventoryItemId String?           @unique
+  sessionItemId   String?           @unique
   player          Player            @relation(fields: [playerId], references: [id], onDelete: Cascade)
   inventoryItem   InventoryItem?    @relation(fields: [inventoryItemId], references: [id])
+  sessionItem     SessionItem?      @relation(fields: [sessionItemId], references: [id])
 
   @@unique([playerId, slot])
 }
@@ -199,7 +201,12 @@ model GameSession {
   player2Wins  Int             @default(0)
   player1Ready Boolean         @default(false)
   player2Ready Boolean         @default(false)
-  gold         Int             @default(500) // Augmenté pour le start
+  /// @deprecated Utiliser player1Po / player2Po pour l’économie en session
+  gold         Int             @default(0)
+  /// Pièces d’or gagnées en combat, dépensables à la boutique (joueur 1)
+  player1Po    Int             @default(0)
+  /// Pièces d’or gagnées en combat, dépensables à la boutique (joueur 2)
+  player2Po    Int             @default(0)
   player1Id    String
   player2Id    String?
   p1           Player          @relation("GSP1", fields: [player1Id], references: [id])
@@ -211,14 +218,15 @@ model GameSession {
 }
 
 model SessionItem {
-  id        String      @id @default(uuid())
-  sessionId String
-  playerId  String
-  itemId    String
-  quantity  Int         @default(1)
-  equipped  Boolean     @default(false)
-  session   GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  item      Item        @relation(fields: [itemId], references: [id])
+  id             String         @id @default(uuid())
+  sessionId      String
+  playerId       String
+  itemId         String
+  quantity       Int            @default(1)
+  equipped       Boolean        @default(false)
+  session        GameSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  item           Item           @relation(fields: [itemId], references: [id])
+  equipmentSlot  EquipmentSlot?
 
   @@unique([sessionId, playerId, itemId])
 }

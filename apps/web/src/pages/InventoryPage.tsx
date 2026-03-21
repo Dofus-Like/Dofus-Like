@@ -91,15 +91,15 @@ export function InventoryPage() {
     }
   };
 
-  const currentGold = activeSession ? activeSession.gold : (player?.gold ?? 0);
-
   return (
     <div className="inventory-page">
       <header className="inventory-header">
         <div className="inventory-header-nav">
-          <button type="button" className="back-button" onClick={() => navigate('/')}>
-            Lobby
-          </button>
+          {(!activeSession || activeSession.status !== 'ACTIVE') && (
+            <button type="button" className="back-button" onClick={() => navigate('/')}>
+              Lobby
+            </button>
+          )}
           <button type="button" className="nav-link-btn" onClick={() => navigate('/shop')}>
             Boutique
           </button>
@@ -121,7 +121,6 @@ export function InventoryPage() {
             🎒 Équipement & inventaire{' '}
             {activeSession && <span className="session-badge">SESSION</span>}
           </h2>
-          <span className="inventory-gold">💰 {currentGold} or</span>
         </div>
       </header>
 

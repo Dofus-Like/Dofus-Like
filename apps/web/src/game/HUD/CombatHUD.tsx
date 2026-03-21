@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCombatStore } from '../../store/combat.store';
 import { useAuthStore } from '../../store/auth.store';
+import { useGameSession } from '../../pages/GameTunnel';
 import { combatApi } from '../../api/combat.api';
 import { CombatActionType } from '@game/shared-types';
 import { getSkinById } from '../../game/constants/skins';
@@ -64,6 +65,7 @@ export function CombatHUD() {
   const [hoveredSpellId, setHoveredSpellId] = React.useState<string | null>(null);
   const user = useAuthStore((s) => s.player);
   const navigate = useNavigate();
+  const { activeSession } = useGameSession();
 
   const currentPlayer = (combatState && user) ? combatState.players[user.id] : null;
   const isMyTurn = (combatState && user) ? combatState.currentTurnPlayerId === user.id : false;
@@ -94,7 +96,11 @@ export function CombatHUD() {
 
   const handleCombatExit = () => {
     disconnect();
-    navigate('/');
+    if (activeSession?.status === 'ACTIVE') {
+      navigate('/farming', { replace: true });
+    } else {
+      navigate('/');
+    }
   };
 
   const isWinner = winnerId === user.id;
@@ -139,7 +145,7 @@ export function CombatHUD() {
             <p>{isWinner ? 'Félicitations, vous avez terrassé votre adversaire !' : 'Dommage... Vous ferez mieux la prochaine fois !'}</p>
             <div className="end-modal-actions">
               <button className="exit-button" onClick={handleCombatExit}>
-                Retour au Lobby
+                {activeSession?.status === 'ACTIVE' ? 'Continuer' : 'Retour au Lobby'}
               </button>
             </div>
           </div>

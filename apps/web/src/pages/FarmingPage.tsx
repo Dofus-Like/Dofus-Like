@@ -237,7 +237,7 @@ export function FarmingPage() {
         await nextRound();
         const currentRound = useFarmingStore.getState().round;
         if (currentRound > 5) {
-          navigate('/lobby'); // Transition vers PvP
+          navigate('/'); // Fin de partie (hors flux tunnel standard)
         } else {
           navigate(isDebugMode ? '/crafting?debug=true' : '/crafting');
         }
@@ -276,7 +276,7 @@ export function FarmingPage() {
     if (!activeSession) return;
     try {
       const isReady = activeSession.player1Id === currentPlayerId ? activeSession.player1Ready : activeSession.player2Ready;
-      await gameSessionApi.toggleReady(!isReady);
+      await gameSessionApi.toggleReady(!isReady, activeSession.id);
       await refreshSession({ silent: true });
     } catch (error) {
       console.error('Erreur toggle ready:', error);
@@ -326,9 +326,11 @@ export function FarmingPage() {
   return (
     <div className="resource-map-container">
       <header className="resource-map-header">
-        <button className="back-button" onClick={() => navigate('/')}>
-          Lobby
-        </button>
+        {(!activeSession || activeSession.status !== 'ACTIVE') && (
+          <button className="back-button" onClick={() => navigate('/')}>
+            Lobby
+          </button>
+        )}
         <button className="nav-link-btn" onClick={() => navigate('/inventory')}>
           Inventaire
         </button>

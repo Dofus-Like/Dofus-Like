@@ -102,9 +102,7 @@ async function main() {
     data: { name: 'Or', type: ItemType.RESOURCE },
   });
 
-  // ── Armes (craft 3u → shop 4 Or) ───────────────────────────────
-
-  // ── Armes (Cout 3u) ───────────────────────────────
+  // ── Armes : boutique 25 Po (max 2 pièces d’équipement par victoire à +50 Po) ──
 
   const epee = await prisma.item.create({
     data: {
@@ -113,7 +111,7 @@ async function main() {
       description: "Tranchante, mais surtout utile pour couper le saucisson.",
       statsBonus: { atk: 5 },
       craftCost: { [fer.id]: 2, [cuir.id]: 1 },
-      shopPrice: 4,
+      shopPrice: 25,
     },
   });
 
@@ -124,7 +122,7 @@ async function main() {
       description: "Plus efficace qu'une planche en bois, mais moins qu'un mur en briques.",
       statsBonus: { def: 5 },
       craftCost: { [fer.id]: 1, [cuir.id]: 2 },
-      shopPrice: 4,
+      shopPrice: 25,
     },
   });
 
@@ -135,7 +133,7 @@ async function main() {
       description: "L'extrémité brille quand on pense très fort à du fromage.",
       statsBonus: { mag: 5 },
       craftCost: { [cristal.id]: 1, [etoffe.id]: 2 },
-      shopPrice: 4,
+      shopPrice: 25,
     },
   });
 
@@ -145,7 +143,7 @@ async function main() {
       type: ItemType.WEAPON,
       statsBonus: { mag: 3, res: 2 },
       craftCost: { [cristal.id]: 2, [etoffe.id]: 1 },
-      shopPrice: 4,
+      shopPrice: 25,
     },
   });
 
@@ -155,7 +153,7 @@ async function main() {
       type: ItemType.WEAPON,
       statsBonus: { atk: 3, ini: 2 },
       craftCost: { [fer.id]: 2, [bois.id]: 1 },
-      shopPrice: 4,
+      shopPrice: 25,
     },
   });
 
@@ -165,7 +163,7 @@ async function main() {
       type: ItemType.WEAPON,
       statsBonus: { atk: 2, ini: 3 },
       craftCost: { [bois.id]: 1, [herbe.id]: 2 },
-      shopPrice: 4,
+      shopPrice: 25,
     },
   });
 
@@ -177,7 +175,7 @@ async function main() {
       type: ItemType.ARMOR_HEAD,
       statsBonus: { def: 3 },
       craftCost: { [fer.id]: 2 },
-      shopPrice: 3,
+      shopPrice: 25,
     },
   });
 
@@ -187,7 +185,7 @@ async function main() {
       type: ItemType.ARMOR_HEAD,
       statsBonus: { res: 3 },
       craftCost: { [cristal.id]: 1, [etoffe.id]: 1 },
-      shopPrice: 3,
+      shopPrice: 25,
     },
   });
 
@@ -197,7 +195,7 @@ async function main() {
       type: ItemType.ARMOR_HEAD,
       statsBonus: { ini: 3 },
       craftCost: { [cuir.id]: 1, [bois.id]: 1 },
-      shopPrice: 3,
+      shopPrice: 25,
     },
   });
 
@@ -209,7 +207,7 @@ async function main() {
       type: ItemType.ARMOR_CHEST,
       statsBonus: { def: 5 },
       craftCost: { [fer.id]: 2, [cuir.id]: 1 },
-      shopPrice: 4,
+      shopPrice: 25,
     },
   });
 
@@ -219,7 +217,7 @@ async function main() {
       type: ItemType.ARMOR_CHEST,
       statsBonus: { res: 5 },
       craftCost: { [cristal.id]: 1, [etoffe.id]: 2 },
-      shopPrice: 4,
+      shopPrice: 25,
     },
   });
 
@@ -229,7 +227,7 @@ async function main() {
       type: ItemType.ARMOR_CHEST,
       statsBonus: { ini: 3, pm: 1 },
       craftCost: { [cuir.id]: 1, [bois.id]: 2 },
-      shopPrice: 4,
+      shopPrice: 25,
     },
   });
 
@@ -241,7 +239,7 @@ async function main() {
       type: ItemType.ARMOR_LEGS,
       statsBonus: { def: 2, pm: 1 },
       craftCost: { [fer.id]: 2 },
-      shopPrice: 3,
+      shopPrice: 25,
     },
   });
 
@@ -251,7 +249,7 @@ async function main() {
       type: ItemType.ARMOR_LEGS,
       statsBonus: { res: 2, pm: 1 },
       craftCost: { [etoffe.id]: 2 },
-      shopPrice: 3,
+      shopPrice: 25,
     },
   });
 
@@ -261,7 +259,7 @@ async function main() {
       type: ItemType.ARMOR_LEGS,
       statsBonus: { pm: 2 },
       craftCost: { [bois.id]: 2 },
-      shopPrice: 3,
+      shopPrice: 25,
     },
   });
 
@@ -274,7 +272,7 @@ async function main() {
       statsBonus: { vit: 100, atk: 20, def: 10, pa: 1 },
       grantsSpells: ['spell-frappe', 'spell-bond', 'spell-endurance'],
       craftCost: { [fer.id]: 2, [or.id]: 2 },
-      shopPrice: 5,
+      shopPrice: 25,
     },
   });
 
@@ -285,7 +283,7 @@ async function main() {
       statsBonus: { vit: 50, mag: 30, res: 15, pa: 1 },
       grantsSpells: ['spell-boule-de-feu', 'spell-soin', 'spell-menhir'],
       craftCost: { [cristal.id]: 2, [or.id]: 2 },
-      shopPrice: 5,
+      shopPrice: 25,
     },
   });
 
@@ -296,7 +294,7 @@ async function main() {
       statsBonus: { vit: 50, atk: 15, mag: 5, ini: 500, pm: 1 },
       grantsSpells: ['spell-kunai', 'spell-bombe-repousse', 'spell-velocite'],
       craftCost: { [cuir.id]: 1, [bois.id]: 1, [or.id]: 2 },
-      shopPrice: 5,
+      shopPrice: 25,
     },
   });
 
@@ -311,7 +309,7 @@ async function main() {
     },
   });
 
-  // ── Consommables (Cout 2u) ─────────────────────────
+  // ── Consommables : prix bas pour ne pas grignoter le budget équipement ──
 
   await prisma.item.create({
     data: {
@@ -319,7 +317,7 @@ async function main() {
       type: ItemType.CONSUMABLE,
       statsBonus: { healVit: 30 },
       craftCost: { [herbe.id]: 2 },
-      shopPrice: 3,
+      shopPrice: 8,
     },
   });
 
@@ -329,7 +327,7 @@ async function main() {
       type: ItemType.CONSUMABLE,
       statsBonus: { buffAttaque: 5, buffDuree: 3 },
       craftCost: { [fer.id]: 1, [herbe.id]: 1 },
-      shopPrice: 3,
+      shopPrice: 8,
     },
   });
 
@@ -339,7 +337,7 @@ async function main() {
       type: ItemType.CONSUMABLE,
       statsBonus: { buffPM: 2, buffDuree: 2 },
       craftCost: { [bois.id]: 1, [herbe.id]: 1 },
-      shopPrice: 3,
+      shopPrice: 8,
     },
   });
 

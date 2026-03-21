@@ -14,7 +14,10 @@ interface GameSession {
   player2Ready: boolean;
   player1Id: string;
   player2Id: string | null;
+  /** @deprecated Préférer player1Po / player2Po */
   gold: number;
+  player1Po: number;
+  player2Po: number;
   combats: any[];
 }
 

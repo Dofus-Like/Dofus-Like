@@ -49,8 +49,15 @@ export class GameSessionController {
   }
 
   @Post('ready')
-  async toggleReady(@Request() req: { user: { id: string } }, @Body('ready') ready: boolean) {
-    const session = await this.gameSessionService.getActiveSession(req.user.id);
+  async toggleReady(
+    @Request() req: { user: { id: string } },
+    @Body() body: { ready?: boolean; sessionId?: string },
+  ) {
+    const ready = body.ready;
+    if (typeof ready !== 'boolean') {
+      throw new BadRequestException('Champ ready (booléen) requis');
+    }
+    const session = await this.gameSessionService.getActiveSession(req.user.id, body.sessionId);
     if (!session) throw new BadRequestException('Aucune session active');
     return this.gameSessionService.setReady(session.id, req.user.id, ready);
   }
@@ -76,7 +83,7 @@ export class GameSessionController {
   @Post('vs-ai')
   async startVsAi(@Request() req: { user: { id: string } }) {
     const bot = await this.sessionService.getOrCreateBotPlayer();
-    return this.gameSessionService.createSession(req.user.id, bot.id);
+    return this.gameSessionService.createSession(req.user.id, bot.id, { vsAi: true });
   }
 
   @Post('end/:id')

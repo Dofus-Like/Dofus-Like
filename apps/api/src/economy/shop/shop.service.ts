@@ -27,8 +27,12 @@ export class ShopService {
     const session = await this.gameSession.getActiveSession(playerId);
 
     if (session) {
-      if (session.gold < totalCost) {
-        throw new BadRequestException('Or de session insuffisant');
+      const po =
+        session.player1Id === playerId
+          ? (session as any).player1Po
+          : (session as any).player2Po;
+      if (po < totalCost) {
+        throw new BadRequestException('Pièces insuffisantes');
       }
     } else {
       const player = await this.prisma.player.findUnique({ where: { id: playerId } });
@@ -116,9 +120,10 @@ export class ShopService {
 
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       if (session) {
+        const isP1 = session.player1Id === playerId;
         await (tx as any).gameSession.update({
           where: { id: session.id },
-          data: { gold: { increment: sellPrice } },
+          data: isP1 ? { player1Po: { increment: sellPrice } } : { player2Po: { increment: sellPrice } },
         });
       } else {
         await tx.player.update({

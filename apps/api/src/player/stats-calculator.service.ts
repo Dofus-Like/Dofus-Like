@@ -12,6 +12,11 @@ type EquippedSlotWithItem = Prisma.EquipmentSlotGetPayload<{
         item: true;
       };
     };
+    sessionItem: {
+      include: {
+        item: true;
+      };
+    };
   };
 }>;
 
@@ -32,6 +37,11 @@ export class StatsCalculatorService {
         where: { playerId },
         include: {
           inventoryItem: {
+            include: {
+              item: true,
+            },
+          },
+          sessionItem: {
             include: {
               item: true,
             },
@@ -86,8 +96,9 @@ export class StatsCalculatorService {
     };
 
     slots.forEach((slot) => {
-      if (slot.inventoryItem?.item.statsBonus) {
-        const bonus = slot.inventoryItem.item.statsBonus as Partial<PlayerStats>;
+      const item = slot.inventoryItem?.item ?? slot.sessionItem?.item;
+      if (item?.statsBonus) {
+        const bonus = item.statsBonus as Partial<PlayerStats>;
         Object.entries(bonus).forEach(([key, value]) => {
           if (key in effectiveStats && typeof value === 'number') {
             (effectiveStats as unknown as Record<string, number>)[key] += value;

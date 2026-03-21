@@ -19,8 +19,8 @@ export class EconomyListenerService {
       loser_id: payload.loserId,
     });
 
-    if (payload.winnerId) {
-      await this.sessionService.endCombat(payload.sessionId, payload.winnerId);
+    if (payload.winnerId && payload.loserId) {
+      await this.sessionService.endCombat(payload.sessionId, payload.winnerId, payload.loserId);
     }
   }
 }
