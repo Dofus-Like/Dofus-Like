@@ -136,9 +136,11 @@ export function CombatPage() {
   return (
     <div className="combat-page-container">
       <header className="combat-toolbar">
-        <button type="button" className="combat-toolbar-back" onClick={() => navigate('/')}>
-          ← Quitter
-        </button>
+        {(!activeSession || activeSession.status !== 'ACTIVE') && (
+          <button type="button" className="combat-toolbar-back" onClick={() => navigate('/')}>
+            ← Quitter
+          </button>
+        )}
         <button type="button" className="combat-toolbar-abandon" onClick={handleAbandon}>
           Abandonner
         </button>

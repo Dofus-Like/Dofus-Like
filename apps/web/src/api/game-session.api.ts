@@ -8,7 +8,8 @@ export const gameSessionApi = {
   getActiveSession: () => apiClient.get(`${API_URL}/active`),
   getInventory: () => apiClient.get(`${API_URL}/inventory`),
   endSession: (id: string) => apiClient.post(`${API_URL}/end/${id}`),
-  toggleReady: (ready: boolean) => apiClient.post(`${API_URL}/ready`, { ready }),
+  toggleReady: (ready: boolean, sessionId?: string) =>
+    apiClient.post(`${API_URL}/ready`, sessionId ? { ready, sessionId } : { ready }),
   createPrivateSession: () => apiClient.post(`${API_URL}/create-private`),
   getWaitingSessions: () => apiClient.get(`${API_URL}/waiting`),
   joinPrivateSession: (sessionId: string) => apiClient.post(`${API_URL}/join/${sessionId}`),

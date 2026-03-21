@@ -12,6 +12,11 @@ type EquippedSlotWithItem = Prisma.EquipmentSlotGetPayload<{
         item: true;
       };
     };
+    sessionItem: {
+      include: {
+        item: true;
+      };
+    };
   };
 }>;
 
@@ -31,10 +36,15 @@ export class PlayerStatsService {
     const slots = await this.prisma.equipmentSlot.findMany({
       where: {
         playerId,
-        NOT: { inventoryItemId: null },
+        OR: [{ inventoryItemId: { not: null } }, { sessionItemId: { not: null } }],
       },
       include: {
         inventoryItem: {
+          include: {
+            item: true,
+          },
+        },
+        sessionItem: {
           include: {
             item: true,
           },
@@ -56,10 +66,15 @@ export class PlayerStatsService {
       this.prisma.equipmentSlot.findMany({
         where: {
           playerId,
-          NOT: { inventoryItemId: null },
+          OR: [{ inventoryItemId: { not: null } }, { sessionItemId: { not: null } }],
         },
         include: {
           inventoryItem: {
+            include: {
+              item: true,
+            },
+          },
+          sessionItem: {
             include: {
               item: true,
             },
@@ -83,19 +98,23 @@ export class PlayerStatsService {
   }
 
   private mapEquippedItems(slots: EquippedSlotWithItem[]) {
-    return slots.map((slot) => ({
-      id: slot.inventoryItem!.item.id,
-      name: slot.inventoryItem!.item.name,
-      description: slot.inventoryItem!.item.description,
-      type: slot.inventoryItem!.item.type as ItemType,
-      family: slot.inventoryItem!.item.family,
-      statsBonus:
-        slot.inventoryItem!.item.statsBonus as Partial<PlayerStats> | null,
-      grantsSpells: slot.inventoryItem!.item.grantsSpells as string[] | null,
-      craftCost:
-        slot.inventoryItem!.item.craftCost as Record<string, number> | null,
-      shopPrice: slot.inventoryItem!.item.shopPrice,
-      rank: slot.inventoryItem!.item.rank,
-    }));
+    return slots
+      .map((slot) => {
+        const item = slot.inventoryItem?.item ?? slot.sessionItem?.item;
+        if (!item) return null;
+        return {
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          type: item.type as ItemType,
+          family: item.family,
+          statsBonus: item.statsBonus as Partial<PlayerStats> | null,
+          grantsSpells: item.grantsSpells as string[] | null,
+          craftCost: item.craftCost as Record<string, number> | null,
+          shopPrice: item.shopPrice,
+          rank: item.rank,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null);
   }
 }

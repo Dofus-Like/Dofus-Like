@@ -87,9 +87,11 @@ export function CraftingPage() {
     <div className="crafting-page">
       <header className="crafting-header">
         <div className="crafting-header-nav">
-          <button type="button" className="back-button" onClick={() => navigate('/')}>
-            Lobby
-          </button>
+          {(!activeSession || activeSession.status !== 'ACTIVE') && (
+            <button type="button" className="back-button" onClick={() => navigate('/')}>
+              Lobby
+            </button>
+          )}
           <button type="button" className="nav-link-btn" onClick={() => navigate(`/farming${tunnelQuery}`)}>
             Farming
           </button>

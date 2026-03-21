@@ -214,26 +214,79 @@ export class SessionService {
     return initialState;
   }
 
-  async endCombat(sessionId: string, winnerId: string) {
+  async endCombat(combatSessionId: string, winnerId: string, loserId: string) {
     const session = await this.prisma.combatSession.findUnique({
-      where: { id: sessionId },
+      where: { id: combatSessionId },
     });
 
     if (!session || session.status === 'FINISHED') return;
 
-    await this.prisma.$transaction([
-      this.prisma.combatSession.update({
-        where: { id: sessionId },
-        data: { status: 'FINISHED', winnerId, endedAt: new Date() },
-      }),
-      this.prisma.player.update({
-        where: { id: winnerId },
-        data: { gold: { increment: 50 } }, // Reward fixed à 50 Or
-      }),
-    ]);
+    const gameSessionId = session.gameSessionId;
 
-    await this.redis.del(`combat:${sessionId}`);
-    this.sse.emit(sessionId, 'COMBAT_ENDED', { winnerId, reward: 50 });
+    if (gameSessionId) {
+      const gs = await (this.prisma as any).gameSession.findUnique({
+        where: { id: gameSessionId },
+      });
+
+      if (!gs) {
+        await this.redis.del(`combat:${combatSessionId}`);
+        return;
+      }
+
+      const winnerIsP1 = winnerId === gs.player1Id;
+      const poData = winnerIsP1
+        ? { player1Po: { increment: 50 }, player2Po: { increment: 25 } }
+        : { player2Po: { increment: 50 }, player1Po: { increment: 25 } };
+
+      await this.prisma.$transaction([
+        this.prisma.combatSession.update({
+          where: { id: combatSessionId },
+          data: { status: 'FINISHED', winnerId, endedAt: new Date() },
+        }),
+        (this.prisma as any).gameSession.update({
+          where: { id: gameSessionId },
+          data: poData,
+        }),
+      ]);
+
+      const updated = await (this.prisma as any).gameSession.findUnique({
+        where: { id: gameSessionId },
+        include: {
+          p1: { select: { username: true } },
+          p2: { select: { username: true } },
+          combats: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+          },
+        },
+      });
+      if (updated) {
+        this.sse.emit(`game-session:${gameSessionId}`, 'SESSION_UPDATED', updated);
+      }
+    } else {
+      await this.prisma.$transaction([
+        this.prisma.combatSession.update({
+          where: { id: combatSessionId },
+          data: { status: 'FINISHED', winnerId, endedAt: new Date() },
+        }),
+        this.prisma.player.update({
+          where: { id: winnerId },
+          data: { gold: { increment: 50 } },
+        }),
+        this.prisma.player.update({
+          where: { id: loserId },
+          data: { gold: { increment: 25 } },
+        }),
+      ]);
+    }
+
+    await this.redis.del(`combat:${combatSessionId}`);
+    this.sse.emit(combatSessionId, 'COMBAT_ENDED', {
+      winnerId,
+      loserId,
+      winnerRewardPo: 50,
+      loserRewardPo: 25,
+    });
   }
 
   async getState(sessionId: string): Promise<CombatState> {

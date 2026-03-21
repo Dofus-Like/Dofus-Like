@@ -6,6 +6,7 @@ import { useGameSession } from './GameTunnel';
 import { shopApi } from '../api/shop.api';
 import { useFarmingStore } from '../store/farming.store';
 import { SEED_CONFIGS, SeedId } from '@game/shared-types';
+import { getSessionPo } from '../utils/sessionPo';
 import './ShopPage.css';
 
 export function ShopPage() {
@@ -15,7 +16,7 @@ export function ShopPage() {
   const tunnelQuery = isDebugMode ? '?debug=true' : '';
   const queryClient = useQueryClient();
   const { player } = useAuthStore();
-  const { activeSession } = useGameSession();
+  const { activeSession, refreshSession } = useGameSession();
   const showCraftingLink = activeSession?.status === 'ACTIVE' || isDebugMode;
   const { fetchState, seedId } = useFarmingStore();
 
@@ -30,6 +31,7 @@ export function ShopPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['shop-items'] });
+      void refreshSession({ silent: true });
     },
   });
 
@@ -44,15 +46,18 @@ export function ShopPage() {
     return seedConfig.families.includes(family as any);
   };
 
-  const currentGold = activeSession ? activeSession.gold : (player?.gold ?? 0);
+  const sessionPo = getSessionPo(activeSession, player?.id);
+  const spendablePo = sessionPo ?? 0;
 
   return (
     <div className="shop-container">
       <header className="shop-header">
         <div className="shop-header-nav">
-          <button type="button" className="back-button" onClick={() => navigate('/')}>
-            Lobby
-          </button>
+          {(!activeSession || activeSession.status !== 'ACTIVE') && (
+            <button type="button" className="back-button" onClick={() => navigate('/')}>
+              Lobby
+            </button>
+          )}
           <button type="button" className="nav-link-btn" onClick={() => navigate('/inventory')}>
             Inventaire
           </button>
@@ -73,12 +78,19 @@ export function ShopPage() {
           <h2>
             🏪 Boutique {activeSession && <span className="session-badge">SESSION</span>}
           </h2>
-          <span className="shop-gold">💰 {currentGold} or</span>
+          {activeSession && sessionPo != null && (
+            <span className="shop-gold">💰 {sessionPo} Po</span>
+          )}
         </div>
         {seedConfig && (
           <div className="current-seed-info">
             Saison : <strong>{seedConfig.label}</strong> ({seedConfig.dominantBuild})
           </div>
+        )}
+        {activeSession && sessionPo === 0 && (
+          <p className="shop-po-hint" role="status">
+            Gagnez un combat pour recevoir des Po (50 en cas de victoire, 25 en cas de défaite), puis revenez acheter ici.
+          </p>
         )}
       </header>
 
@@ -97,12 +109,12 @@ export function ShopPage() {
               </div>
               <div className="shop-item-type">{item.type}</div>
               <h3 className="shop-item-name">{item.name}</h3>
-              <p className="shop-item-price">💰 {item.shopPrice} or</p>
+              <p className="shop-item-price">💰 {item.shopPrice} Po</p>
               <button
                 type="button"
                 className="shop-buy-button"
                 onClick={() => buyMutation.mutate({ itemId: item.id, quantity: 1 })}
-                disabled={buyMutation.isPending || currentGold < price}
+                disabled={buyMutation.isPending || spendablePo < price}
               >
                 {buyMutation.isPending ? 'Achat...' : 'Acheter'}
               </button>

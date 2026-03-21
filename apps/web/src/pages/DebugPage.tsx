@@ -78,7 +78,6 @@ export function DebugPage() {
           <div className="debug-user-badge">
             <span>{player.username}</span>
             <code>{player.id}</code>
-            <span>{player.gold} or</span>
           </div>
         )}
       </header>

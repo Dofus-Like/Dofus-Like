@@ -6,6 +6,7 @@ import { EquipmentSlotType } from '@game/shared-types';
 import { StatsCalculatorService } from '../../player/stats-calculator.service';
 import { SpellResolverService } from '../../combat/spell-resolver.service';
 import { PerfLoggerService } from '../../shared/perf/perf-logger.service';
+import { GameSessionService } from '../../game-session/game-session.service';
 
 @Injectable()
 export class EquipmentService {
@@ -14,6 +15,7 @@ export class EquipmentService {
     private readonly statsCalculator: StatsCalculatorService,
     private readonly spellResolver: SpellResolverService,
     private readonly perfLogger: PerfLoggerService,
+    private readonly gameSession: GameSessionService,
   ) {}
 
   async getEquipment(playerId: string) {
@@ -25,43 +27,104 @@ export class EquipmentService {
             item: true,
           },
         },
+        sessionItem: {
+          include: {
+            item: true,
+          },
+        },
       },
     });
 
     const equipment: Record<string, any> = {};
     Object.values(EquipmentSlotType).forEach((slot: any) => {
-      equipment[slot] = slots.find((s) => s.slot === slot)?.inventoryItem || null;
+      const row = slots.find((s) => s.slot === slot);
+      if (row?.inventoryItem) {
+        equipment[slot] = row.inventoryItem;
+      } else if (row?.sessionItem) {
+        const si = row.sessionItem;
+        equipment[slot] = {
+          id: si.id,
+          playerId: si.playerId,
+          itemId: si.itemId,
+          quantity: si.quantity,
+          rank: 1,
+          item: si.item,
+        };
+      } else {
+        equipment[slot] = null;
+      }
     });
 
     return equipment;
   }
 
-
+  /** inventoryItemId ou id de SessionItem (même clé API) */
   async equip(playerId: string, inventoryItemId: string, slot: EquipmentSlotType) {
-    const inventoryItem = await this.prisma.inventoryItem.findFirst({
+    const inv = await this.prisma.inventoryItem.findFirst({
       where: { id: inventoryItemId, playerId },
       include: { item: true },
     });
 
-    if (!inventoryItem) {
+    if (inv) {
+      this.validateSlotCompatibility(inv.item.type, slot);
+
+      const existingSlotForItem = await this.prisma.equipmentSlot.findFirst({
+        where: { playerId, inventoryItemId, NOT: { slot } },
+      });
+
+      if (existingSlotForItem) {
+        await this.prisma.equipmentSlot.update({
+          where: { id: existingSlotForItem.id },
+          data: { inventoryItemId: null, sessionItemId: null },
+        });
+      }
+
+      await this.prisma.equipmentSlot.upsert({
+        where: {
+          playerId_slot: { playerId, slot },
+        },
+        create: {
+          playerId,
+          slot,
+          inventoryItemId,
+          sessionItemId: null,
+        },
+        update: {
+          inventoryItemId,
+          sessionItemId: null,
+        },
+      });
+
+      return this.updatePlayerStatsAndSpells(playerId);
+    }
+
+    const gs = await this.gameSession.getActiveSession(playerId);
+    if (!gs) {
       throw new NotFoundException('Item non trouvé dans votre inventaire');
     }
 
-    this.validateSlotCompatibility(inventoryItem.item.type, slot);
+    const si = await this.prisma.sessionItem.findFirst({
+      where: { id: inventoryItemId, playerId, sessionId: gs.id },
+      include: { item: true },
+    });
 
-    // Vérifier si l'item est déjà équipé dans un AUTRE slot
+    if (!si) {
+      throw new NotFoundException('Item non trouvé dans votre inventaire');
+    }
+
+    this.validateSlotCompatibility(si.item.type, slot);
+
     const existingSlotForItem = await this.prisma.equipmentSlot.findFirst({
-      where: { inventoryItemId, NOT: { slot } },
+      where: { playerId, sessionItemId: inventoryItemId, NOT: { slot } },
     });
 
     if (existingSlotForItem) {
       await this.prisma.equipmentSlot.update({
         where: { id: existingSlotForItem.id },
-        data: { inventoryItemId: null },
+        data: { inventoryItemId: null, sessionItemId: null },
       });
     }
 
-    // Upsert le slot cible
     await this.prisma.equipmentSlot.upsert({
       where: {
         playerId_slot: { playerId, slot },
@@ -69,10 +132,12 @@ export class EquipmentService {
       create: {
         playerId,
         slot,
-        inventoryItemId,
+        sessionItemId: inventoryItemId,
+        inventoryItemId: null,
       },
       update: {
-        inventoryItemId,
+        sessionItemId: inventoryItemId,
+        inventoryItemId: null,
       },
     });
 
@@ -86,6 +151,7 @@ export class EquipmentService {
       },
       data: {
         inventoryItemId: null,
+        sessionItemId: null,
       },
     });
 
@@ -142,8 +208,6 @@ export class EquipmentService {
   }
 
   private validateSlotCompatibility(itemType: string, slot: EquipmentSlotType) {
-
-
     const validSlots: Record<string, EquipmentSlotType[]> = {
       WEAPON: [EquipmentSlotType.WEAPON_LEFT, EquipmentSlotType.WEAPON_RIGHT],
       ARMOR_HEAD: [EquipmentSlotType.ARMOR_HEAD],

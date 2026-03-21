@@ -1,13 +1,15 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-
-
 import { PrismaService } from '../../shared/prisma/prisma.service';
+import { GameSessionService } from '../../game-session/game-session.service';
 
 @Injectable()
 export class CraftingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gameSession: GameSessionService,
+  ) {}
 
   async getRecipes() {
     return this.prisma.item.findMany({
@@ -24,8 +26,12 @@ export class CraftingService {
 
     const craftCost = item.craftCost as Record<string, number>;
 
+    const session = await this.gameSession.getActiveSession(playerId);
+    if (session) {
+      return this.craftSession(playerId, session.id, itemId, craftCost);
+    }
+
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // Vérifier que le joueur possède toutes les ressources nécessaires
       for (const [resourceItemId, requiredQty] of Object.entries(craftCost)) {
         const inventoryItem = await tx.inventoryItem.findFirst({
           where: { playerId, itemId: resourceItemId, rank: 1 },
@@ -36,7 +42,6 @@ export class CraftingService {
         }
       }
 
-      // Consommer les ressources
       for (const [resourceItemId, requiredQty] of Object.entries(craftCost)) {
         const inventoryItem = await tx.inventoryItem.findFirst({
           where: { playerId, itemId: resourceItemId, rank: 1 },
@@ -52,7 +57,6 @@ export class CraftingService {
         }
       }
 
-      // Ajouter l'item crafté à l'inventaire
       const existing = await tx.inventoryItem.findUnique({
         where: { playerId_itemId_rank: { playerId, itemId, rank: 1 } },
       });
@@ -72,7 +76,69 @@ export class CraftingService {
     });
   }
 
+  private async craftSession(
+    playerId: string,
+    sessionId: string,
+    itemId: string,
+    craftCost: Record<string, number>,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      for (const [resourceItemId, requiredQty] of Object.entries(craftCost)) {
+        const row = await (tx as any).sessionItem.findUnique({
+          where: {
+            sessionId_playerId_itemId: { sessionId, playerId, itemId: resourceItemId },
+          },
+        });
+
+        if (!row || row.quantity < requiredQty) {
+          throw new BadRequestException(`Ressource insuffisante pour le craft`);
+        }
+      }
+
+      for (const [resourceItemId, requiredQty] of Object.entries(craftCost)) {
+        const row = await (tx as any).sessionItem.findUnique({
+          where: {
+            sessionId_playerId_itemId: { sessionId, playerId, itemId: resourceItemId },
+          },
+        });
+
+        if (row.quantity === requiredQty) {
+          await (tx as any).sessionItem.delete({ where: { id: row.id } });
+        } else {
+          await (tx as any).sessionItem.update({
+            where: { id: row.id },
+            data: { quantity: { decrement: requiredQty } },
+          });
+        }
+      }
+
+      const existing = await (tx as any).sessionItem.findUnique({
+        where: { sessionId_playerId_itemId: { sessionId, playerId, itemId } },
+      });
+
+      if (existing) {
+        return (tx as any).sessionItem.update({
+          where: { id: existing.id },
+          data: { quantity: { increment: 1 } },
+          include: { item: true },
+        });
+      }
+
+      return (tx as any).sessionItem.create({
+        data: { sessionId, playerId, itemId, quantity: 1 },
+        include: { item: true },
+      });
+    });
+  }
+
   async merge(playerId: string, itemId: string, currentRank: number) {
+    const session = await this.gameSession.getActiveSession(playerId);
+    if (session) {
+      throw new BadRequestException(
+        "La fusion d'objets n'est pas disponible pendant une session de jeu pour l'instant",
+      );
+    }
+
     if (currentRank >= 3) {
       throw new BadRequestException('Rang maximum déjà atteint');
     }
@@ -85,9 +151,8 @@ export class CraftingService {
       throw new BadRequestException('Quantité insuffisante pour la fusion');
     }
 
-    // Vérifier si l'item est équipé
     const isEquipped = await this.prisma.equipmentSlot.findFirst({
-      where: { playerId, inventoryItemId: inventoryItem.id }
+      where: { playerId, inventoryItemId: inventoryItem.id },
     });
 
     if (isEquipped) {
@@ -95,7 +160,6 @@ export class CraftingService {
     }
 
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // Consommer les 2 items
       if (inventoryItem.quantity === 2) {
         await tx.inventoryItem.delete({ where: { id: inventoryItem.id } });
       } else {
@@ -105,11 +169,10 @@ export class CraftingService {
         });
       }
 
-      // Créer/Incrémenter l'item de rang supérieur
       const nextRank = currentRank + 1;
-      
+
       const existingHighRank = await tx.inventoryItem.findUnique({
-        where: { playerId_itemId_rank: { playerId, itemId, rank: nextRank } }
+        where: { playerId_itemId_rank: { playerId, itemId, rank: nextRank } },
       });
 
       if (existingHighRank) {

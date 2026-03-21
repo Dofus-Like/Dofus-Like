@@ -13,9 +13,14 @@ export class GameSessionService {
     private readonly sessionService: SessionService,
   ) {}
 
-  async createSession(player1Id: string, player2Id: string | null) {
+  async createSession(
+    player1Id: string,
+    player2Id: string | null,
+    opts?: { vsAi?: boolean },
+  ) {
     const bot = await (this.prisma as any).player.findUnique({ where: { username: 'Bot' } });
-    const isVsAi = player2Id === bot?.id;
+    const isVsAi =
+      opts?.vsAi === true ? true : opts?.vsAi === false ? false : player2Id != null && player2Id === bot?.id;
 
     return (this.prisma as any).gameSession.create({
       data: {
@@ -23,7 +28,9 @@ export class GameSessionService {
         player2Id,
         status: player2Id ? 'ACTIVE' : 'WAITING',
         phase: 'FARMING',
-        gold: 500,
+        gold: 0,
+        player1Po: 0,
+        player2Po: 0,
         player2Ready: isVsAi,
       },
       include: {
@@ -79,12 +86,14 @@ export class GameSessionService {
     return updated;
   }
 
-  async getActiveSession(playerId: string) {
+  async getActiveSession(playerId: string, sessionId?: string) {
     return (this.prisma as any).gameSession.findFirst({
       where: {
+        ...(sessionId ? { id: sessionId } : {}),
         OR: [{ player1Id: playerId }, { player2Id: playerId }],
         status: 'ACTIVE',
       },
+      orderBy: { createdAt: 'desc' },
       include: {
         inventory: {
           include: { item: true },
@@ -215,6 +224,8 @@ export class GameSessionService {
           player2Wins: newWinsP2,
           currentRound: session.currentRound + 1,
           phase: 'FARMING',
+          player1Ready: false,
+          player2Ready: false,
           status: isGameOver ? 'FINISHED' : 'ACTIVE',
         },
         include: {

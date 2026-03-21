@@ -123,7 +123,6 @@ export function LobbyPage() {
         </div>
 
         <div className="lobby-user-info">
-          <span className="lobby-gold">💰 {player?.gold ?? 0} or</span>
           <div className="user-profile-summary">
             <span className="lobby-username">{player?.username ?? 'Joueur'}</span>
             <span className="lobby-skin-tag">{getSkinById(player?.skin || 'soldier-classic').name}</span>
