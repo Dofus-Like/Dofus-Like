@@ -12,6 +12,7 @@ async function main() {
   await prisma.sessionItem.deleteMany();
   await prisma.gameSession.deleteMany();
   await prisma.playerSpell.deleteMany();
+  await prisma.equipmentSlot.deleteMany();
   await prisma.inventoryItem.deleteMany();
   await prisma.playerStats.deleteMany();
   await prisma.player.deleteMany();

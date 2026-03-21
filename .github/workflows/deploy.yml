@@ -111,6 +111,35 @@ jobs:
               {name: "POSTGRES_PASSWORD", value: $postgres_password}
             ]')
 
+          portainer_request() {
+            local method="$1"
+            local url="$2"
+            local payload="$3"
+            local response_file
+            response_file=$(mktemp)
+
+            local http_code
+            http_code=$(curl --silent --show-error -L -X "$method" \
+              --insecure \
+              -H "X-API-Key: ${PORTAINER_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -o "$response_file" \
+              -w '%{http_code}' \
+              "$url" \
+              -d "$payload")
+
+            if [[ "$http_code" =~ ^2 ]]; then
+              jq '{Id, Name, Status}' "$response_file"
+              rm -f "$response_file"
+              return 0
+            fi
+
+            echo "Portainer API error (${http_code})"
+            cat "$response_file"
+            rm -f "$response_file"
+            return 1
+          }
+
           echo "Fetching stack list from Portainer..."
           STACKS=$(curl -fsSL \
             --insecure \
@@ -130,12 +159,10 @@ jobs:
               --argjson env "$ENV_VARS" \
               '{name: $name, stackFileContent: $content, env: $env}')
 
-            curl -fsSL -X POST \
-              --insecure \
-              -H "X-API-Key: ${PORTAINER_API_TOKEN}" \
-              -H "Content-Type: application/json" \
+            portainer_request \
+              POST \
               "${PORTAINER_URL}/api/stacks/create/standalone/string?endpointId=${PORTAINER_ENDPOINT_ID}" \
-              -d "$PAYLOAD" | jq '{Id, Name, Status}'
+              "$PAYLOAD"
 
             echo "Stack creee avec succes !"
           else
@@ -147,12 +174,10 @@ jobs:
               --argjson env "$ENV_VARS" \
               '{stackFileContent: $content, pullImage: true, prune: false, env: $env}')
 
-            curl -fsSL -X PUT \
-              --insecure \
-              -H "X-API-Key: ${PORTAINER_API_TOKEN}" \
-              -H "Content-Type: application/json" \
+            portainer_request \
+              PUT \
               "${PORTAINER_URL}/api/stacks/${STACK_ID}?endpointId=${PORTAINER_ENDPOINT_ID}" \
-              -d "$PAYLOAD" | jq '{Id, Name, Status}'
+              "$PAYLOAD"
 
             echo "Stack mise a jour avec succes !"
           fi
