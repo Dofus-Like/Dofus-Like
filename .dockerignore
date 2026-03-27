@@ -1,0 +1,14 @@
+.git
+.github
+.nx
+dist
+node_modules
+coverage
+tmp
+temp
+*.log
+build_log.txt
+build_log_2.txt
+build_log_3.txt
+logs_*.zip
+*.tsbuildinfo
