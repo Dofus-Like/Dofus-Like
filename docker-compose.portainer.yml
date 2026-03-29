@@ -9,7 +9,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: dofus-like-postgres
+    container_name: ${STACK_CONTAINER_PREFIX:-dofus-like}-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: game_db
@@ -27,7 +27,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: dofus-like-redis
+    container_name: ${STACK_CONTAINER_PREFIX:-dofus-like}-redis
     restart: unless-stopped
     volumes:
       - redis_data:/data
@@ -42,7 +42,7 @@ services:
 
   api-setup:
     image: ghcr.io/roketag33/dofus-like-api:${IMAGE_TAG:-latest}
-    container_name: dofus-like-api-setup
+    container_name: ${STACK_CONTAINER_PREFIX:-dofus-like}-api-setup
     restart: "no"
     command:
       - sh
@@ -71,7 +71,7 @@ services:
 
   api:
     image: ghcr.io/roketag33/dofus-like-api:${IMAGE_TAG:-latest}
-    container_name: dofus-like-api
+    container_name: ${STACK_CONTAINER_PREFIX:-dofus-like}-api
     restart: unless-stopped
     command:
       - node
@@ -85,7 +85,7 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      FRONTEND_URL: https://dofus-like.roketlab.duckdns.org
+      FRONTEND_URL: ${FRONTEND_URL:-https://dofus-like.roketlab.duckdns.org}
     depends_on:
       postgres:
         condition: service_healthy
@@ -106,17 +106,17 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
       - "traefik.enable=true"
-      - "traefik.http.routers.dofus-like-api.rule=Host(`dofus-like-api.roketlab.duckdns.org`)"
-      - "traefik.http.routers.dofus-like-api.entrypoints=websecure"
-      - "traefik.http.routers.dofus-like-api.tls=true"
-      - "traefik.http.routers.dofus-like-api.tls.certresolver=le"
-      - "traefik.http.routers.dofus-like-api.service=dofus-like-api"
-      - "traefik.http.services.dofus-like-api.loadbalancer.server.port=3000"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-dofus-like}-api.rule=Host(`${API_HOST:-dofus-like-api.roketlab.duckdns.org}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-dofus-like}-api.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-dofus-like}-api.tls=true"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-dofus-like}-api.tls.certresolver=le"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-dofus-like}-api.service=${TRAEFIK_ROUTER_PREFIX:-dofus-like}-api"
+      - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-dofus-like}-api.loadbalancer.server.port=3000"
       - "traefik.docker.network=proxy"
 
   web:
     image: ghcr.io/roketag33/dofus-like-web:${IMAGE_TAG:-latest}
-    container_name: dofus-like-web
+    container_name: ${STACK_CONTAINER_PREFIX:-dofus-like}-web
     restart: unless-stopped
     expose:
       - "80"
@@ -128,12 +128,12 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
       - "traefik.enable=true"
-      - "traefik.http.routers.dofus-like-web.rule=Host(`dofus-like.roketlab.duckdns.org`)"
-      - "traefik.http.routers.dofus-like-web.entrypoints=websecure"
-      - "traefik.http.routers.dofus-like-web.tls=true"
-      - "traefik.http.routers.dofus-like-web.tls.certresolver=le"
-      - "traefik.http.routers.dofus-like-web.service=dofus-like-web"
-      - "traefik.http.services.dofus-like-web.loadbalancer.server.port=80"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-dofus-like}-web.rule=Host(`${WEB_HOST:-dofus-like.roketlab.duckdns.org}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-dofus-like}-web.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-dofus-like}-web.tls=true"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-dofus-like}-web.tls.certresolver=le"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:-dofus-like}-web.service=${TRAEFIK_ROUTER_PREFIX:-dofus-like}-web"
+      - "traefik.http.services.${TRAEFIK_ROUTER_PREFIX:-dofus-like}-web.loadbalancer.server.port=80"
       - "traefik.docker.network=proxy"
 
 volumes:
@@ -144,7 +144,7 @@ volumes:
 
 networks:
   dofus-like-network:
-    name: dofus-like-network
+    name: ${APP_NETWORK_NAME:-dofus-like-network}
     driver: bridge
   proxy:
     external: true

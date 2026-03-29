@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -16,8 +17,10 @@ const webImage = process.env.CI_LOCAL_WEB_IMAGE ?? 'dofus-like-web:ci-local';
 const apiSetupContainerName = 'dofus-like-api-setup-ci-local';
 const apiContainerName = 'dofus-like-api-ci-local';
 const webContainerName = 'dofus-like-web-ci-local';
+const postgresContainerName = 'dofus-like-postgres-ci-local';
 const apiPort = process.env.CI_LOCAL_API_PORT ?? '13000';
 const webPort = process.env.CI_LOCAL_WEB_PORT ?? '18080';
+const dirtySecurityFixturePath = resolve(repoRoot, 'scripts', 'ci', 'fixtures', 'dirty-security-migration-state.sql');
 
 const ciEnv = {
   ...process.env,
@@ -34,12 +37,13 @@ const ciEnv = {
 };
 
 function run(command, args, options = {}) {
-  const { allowFailure = false, capture = false, env = ciEnv } = options;
+  const { allowFailure = false, capture = false, env = ciEnv, input } = options;
   const result = spawnSync(command, args, {
     cwd: repoRoot,
     env,
     stdio: capture ? ['inherit', 'pipe', 'pipe'] : 'inherit',
     encoding: 'utf8',
+    input,
   });
 
   if (result.error) {
@@ -161,19 +165,110 @@ async function waitForWeb(timeoutMs) {
   throw new Error('Timed out waiting for web container');
 }
 
-async function main() {
-  logStep('Checking Docker availability');
-  run('docker', ['version', '--format', '{{.Server.Version}}']);
-  run('docker', ['compose', 'version']);
+function runPsql(sql, capture = false) {
+  return run(
+    'docker',
+    ['exec', '-i', postgresContainerName, 'psql', '-U', 'game_user', '-d', 'game_db', '-v', 'ON_ERROR_STOP=1'],
+    { capture, input: sql },
+  );
+}
 
-  logStep('Building API image');
-  run('docker', ['build', '--progress', 'plain', '-f', 'apps/api/Dockerfile', '-t', apiImage, '.']);
+function runSqlFile(filePath) {
+  const sql = readFileSync(filePath, 'utf8');
+  runPsql(sql);
+}
 
-  logStep('Building Web image');
-  run('docker', ['build', '--progress', 'plain', '-f', 'apps/web/Dockerfile', '--build-arg', 'VITE_API_URL=/api/v1', '-t', webImage, '.']);
+function querySingleValue(sql) {
+  const statement = `${sql.trim()}\n`;
+  const result = run(
+    'docker',
+    ['exec', '-i', postgresContainerName, 'psql', '-U', 'game_user', '-d', 'game_db', '-v', 'ON_ERROR_STOP=1', '-t', '-A'],
+    { capture: true, input: statement },
+  );
 
-  cleanup();
+  return result.stdout.trim();
+}
 
+function assertSecurityRecoveryState() {
+  const indexCount = querySingleValue(`
+    SELECT COUNT(*)
+    FROM pg_indexes
+    WHERE schemaname = 'public'
+      AND indexname IN (
+        'GameSession_player1Id_open_key',
+        'GameSession_player2Id_open_key',
+        'CombatSession_player1Id_open_public_key',
+        'CombatSession_player2Id_open_public_key'
+      );
+  `);
+
+  if (indexCount !== '4') {
+    throw new Error(`expected 4 security indexes after recovery, got ${indexCount}`);
+  }
+
+  const duplicateCount = querySingleValue(`
+    WITH game_player1_dupes AS (
+      SELECT COUNT(*) AS duplicate_count
+      FROM (
+        SELECT "player1Id"
+        FROM "GameSession"
+        WHERE status IN ('WAITING', 'ACTIVE')
+        GROUP BY "player1Id"
+        HAVING COUNT(*) > 1
+      ) AS duplicates
+    ),
+    game_player2_dupes AS (
+      SELECT COUNT(*) AS duplicate_count
+      FROM (
+        SELECT "player2Id"
+        FROM "GameSession"
+        WHERE status IN ('WAITING', 'ACTIVE')
+          AND "player2Id" IS NOT NULL
+        GROUP BY "player2Id"
+        HAVING COUNT(*) > 1
+      ) AS duplicates
+    ),
+    combat_player1_dupes AS (
+      SELECT COUNT(*) AS duplicate_count
+      FROM (
+        SELECT "player1Id"
+        FROM "CombatSession"
+        WHERE status IN ('WAITING', 'ACTIVE')
+          AND "gameSessionId" IS NULL
+        GROUP BY "player1Id"
+        HAVING COUNT(*) > 1
+      ) AS duplicates
+    ),
+    combat_player2_dupes AS (
+      SELECT COUNT(*) AS duplicate_count
+      FROM (
+        SELECT "player2Id"
+        FROM "CombatSession"
+        WHERE status IN ('WAITING', 'ACTIVE')
+          AND "gameSessionId" IS NULL
+          AND "player2Id" IS NOT NULL
+        GROUP BY "player2Id"
+        HAVING COUNT(*) > 1
+      ) AS duplicates
+    )
+    SELECT
+      (
+        SELECT duplicate_count FROM game_player1_dupes
+      ) + (
+        SELECT duplicate_count FROM game_player2_dupes
+      ) + (
+        SELECT duplicate_count FROM combat_player1_dupes
+      ) + (
+        SELECT duplicate_count FROM combat_player2_dupes
+      );
+  `);
+
+  if (duplicateCount !== '0') {
+    throw new Error(`expected duplicate open sessions to be repaired, got ${duplicateCount} remaining duplicate groups`);
+  }
+}
+
+async function bootApplicationStack() {
   logStep('Starting infra and api-setup');
   runCompose(['up', '-d', 'postgres', 'redis', 'api-setup']);
 
@@ -188,8 +283,51 @@ async function main() {
 
   logStep('Waiting for web availability');
   await waitForWeb(120000);
+}
 
-  logStep('CI smoke passed');
+async function runFreshScenario() {
+  logStep('Running fresh database deployment smoke');
+  cleanup();
+  await bootApplicationStack();
+  cleanup();
+}
+
+async function runDirtyUpgradeScenario() {
+  logStep('Running dirty upgrade recovery smoke');
+  cleanup();
+  await bootApplicationStack();
+
+  logStep('Injecting duplicate open sessions and replaying the security migration');
+  runSqlFile(dirtySecurityFixturePath);
+
+  runCompose(['rm', '-f', 'api-setup'], { allowFailure: true });
+  runCompose(['up', '-d', '--force-recreate', 'api-setup']);
+  await waitForApiSetup(180000);
+
+  logStep('Asserting recovery state after rerunning api-setup');
+  assertSecurityRecoveryState();
+
+  runCompose(['up', '-d', '--force-recreate', 'api', 'web']);
+  await waitForApiHealthy(180000);
+  await waitForWeb(120000);
+  cleanup();
+}
+
+async function main() {
+  logStep('Checking Docker availability');
+  run('docker', ['version', '--format', '{{.Server.Version}}']);
+  run('docker', ['compose', 'version']);
+
+  logStep('Building API image');
+  run('docker', ['build', '--progress', 'plain', '-f', 'apps/api/Dockerfile', '-t', apiImage, '.']);
+
+  logStep('Building Web image');
+  run('docker', ['build', '--progress', 'plain', '-f', 'apps/web/Dockerfile', '--build-arg', 'VITE_API_URL=/api/v1', '-t', webImage, '.']);
+
+  await runFreshScenario();
+  await runDirtyUpgradeScenario();
+
+  logStep('CI smoke passed on fresh and dirty upgrade scenarios');
 }
 
 main()

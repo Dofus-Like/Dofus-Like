@@ -5,8 +5,19 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      deploy_target:
+        description: "Target deployment environment"
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+      stack_name_override:
+        description: "Optional Portainer stack name override"
+        type: string
+        default: ""
       force_deploy:
-        description: "Forcer le redeploi meme sans changement"
+        description: "Force redeploy even if nothing changed"
         type: boolean
         default: false
 
@@ -16,9 +27,6 @@ env:
   WEB_IMAGE: ghcr.io/roketag33/dofus-like-web
 
 jobs:
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 1 — Build & Push les images Docker sur GitHub Container Registry (GHCR)
-  # ─────────────────────────────────────────────────────────────────────────────
   build-and-push:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
@@ -43,15 +51,42 @@ jobs:
           username: roketag33
           password: ${{ secrets.GHCR_TOKEN }}
 
+      - name: Resolve image tags
+        id: tags
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          publish_latest=false
+
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            publish_latest=true
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.deploy_target }}" == "production" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            publish_latest=true
+          fi
+
+          {
+            echo "api_tags<<EOF"
+            if [[ "$publish_latest" == "true" ]]; then
+              echo "${{ env.API_IMAGE }}:latest"
+            fi
+            echo "${{ env.API_IMAGE }}:${{ github.sha }}"
+            echo "EOF"
+            echo "web_tags<<EOF"
+            if [[ "$publish_latest" == "true" ]]; then
+              echo "${{ env.WEB_IMAGE }}:latest"
+            fi
+            echo "${{ env.WEB_IMAGE }}:${{ github.sha }}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build & Push API image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: apps/api/Dockerfile
           push: true
-          tags: |
-            ${{ env.API_IMAGE }}:latest
-            ${{ env.API_IMAGE }}:${{ github.sha }}
+          tags: ${{ steps.tags.outputs.api_tags }}
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
@@ -61,21 +96,12 @@ jobs:
           context: .
           file: apps/web/Dockerfile
           push: true
-          tags: |
-            ${{ env.WEB_IMAGE }}:latest
-            ${{ env.WEB_IMAGE }}:${{ github.sha }}
-          # VITE_API_URL est baked dans le bundle au build. /api/v1 est la valeur
-          # de prod : nginx (dans le container web) proxifie /api -> api:3000.
+          tags: ${{ steps.tags.outputs.web_tags }}
           build-args: |
             VITE_API_URL=/api/v1
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  # JOB 2 — Deploiement sur Portainer via API REST
-  # Appelle PUT /api/stacks/{id} avec pullImage:true pour forcer le re-pull
-  # des nouvelles images et le redemarrage des containers.
-  # ─────────────────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to Portainer
     needs: build-and-push
@@ -85,30 +111,65 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy stack via Portainer API (upsert)
+      - name: Deploy stack via Portainer API
+        shell: bash
         env:
           PORTAINER_URL: ${{ secrets.PORTAINER_URL }}
           PORTAINER_API_TOKEN: ${{ secrets.PORTAINER_API_TOKEN }}
           PORTAINER_STACK_NAME: ${{ secrets.PORTAINER_STACK_NAME }}
+          PORTAINER_STACK_NAME_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.stack_name_override || '' }}
           PORTAINER_ENDPOINT_ID: ${{ secrets.PORTAINER_ENDPOINT_ID }}
           IMAGE_TAG: ${{ github.sha }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          DEPLOY_TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_target || 'production' }}
         run: |
           set -euo pipefail
 
+          if [[ -n "${PORTAINER_STACK_NAME_OVERRIDE}" ]]; then
+            TARGET_STACK_NAME="${PORTAINER_STACK_NAME_OVERRIDE}"
+          elif [[ "${DEPLOY_TARGET}" == "staging" ]]; then
+            TARGET_STACK_NAME="${PORTAINER_STACK_NAME}-staging"
+          else
+            TARGET_STACK_NAME="${PORTAINER_STACK_NAME}"
+          fi
+
+          STACK_CONTAINER_PREFIX=$(echo "${TARGET_STACK_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')
+          TRAEFIK_ROUTER_PREFIX="${STACK_CONTAINER_PREFIX}"
+          APP_NETWORK_NAME="${STACK_CONTAINER_PREFIX}-network"
+
+          if [[ "${DEPLOY_TARGET}" == "staging" ]]; then
+            API_HOST="${STACK_CONTAINER_PREFIX}-api.roketlab.duckdns.org"
+            WEB_HOST="${STACK_CONTAINER_PREFIX}.roketlab.duckdns.org"
+          else
+            API_HOST="dofus-like-api.roketlab.duckdns.org"
+            WEB_HOST="dofus-like.roketlab.duckdns.org"
+          fi
+
+          FRONTEND_URL="https://${WEB_HOST}"
           COMPOSE_CONTENT=$(cat docker-compose.portainer.yml)
 
-          # Variables d'environnement communes (create + update)
           ENV_VARS=$(jq -n \
             --arg image_tag "$IMAGE_TAG" \
             --arg jwt_secret "$JWT_SECRET" \
             --arg postgres_password "$POSTGRES_PASSWORD" \
+            --arg stack_container_prefix "$STACK_CONTAINER_PREFIX" \
+            --arg traefik_router_prefix "$TRAEFIK_ROUTER_PREFIX" \
+            --arg api_host "$API_HOST" \
+            --arg web_host "$WEB_HOST" \
+            --arg app_network_name "$APP_NETWORK_NAME" \
+            --arg frontend_url "$FRONTEND_URL" \
             '[
-              {name: "IMAGE_TAG",         value: $image_tag},
-              {name: "JWT_SECRET",        value: $jwt_secret},
-              {name: "JWT_EXPIRES_IN",    value: "7d"},
-              {name: "POSTGRES_PASSWORD", value: $postgres_password}
+              {name: "IMAGE_TAG", value: $image_tag},
+              {name: "JWT_SECRET", value: $jwt_secret},
+              {name: "JWT_EXPIRES_IN", value: "7d"},
+              {name: "POSTGRES_PASSWORD", value: $postgres_password},
+              {name: "STACK_CONTAINER_PREFIX", value: $stack_container_prefix},
+              {name: "TRAEFIK_ROUTER_PREFIX", value: $traefik_router_prefix},
+              {name: "API_HOST", value: $api_host},
+              {name: "WEB_HOST", value: $web_host},
+              {name: "APP_NETWORK_NAME", value: $app_network_name},
+              {name: "FRONTEND_URL", value: $frontend_url}
             ]')
 
           portainer_request() {
@@ -146,15 +207,14 @@ jobs:
             -H "X-API-Key: ${PORTAINER_API_TOKEN}" \
             "${PORTAINER_URL}/api/stacks")
 
-          STACK_ID=$(echo "$STACKS" | jq -r --arg name "$PORTAINER_STACK_NAME" \
+          STACK_ID=$(echo "$STACKS" | jq -r --arg name "$TARGET_STACK_NAME" \
             '.[] | select(.Name == $name) | .Id')
 
-          if [ -z "$STACK_ID" ] || [ "$STACK_ID" = "null" ]; then
-            # ── CREATION (premier deploiement) ───────────────────────────────
-            echo "Stack '$PORTAINER_STACK_NAME' introuvable → creation..."
+          if [[ -z "$STACK_ID" || "$STACK_ID" == "null" ]]; then
+            echo "Stack '${TARGET_STACK_NAME}' not found, creating..."
 
             PAYLOAD=$(jq -n \
-              --arg name "$PORTAINER_STACK_NAME" \
+              --arg name "$TARGET_STACK_NAME" \
               --arg content "$COMPOSE_CONTENT" \
               --argjson env "$ENV_VARS" \
               '{name: $name, stackFileContent: $content, env: $env}')
@@ -163,11 +223,8 @@ jobs:
               POST \
               "${PORTAINER_URL}/api/stacks/create/standalone/string?endpointId=${PORTAINER_ENDPOINT_ID}" \
               "$PAYLOAD"
-
-            echo "Stack creee avec succes !"
           else
-            # ── MISE A JOUR (deploiements suivants) ──────────────────────────
-            echo "Stack trouvee (ID: $STACK_ID) → mise a jour..."
+            echo "Stack found (ID: $STACK_ID), updating..."
 
             PAYLOAD=$(jq -n \
               --arg content "$COMPOSE_CONTENT" \
@@ -178,16 +235,39 @@ jobs:
               PUT \
               "${PORTAINER_URL}/api/stacks/${STACK_ID}?endpointId=${PORTAINER_ENDPOINT_ID}" \
               "$PAYLOAD"
-
-            echo "Stack mise a jour avec succes !"
           fi
 
       - name: Deployment summary
         if: always()
+        shell: bash
+        env:
+          PORTAINER_STACK_NAME: ${{ secrets.PORTAINER_STACK_NAME }}
+          PORTAINER_STACK_NAME_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.stack_name_override || '' }}
+          DEPLOY_TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_target || 'production' }}
         run: |
+          if [[ -n "${PORTAINER_STACK_NAME_OVERRIDE}" ]]; then
+            TARGET_STACK_NAME="${PORTAINER_STACK_NAME_OVERRIDE}"
+          elif [[ "${DEPLOY_TARGET}" == "staging" ]]; then
+            TARGET_STACK_NAME="${PORTAINER_STACK_NAME}-staging"
+          else
+            TARGET_STACK_NAME="${PORTAINER_STACK_NAME}"
+          fi
+
+          STACK_CONTAINER_PREFIX=$(echo "${TARGET_STACK_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')
+
+          if [[ "${DEPLOY_TARGET}" == "staging" ]]; then
+            API_HOST="${STACK_CONTAINER_PREFIX}-api.roketlab.duckdns.org"
+            WEB_HOST="${STACK_CONTAINER_PREFIX}.roketlab.duckdns.org"
+          else
+            API_HOST="dofus-like-api.roketlab.duckdns.org"
+            WEB_HOST="dofus-like.roketlab.duckdns.org"
+          fi
+
           echo "Commit  : ${{ github.sha }}"
           echo "Branch  : ${{ github.ref_name }}"
+          echo "Target  : ${DEPLOY_TARGET}"
+          echo "Stack   : ${TARGET_STACK_NAME}"
           echo "API     : ${{ env.API_IMAGE }}:${{ github.sha }}"
           echo "Web     : ${{ env.WEB_IMAGE }}:${{ github.sha }}"
-          echo "URL API : https://dofus-like-api.roketlab.duckdns.org"
-          echo "URL Web : https://dofus-like.roketlab.duckdns.org"
+          echo "URL API : https://${API_HOST}"
+          echo "URL Web : https://${WEB_HOST}"
