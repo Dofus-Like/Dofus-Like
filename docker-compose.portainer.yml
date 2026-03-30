@@ -18,10 +18,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U game_user -d game_db"]
+      # On s'assure que postgres accepte vraiment les requetes (pas juste pg_isready)
+      # pour eviter de demarrer api-setup pendant une recovery WAL post-restart
+      test: ["CMD-SHELL", "pg_isready -U game_user -d game_db && psql -U game_user -d game_db -c 'SELECT 1' -q"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     networks:
       - dofus-like-network
 
@@ -44,87 +47,14 @@ services:
     image: ghcr.io/roketag33/dofus-like-api:${IMAGE_TAG:-latest}
     container_name: ${STACK_CONTAINER_PREFIX:-dofus-like}-api-setup
     restart: "no"
+    # Migrations uniquement — pas de set -e fragile, pas de scripts inline complexes.
+    # Le seed est gere separement si besoin (la DB est deja initialisee en prod).
     command:
-      - sh
-      - -c
-      - |
-        set -e
-        echo "[startup] Repairing duplicate open sessions before migrations..."
-        cat > /tmp/repair.js << 'JSEOF'
-        const { PrismaClient } = require('@prisma/client');
-        const p = new PrismaClient();
-        (async () => {
-          try {
-            const [gs] = await p.$$queryRawUnsafe(
-              `SELECT to_regclass('public."GameSession"') IS NOT NULL AS ok`
-            );
-            if (gs && gs.ok) {
-              await p.$$executeRawUnsafe(`
-                WITH d AS (
-                  SELECT id,
-                    ROW_NUMBER() OVER (PARTITION BY "player1Id" ORDER BY "createdAt" DESC, id DESC) rn
-                  FROM "GameSession" WHERE status IN ('WAITING', 'ACTIVE')
-                )
-                UPDATE "GameSession" s SET status = 'FINISHED', "endedAt" = COALESCE(s."endedAt", NOW())
-                FROM d WHERE s.id = d.id AND d.rn > 1
-              `);
-              await p.$$executeRawUnsafe(`
-                WITH d AS (
-                  SELECT id,
-                    ROW_NUMBER() OVER (PARTITION BY "player2Id" ORDER BY "createdAt" DESC, id DESC) rn
-                  FROM "GameSession"
-                  WHERE status IN ('WAITING', 'ACTIVE') AND "player2Id" IS NOT NULL
-                )
-                UPDATE "GameSession" s SET status = 'FINISHED', "endedAt" = COALESCE(s."endedAt", NOW())
-                FROM d WHERE s.id = d.id AND d.rn > 1
-              `);
-              console.log('[repair] GameSession OK');
-            }
-            const [cs] = await p.$$queryRawUnsafe(
-              `SELECT to_regclass('public."CombatSession"') IS NOT NULL AS ok`
-            );
-            if (cs && cs.ok) {
-              await p.$$executeRawUnsafe(`
-                WITH d AS (
-                  SELECT id,
-                    ROW_NUMBER() OVER (PARTITION BY "player1Id" ORDER BY "createdAt" DESC, id DESC) rn
-                  FROM "CombatSession"
-                  WHERE status IN ('WAITING', 'ACTIVE') AND "gameSessionId" IS NULL
-                )
-                UPDATE "CombatSession" s SET status = 'FINISHED', "endedAt" = COALESCE(s."endedAt", NOW())
-                FROM d WHERE s.id = d.id AND d.rn > 1
-              `);
-              await p.$$executeRawUnsafe(`
-                WITH d AS (
-                  SELECT id,
-                    ROW_NUMBER() OVER (PARTITION BY "player2Id" ORDER BY "createdAt" DESC, id DESC) rn
-                  FROM "CombatSession"
-                  WHERE status IN ('WAITING', 'ACTIVE') AND "gameSessionId" IS NULL AND "player2Id" IS NOT NULL
-                )
-                UPDATE "CombatSession" s SET status = 'FINISHED', "endedAt" = COALESCE(s."endedAt", NOW())
-                FROM d WHERE s.id = d.id AND d.rn > 1
-              `);
-              console.log('[repair] CombatSession OK');
-            }
-            console.log('[repair] All done');
-            process.exit(0);
-          } catch (e) {
-            console.error('[repair] Error:', e.message);
-            process.exit(1);
-          } finally {
-            await p.$$disconnect();
-          }
-        })();
-        JSEOF
-        node /tmp/repair.js
-        rm -f /tmp/repair.js
-
-        echo "[startup] Applying Prisma migrations..."
-        node node_modules/prisma/build/index.js migrate deploy --schema=./prisma/schema.prisma
-
-        echo "[startup] Checking seed..."
-        node -e 'const {PrismaClient}=require("@prisma/client");const p=new PrismaClient();p.item.count().then(n=>{console.log(n>0?"[seed] DB deja initialisee ("+n+" items), skip.":"[seed] DB vide, lancement du seed...");process.exit(n>0?0:1)}).finally(()=>p.$$disconnect())' \
-          || node seed-build/prisma/seed.js
+      - node
+      - node_modules/prisma/build/index.js
+      - migrate
+      - deploy
+      - --schema=./prisma/schema.prisma
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://game_user:${POSTGRES_PASSWORD}@postgres:5432/game_db
@@ -161,7 +91,6 @@ services:
       api-setup:
         condition: service_completed_successfully
     healthcheck:
-      # Verifie que le port 3000 repond (TCP) — pas besoin d'endpoint /health dedie
       test: ["CMD-SHELL", "node -e \"require('net').createConnection(3000).on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))\""]
       interval: 30s
       timeout: 10s
