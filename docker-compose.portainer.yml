@@ -50,7 +50,74 @@ services:
       - |
         set -e
         echo "[startup] Repairing duplicate open sessions before migrations..."
-        node node_modules/prisma/build/index.js db execute --file ./prisma/pre_migrate_repair.sql --schema=./prisma/schema.prisma
+        cat > /tmp/repair.js << 'JSEOF'
+        const { PrismaClient } = require('@prisma/client');
+        const p = new PrismaClient();
+        (async () => {
+          try {
+            const [gs] = await p.$$queryRawUnsafe(
+              `SELECT to_regclass('public."GameSession"') IS NOT NULL AS ok`
+            );
+            if (gs && gs.ok) {
+              await p.$$executeRawUnsafe(`
+                WITH d AS (
+                  SELECT id,
+                    ROW_NUMBER() OVER (PARTITION BY "player1Id" ORDER BY "createdAt" DESC, id DESC) rn
+                  FROM "GameSession" WHERE status IN ('WAITING', 'ACTIVE')
+                )
+                UPDATE "GameSession" s SET status = 'FINISHED', "endedAt" = COALESCE(s."endedAt", NOW())
+                FROM d WHERE s.id = d.id AND d.rn > 1
+              `);
+              await p.$$executeRawUnsafe(`
+                WITH d AS (
+                  SELECT id,
+                    ROW_NUMBER() OVER (PARTITION BY "player2Id" ORDER BY "createdAt" DESC, id DESC) rn
+                  FROM "GameSession"
+                  WHERE status IN ('WAITING', 'ACTIVE') AND "player2Id" IS NOT NULL
+                )
+                UPDATE "GameSession" s SET status = 'FINISHED', "endedAt" = COALESCE(s."endedAt", NOW())
+                FROM d WHERE s.id = d.id AND d.rn > 1
+              `);
+              console.log('[repair] GameSession OK');
+            }
+            const [cs] = await p.$$queryRawUnsafe(
+              `SELECT to_regclass('public."CombatSession"') IS NOT NULL AS ok`
+            );
+            if (cs && cs.ok) {
+              await p.$$executeRawUnsafe(`
+                WITH d AS (
+                  SELECT id,
+                    ROW_NUMBER() OVER (PARTITION BY "player1Id" ORDER BY "createdAt" DESC, id DESC) rn
+                  FROM "CombatSession"
+                  WHERE status IN ('WAITING', 'ACTIVE') AND "gameSessionId" IS NULL
+                )
+                UPDATE "CombatSession" s SET status = 'FINISHED', "endedAt" = COALESCE(s."endedAt", NOW())
+                FROM d WHERE s.id = d.id AND d.rn > 1
+              `);
+              await p.$$executeRawUnsafe(`
+                WITH d AS (
+                  SELECT id,
+                    ROW_NUMBER() OVER (PARTITION BY "player2Id" ORDER BY "createdAt" DESC, id DESC) rn
+                  FROM "CombatSession"
+                  WHERE status IN ('WAITING', 'ACTIVE') AND "gameSessionId" IS NULL AND "player2Id" IS NOT NULL
+                )
+                UPDATE "CombatSession" s SET status = 'FINISHED', "endedAt" = COALESCE(s."endedAt", NOW())
+                FROM d WHERE s.id = d.id AND d.rn > 1
+              `);
+              console.log('[repair] CombatSession OK');
+            }
+            console.log('[repair] All done');
+            process.exit(0);
+          } catch (e) {
+            console.error('[repair] Error:', e.message);
+            process.exit(1);
+          } finally {
+            await p.$$disconnect();
+          }
+        })();
+        JSEOF
+        node /tmp/repair.js
+        rm -f /tmp/repair.js
 
         echo "[startup] Applying Prisma migrations..."
         node node_modules/prisma/build/index.js migrate deploy --schema=./prisma/schema.prisma
