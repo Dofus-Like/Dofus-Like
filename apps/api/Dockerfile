@@ -52,6 +52,7 @@ RUN apk add --no-cache openssl
 COPY --from=builder /app/dist/apps/api ./dist
 COPY --from=builder /app/api-runtime/node_modules ./node_modules
 COPY --from=builder /app/apps/api/prisma ./prisma
+COPY --from=builder /app/apps/api/scripts ./scripts
 COPY --from=builder /tmp/seed-build ./seed-build
 
 EXPOSE 3000

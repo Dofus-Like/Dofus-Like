@@ -1,0 +1,64 @@
+services:
+  postgres:
+    container_name: dofus-like-postgres-dev
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-game_password}
+    ports:
+      - "${DEV_POSTGRES_PORT:-15432}:5432"
+
+  redis:
+    container_name: dofus-like-redis-dev
+    ports:
+      - "${DEV_REDIS_PORT:-16379}:6379"
+
+  api-setup:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: ${DEV_LOCAL_API_IMAGE:-dofus-like-api:dev-local}
+    container_name: dofus-like-api-setup-dev
+    environment:
+      DATABASE_URL: postgresql://game_user:${POSTGRES_PASSWORD:-game_password}@postgres:5432/game_db
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production-minimum-32-chars}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: ${DEV_LOCAL_API_IMAGE:-dofus-like-api:dev-local}
+    container_name: dofus-like-api-dev
+    ports:
+      - "${DEV_API_PORT:-13000}:3000"
+    environment:
+      DATABASE_URL: postgresql://game_user:${POSTGRES_PASSWORD:-game_password}@postgres:5432/game_db
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production-minimum-32-chars}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      FRONTEND_URL: ${FRONTEND_URL:-http://127.0.0.1:18080}
+    networks:
+      - dofus-like-network
+    labels: []
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: /api/v1
+    image: ${DEV_LOCAL_WEB_IMAGE:-dofus-like-web:dev-local}
+    container_name: dofus-like-web-dev
+    ports:
+      - "${DEV_WEB_PORT:-18080}:80"
+    networks:
+      - dofus-like-network
+    labels: []
+
+networks:
+  dofus-like-network:
+    name: dofus-like-dev-network
+    driver: bridge
+  proxy:
+    name: dofus-like-dev-proxy
+    driver: bridge
+    external: false

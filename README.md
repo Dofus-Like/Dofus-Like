@@ -28,7 +28,7 @@ yarn setup
 ### 2. Lancement manuel
 Si `yarn setup` échoue ou si vous préférez le faire étape par étape :
 1. `yarn install`
-2. `docker-compose up -d` (PostgreSQL & Redis)
+2. `yarn docker:dev:infra` (PostgreSQL & Redis)
 3. `cp .env.example .env`
 4. `yarn db:migrate`
 5. `yarn db:seed`
@@ -69,8 +69,9 @@ game-monorepo/
 │   ├── shared-types/           # Interfaces/enums TypeScript partagés
 │   ├── game-engine/            # Logique métier pure (calculs, formules)
 │   └── ui-components/          # Composants React partagés
-├── docker-compose.yml          # Dev: PostgreSQL + Redis
-└── docker-compose.prod.yml     # Prod: + API + Web
+├── docker-compose.yml                         # Dev infra: PostgreSQL + Redis
+├── docker-compose.dev-containers.override.yml # Dev parity: mêmes conteneurs que la prod
+└── docker-compose.prod.yml                    # Prod locale: + API + Web
 ```
 
 ## 👥 Découpage Équipes
@@ -104,14 +105,41 @@ game-monorepo/
 | `yarn db:migrate` | Exécute les migrations Prisma |
 | `yarn db:studio` | Ouvre Prisma Studio |
 | `yarn db:seed` | Seed la base de données |
-| `yarn docker:dev` | Lance PostgreSQL + Redis |
+| `yarn docker:dev` | Lance localement les mêmes conteneurs qu’en prod (`postgres`, `redis`, `api-setup`, `api`, `web`) |
+| `yarn docker:dev:down` | Arrête la stack dev conteneurisée (`DEV_REMOVE_VOLUMES=1` pour purger les volumes) |
+| `yarn docker:dev:infra` | Lance uniquement PostgreSQL + Redis pour le dev host classique |
 | `yarn docker:prod` | Lance toute la stack en production |
+| `yarn stack:prod-local` | Build les images locales et lance la stack prod-like en Docker |
+| `yarn stack:prod-local:down` | Arrête la stack prod-like locale (`CI_LOCAL_REMOVE_VOLUMES=1` pour purger les volumes) |
+| `yarn smoke:prod-local` | Vérifie en local le boot conteneurisé, les rooms privées et le matchmaking |
+| `yarn repro:matchmaking:legacy-redis` | Reproduit et valide le cas Redis legacy `matchmaking:queue` |
 
 ## 📈 Profiling Backend
 
 - Les artefacts bruts de perf ne sont jamais versionnés et vivent uniquement dans `tmp/perf/`.
 - Les budgets versionnés sont stockés dans `apps/api/perf-budgets.json`.
 - Les scripts perf lot 1 sont majoritairement read-only et utilisent les comptes seedés existants.
+
+## 🐳 Stack Prod-Like Locale
+
+- `yarn stack:prod-local` construit les images locales API/Web puis lance la stack issue de `docker-compose.portainer.yml` avec l’override local.
+- API locale : `http://127.0.0.1:13000`
+- Web locale : `http://127.0.0.1:18080`
+- `yarn smoke:prod-local` démarre une stack fraîche, valide le boot conteneurisé, crée une room privée, vérifie le matchmaking puis nettoie la stack.
+- `yarn repro:matchmaking:legacy-redis` injecte l’ancien format Redis de `matchmaking:queue` pour vérifier l’auto-réparation avant push.
+- `yarn stack:prod-local:down` arrête la stack. Ajoutez `CI_LOCAL_REMOVE_VOLUMES=1` si vous voulez supprimer les volumes et repartir de zéro.
+
+## 🧪 Stack Dev Conteneurisée
+
+- `yarn docker:dev` lance une stack locale avec les mêmes services qu’en prod: `postgres`, `redis`, `api-setup`, `api`, `web`.
+- Ports locaux:
+  - PostgreSQL: `15432`
+  - Redis: `16379`
+  - API: `http://127.0.0.1:13000`
+  - Web: `http://127.0.0.1:18080`
+- Ces ports évitent les collisions avec `yarn dev` et `yarn docker:dev:infra`. Ils restent surchargeables via `DEV_POSTGRES_PORT`, `DEV_REDIS_PORT`, `DEV_API_PORT`, `DEV_WEB_PORT`.
+- `yarn docker:dev:down` arrête cette stack. Ajoutez `DEV_REMOVE_VOLUMES=1` pour supprimer les volumes.
+- `yarn docker:dev:infra` reste disponible si vous voulez garder uniquement la base et Redis puis lancer `yarn dev` sur l’hôte.
 
 ## 🛠️ Stack Technique
 

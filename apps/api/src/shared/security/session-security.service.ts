@@ -6,18 +6,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { RedisService } from '../redis/redis.service';
-import { MATCHMAKING_QUEUE_KEY, OPEN_SESSION_STATUSES } from './security.constants';
+import { OPEN_SESSION_STATUSES } from './security.constants';
+import { MatchmakingQueueStore } from './matchmaking-queue.store';
 
 @Injectable()
 export class SessionSecurityService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
+    private readonly matchmakingQueue: MatchmakingQueueStore,
   ) {}
 
   async isPlayerQueued(playerId: string): Promise<boolean> {
-    return (await this.redis.zScore(MATCHMAKING_QUEUE_KEY, playerId)) !== null;
+    return this.matchmakingQueue.isQueued(playerId);
   }
 
   async assertPlayerAvailableForPublicRoom(
