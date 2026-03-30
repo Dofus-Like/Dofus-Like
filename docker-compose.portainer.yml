@@ -51,10 +51,7 @@ services:
     # Le seed est gere separement si besoin (la DB est deja initialisee en prod).
     command:
       - node
-      - node_modules/prisma/build/index.js
-      - migrate
-      - deploy
-      - --schema=./prisma/schema.prisma
+      - scripts/api-setup.cjs
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://game_user:${POSTGRES_PASSWORD}@postgres:5432/game_db

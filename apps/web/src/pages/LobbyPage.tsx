@@ -198,12 +198,7 @@ export function LobbyPage() {
   return (
     <div className="lobby-container">
       <header className="lobby-header">
-        <div className="lobby-title-group">
-          <h1>⚔️ RokeTag Arena</h1>
-          <button type="button" className="vs-ai-btn" onClick={handleStartVsAiCombat} disabled={hasOpenSession || isInQueue}>
-            VS AI <span className="hot-badge">PROG</span>
-          </button>
-        </div>
+        <h1>⚔️ RokeTag Arena</h1>
 
         <div className="lobby-user-info">
           <div className="user-profile-summary">
@@ -323,41 +318,24 @@ export function LobbyPage() {
             ))
           )}
         </div>
+
+        <div className="vs-ai-card">
+          <div className="vs-ai-card-info">
+            <h3>
+              🤖 VS AI <span className="hot-badge">PROG</span>
+            </h3>
+            <p>Lancez un combat solo contre l&apos;IA depuis le lobby.</p>
+          </div>
+          <button
+            type="button"
+            className="vs-ai-btn"
+            onClick={handleStartVsAiCombat}
+            disabled={hasOpenSession || isInQueue}
+          >
+            Lancer VS AI
+          </button>
+        </div>
       </section>
-
-      <nav className="lobby-nav-grid">
-        <button type="button" className="lobby-nav-card farming" onClick={() => navigate('/farming')}>
-          <div className="nav-card-icon">🌲</div>
-          <div className="nav-card-content">
-            <span className="nav-card-title">Farming</span>
-            <span className="nav-card-desc">Récoltez des ressources</span>
-          </div>
-        </button>
-
-        <button type="button" className="lobby-nav-card inventory" onClick={() => navigate('/inventory')}>
-          <div className="nav-card-icon">🎒</div>
-          <div className="nav-card-content">
-            <span className="nav-card-title">Inventaire</span>
-            <span className="nav-card-desc">Gérez votre équipement</span>
-          </div>
-        </button>
-
-        <button type="button" className="lobby-nav-card shop" onClick={() => navigate('/shop')}>
-          <div className="nav-card-icon">🏪</div>
-          <div className="nav-card-content">
-            <span className="nav-card-title">Shop</span>
-            <span className="nav-card-desc">Achetez des équipements</span>
-          </div>
-        </button>
-
-        <button type="button" className="lobby-nav-card debug" onClick={() => navigate('/debug')}>
-          <div className="nav-card-icon">🛠️</div>
-          <div className="nav-card-content">
-            <span className="nav-card-title">Debug</span>
-            <span className="nav-card-desc">Tests techniques</span>
-          </div>
-        </button>
-      </nav>
     </div>
   );
 }

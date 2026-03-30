@@ -104,4 +104,32 @@ describe('LobbyPage', () => {
     expect(await screen.findByText("Recherche d'un adversaire...")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Annuler' })).toBeInTheDocument();
   });
+
+  it('does not render shortcut cards for farming, inventory, shop or debug', async () => {
+    render(
+      <MemoryRouter>
+        <LobbyPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('button', { name: 'Lancer une recherche' });
+
+    expect(screen.queryByText('Récoltez des ressources')).not.toBeInTheDocument();
+    expect(screen.queryByText('Gérez votre équipement')).not.toBeInTheDocument();
+    expect(screen.queryByText('Achetez des équipements')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tests techniques')).not.toBeInTheDocument();
+  });
+
+  it('renders the VS AI action below the rooms section instead of in the header', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <LobbyPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Lancer VS AI' })).toBeInTheDocument();
+
+    const header = container.querySelector('.lobby-header');
+    expect(header?.textContent).not.toContain('VS AI');
+  });
 });

@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { RedisService } from '../shared/redis/redis.service';
 import {
-  MATCHMAKING_QUEUE_KEY,
   MATCHMAKING_QUEUE_LOCK_KEY,
 } from '../shared/security/security.constants';
+import { MatchmakingQueueStore } from '../shared/security/matchmaking-queue.store';
 import { SessionSecurityService } from '../shared/security/session-security.service';
 import { GameSessionService } from './game-session.service';
 
@@ -11,6 +11,7 @@ import { GameSessionService } from './game-session.service';
 export class MatchmakingService {
   constructor(
     private readonly redis: RedisService,
+    private readonly matchmakingQueue: MatchmakingQueueStore,
     private readonly gameSessionService: GameSessionService,
     private readonly sessionSecurity: SessionSecurityService,
   ) {}
@@ -18,7 +19,7 @@ export class MatchmakingService {
   async joinQueue(playerId: string) {
     await this.sessionSecurity.assertPlayerAvailableForPublicRoom(playerId);
 
-    const existingScore = await this.redis.zScore(MATCHMAKING_QUEUE_KEY, playerId);
+    const existingScore = await this.matchmakingQueue.getScore(playerId);
     if (existingScore !== null) {
       return { status: 'already_in_queue' };
     }
@@ -34,19 +35,19 @@ export class MatchmakingService {
     }
 
     try {
-      await this.redis.zAdd(MATCHMAKING_QUEUE_KEY, Date.now(), playerId);
+      await this.matchmakingQueue.add(playerId, Date.now());
 
-      const queueSize = await this.redis.zCard(MATCHMAKING_QUEUE_KEY);
+      const queueSize = await this.matchmakingQueue.size();
       if (queueSize < 2) {
         return { status: 'searching' };
       }
 
-      const [p1, p2] = await this.redis.zRange(MATCHMAKING_QUEUE_KEY, 0, 1);
+      const [p1, p2] = await this.matchmakingQueue.range(0, 1);
       if (!p1 || !p2) {
         return { status: 'searching' };
       }
 
-      await this.redis.zRem(MATCHMAKING_QUEUE_KEY, p1, p2);
+      await this.matchmakingQueue.remove(p1, p2);
       const session = await this.gameSessionService.createSession(p1, p2);
       return { status: 'matched', sessionId: session.id };
     } finally {
@@ -55,7 +56,7 @@ export class MatchmakingService {
   }
 
   async leaveQueue(playerId: string) {
-    await this.redis.zRem(MATCHMAKING_QUEUE_KEY, playerId);
+    await this.matchmakingQueue.remove(playerId);
     return { status: 'left' };
   }
 

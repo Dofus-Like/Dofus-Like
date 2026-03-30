@@ -1,4 +1,5 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { MatchmakingQueueStore } from './matchmaking-queue.store';
 import { SessionSecurityService } from './session-security.service';
 
 describe('SessionSecurityService', () => {
@@ -16,23 +17,23 @@ describe('SessionSecurityService', () => {
     },
   };
 
-  const redis = {
-    zScore: jest.fn(),
+  const matchmakingQueue = {
+    isQueued: jest.fn(),
   };
 
   let service: SessionSecurityService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new SessionSecurityService(prisma as any, redis as any);
-    redis.zScore.mockResolvedValue(null);
+    service = new SessionSecurityService(prisma as any, matchmakingQueue as unknown as MatchmakingQueueStore);
+    matchmakingQueue.isQueued.mockResolvedValue(false);
     prisma.gameSession.findFirst.mockResolvedValue(null);
     prisma.combatSession.findFirst.mockResolvedValue(null);
     prisma.player.findUnique.mockResolvedValue({ username: 'Warrior' });
   });
 
   it('rejects room creation when the player is already queued', async () => {
-    redis.zScore.mockResolvedValue(123);
+    matchmakingQueue.isQueued.mockResolvedValue(true);
 
     await expect(service.assertPlayerAvailableForPublicRoom('player-1')).rejects.toBeInstanceOf(
       ConflictException,
