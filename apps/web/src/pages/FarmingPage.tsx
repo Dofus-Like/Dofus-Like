@@ -98,6 +98,15 @@ export function FarmingPage() {
     return SEED_CONFIGS[map.seedId as SeedId] ?? null;
   }, [map]);
 
+  const filteredLegend = useMemo(() => {
+    if (!seedConfig) return LEGEND_ITEMS;
+    return LEGEND_ITEMS.filter((item) => {
+      if (item.key === 'ground') return true;
+      const terrainType = item.key.toUpperCase() as TerrainType;
+      return seedConfig.resources.includes(terrainType);
+    });
+  }, [seedConfig]);
+
   const currentPlayerPos = useMemo(() => {
     if (playerPosition) {
       return playerPosition;
@@ -212,7 +221,7 @@ export function FarmingPage() {
 
   const handleTileClick = useCallback(
     (x: number, y: number, terrain: TerrainType) => {
-      if (!map || isMoving) {
+      if (!map) {
         return;
       }
 
@@ -282,8 +291,12 @@ export function FarmingPage() {
       setQueuedAction(null);
       setIsMoving(true);
     },
-    [currentPlayerPos, isMoving, map, performGather, showActionMessage],
+    [currentPlayerPos, map, performGather, showActionMessage],
   );
+
+  const handleTileReached = useCallback((node: PathNode) => {
+    movePlayer(node);
+  }, [movePlayer]);
 
   const handlePathComplete = useCallback(() => {
     if (movePath && movePath.length > 0) {
@@ -552,6 +565,7 @@ export function FarmingPage() {
                     onPathComplete={handlePathComplete}
                     onTileClick={handleTileClick}
                     onTileHover={handleTileHover}
+                    onTileReached={handleTileReached}
                     isCameraMoving={isCameraMoving}
                     isMoving={isMoving}
                   />
@@ -576,13 +590,13 @@ export function FarmingPage() {
               <h3>Legende</h3>
             </div>
             <ul className="resource-legend-list">
-              {LEGEND_ITEMS.map((item) => (
+              {filteredLegend.map((item) => (
                 <li key={item.key} className="resource-legend-item">
                   <span className={`resource-legend-swatch ${item.className}`} />
                   <span>{item.label}</span>
                 </li>
-                ))}
-              </ul>
+              ))}
+            </ul>
             </section>
 
           <section className="resource-sidebar-card">

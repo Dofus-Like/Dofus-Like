@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "GameSession" ADD COLUMN     "mapSeed" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "mapSeedId" TEXT NOT NULL DEFAULT 'FORGE';

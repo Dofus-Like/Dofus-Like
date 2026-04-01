@@ -7,8 +7,10 @@ import { getSkinById } from '../../game/constants/skins';
 import { useAuthStore } from '../../store/auth.store';
 import { useCombatStore } from '../../store/combat.store';
 
-const MOVE_SPEED = 4.5;
-const ANIM_SPEED = 12;
+const FARMING_MOVE_SPEED = 12.0;
+const COMBAT_MOVE_SPEED = 4.5;
+const FARMING_ANIM_SPEED = 18;
+const COMBAT_ANIM_SPEED = 12;
 const IDLE_FRAMES = 6;
 const WALK_FRAMES = 8;
 const ATTACK_FRAMES = 6;
@@ -21,6 +23,9 @@ interface PlayerPawnProps {
   playerData?: Partial<CombatPlayer> & { username?: string; playerId?: string };
   lookAtPosition?: PathNode | null;
   isJumping?: boolean;
+  setPawnRef: (playerId: string, handle: PlayerPawnHandle | null) => void;
+  onTileReached?: (node: PathNode) => void;
+  mode?: 'combat' | 'farming';
 }
 
 export type PlayerPawnHandle = {
@@ -32,7 +37,7 @@ function toWorld(gx: number, gy: number, gridSize: number): [number, number, num
 }
 
 export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
-  ({ gridPosition, gridSize, path, onPathComplete, playerData, lookAtPosition, isJumping }, ref) => {
+  ({ gridPosition, gridSize, path, onPathComplete, playerData, lookAtPosition, isJumping, onTileReached, mode = 'farming' }, ref) => {
     const groupRef = useRef<THREE.Group>(null);
     const spriteRef = useRef<THREE.Sprite>(null);
     const { camera } = useThree();
@@ -210,24 +215,25 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
         activeTex = textureWalk;
       }
 
-      frameCounterRef.current += delta * (isAttacking ? ANIM_SPEED * 0.8 : ANIM_SPEED);
-      if (frameCounterRef.current >= 1) {
-         if (isAttacking) {
-            animFrameRef.current++;
-            if (animFrameRef.current >= frames) {
-                setIsAttacking(false);
-                animFrameRef.current = 0;
-            }
-         } else {
-            animFrameRef.current = (animFrameRef.current + 1) % frames;
-         }
-         frameCounterRef.current = 0;
-         
-         if (spriteRef.current) {
-            spriteRef.current.material.map = activeTex;
-            activeTex.offset.x = animFrameRef.current / frames;
-         }
-      }
+          const currentAnimSpeed = mode === 'farming' ? FARMING_ANIM_SPEED : COMBAT_ANIM_SPEED;
+          frameCounterRef.current += delta * (isAttacking ? currentAnimSpeed * 0.8 : currentAnimSpeed);
+          if (frameCounterRef.current >= 1) {
+             if (isAttacking) {
+                animFrameRef.current++;
+                if (animFrameRef.current >= frames) {
+                    setIsAttacking(false);
+                    animFrameRef.current = 0;
+                }
+             } else {
+                animFrameRef.current = (animFrameRef.current + 1) % frames;
+             }
+             frameCounterRef.current = 0;
+             
+             if (spriteRef.current) {
+                spriteRef.current.material.map = activeTex;
+                activeTex.offset.x = animFrameRef.current / frames;
+             }
+          }
 
       // 2. Déplacement souple
       if (!isMoving || !groupRef.current || currentPath.length === 0) {
@@ -236,7 +242,8 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
               groupRef.current.position.lerp(new THREE.Vector3(targetPos[0], 0, targetPos[2]), 0.1);
           }
       } else {
-          const nextSpeed = isJumping ? MOVE_SPEED * 1.5 : MOVE_SPEED;
+          const currentMoveSpeed = mode === 'farming' ? FARMING_MOVE_SPEED : COMBAT_MOVE_SPEED;
+          const nextSpeed = isJumping ? currentMoveSpeed * 1.5 : currentMoveSpeed;
           progressRef.current += delta * nextSpeed;
           const t = Math.min(progressRef.current, 1);
           const x = THREE.MathUtils.lerp(fromRef.current[0], toRef.current[0], t);
@@ -249,16 +256,18 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
           }
 
           groupRef.current.position.set(x, y, z);
-
           if (t >= 1) {
             const nextIndex = pathIndex + 1;
             if (nextIndex < currentPath.length) {
+              groupRef.current.position.set(toRef.current[0], 0, toRef.current[2]);
+              onTileReached?.(currentPath[pathIndex]);
               fromRef.current = [...toRef.current];
               toRef.current = toWorld(currentPath[nextIndex].x, currentPath[nextIndex].y, gridSize);
               setPathIndex(nextIndex);
               progressRef.current = 0;
             } else {
               groupRef.current.position.set(toRef.current[0], 0, toRef.current[2]);
+              onTileReached?.(currentPath[pathIndex]);
               setIsMoving(false);
               setCurrentPath([]);
               setPathIndex(0);

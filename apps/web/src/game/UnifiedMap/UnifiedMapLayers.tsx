@@ -62,8 +62,6 @@ interface OverlayLayerProps {
   reachableTiles: { x: number; y: number }[];
   spellRangeTiles: { x: number; y: number }[];
   combatPreviewPath: PathNode[];
-  previewPath?: PathNode[];
-  isMoving: boolean;
   map: GameMap;
   currentUserId?: string;
   playerPaths: Record<string, PathNode[]>;
@@ -77,8 +75,6 @@ export const UnifiedMapOverlayLayer = React.memo(
     reachableTiles,
     spellRangeTiles,
     combatPreviewPath,
-    previewPath,
-    isMoving,
     map,
     currentUserId,
     playerPaths,
@@ -94,9 +90,6 @@ export const UnifiedMapOverlayLayer = React.memo(
           />
         )}
 
-        {mode === 'farming' && previewPath && !isMoving && (
-          <PathPreview path={previewPath} gridSize={map.width} />
-        )}
 
         {mode === 'combat' && isMyTurn && currentUserId && !playerPaths[currentUserId] && (
           <PathPreview path={combatPreviewPath} gridSize={map.width} />
@@ -120,6 +113,7 @@ interface PlayersLayerProps {
   jumpingPlayers: Record<string, boolean>;
   setPawnRef: (playerId: string, handle: PlayerPawnHandle | null) => void;
   onCombatPathComplete: (playerId: string) => void;
+  onTileReached?: (node: PathNode) => void;
 }
 
 export const PlayersLayer = React.memo(
@@ -137,6 +131,7 @@ export const PlayersLayer = React.memo(
     jumpingPlayers,
     setPawnRef,
     onCombatPathComplete,
+    onTileReached,
   }: PlayersLayerProps) => {
     if (mode === 'farming' && playerPosition) {
       return (
@@ -145,7 +140,10 @@ export const PlayersLayer = React.memo(
           gridSize={mapWidth}
           path={movePath || null}
           onPathComplete={onPathComplete ?? (() => undefined)}
+          onTileReached={onTileReached}
           playerData={{ username: farmingPlayerName, skin: farmingPlayerSkin }}
+          setPawnRef={setPawnRef}
+          mode={mode}
         />
       );
     }
@@ -172,6 +170,8 @@ export const PlayersLayer = React.memo(
               lookAtPosition={opponentPosition}
               isJumping={!!jumpingPlayers[player.playerId]}
               onPathComplete={() => onCombatPathComplete(player.playerId)}
+              setPawnRef={setPawnRef}
+              mode={mode}
             />
           );
         })}

@@ -248,6 +248,8 @@ model GameSession {
   player2Po    Int             @default(0)
   player1Id    String
   player2Id    String?
+  mapSeedId    String          @default("FORGE")
+  mapSeed      Int             @default(0)
   p1           Player          @relation("GSP1", fields: [player1Id], references: [id])
   p2           Player?         @relation("GSP2", fields: [player2Id], references: [id])
   inventory    SessionItem[]
