@@ -44,7 +44,7 @@ async function bootstrap() {
   const swaggerEnabled = configService.get<string>('ENABLE_SWAGGER', 'false') === 'true';
   if (swaggerEnabled) {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('Moyenax API')
+      .setTitle('Dofus-like API')
       .setDescription('API pour le jeu de strategie au tour par tour')
       .setVersion('1.0')
       .addBearerAuth()
