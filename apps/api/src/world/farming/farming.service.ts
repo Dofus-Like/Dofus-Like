@@ -4,6 +4,7 @@ import { RedisService } from '../../shared/redis/redis.service';
 import { MapGeneratorService } from '../map/map-generator.service';
 import { InventoryService } from '../../economy/inventory/inventory.service';
 import { SpendableGoldService } from '../../economy/shared/spendable-gold.service';
+import { PrismaService } from '../../shared/prisma/prisma.service';
 import { FarmingState, SeedId, TERRAIN_PROPERTIES, TerrainType, GAME_EVENTS } from '@game/shared-types';
 import { PerfLoggerService } from '../../shared/perf/perf-logger.service';
 
@@ -15,6 +16,7 @@ export class FarmingService {
     private readonly inventory: InventoryService,
     private readonly spendableGold: SpendableGoldService,
     private readonly perfLogger: PerfLoggerService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async getOrCreateInstance(playerId: string, seedId?: SeedId): Promise<FarmingState> {
@@ -22,7 +24,19 @@ export class FarmingService {
     let state = await this.redis.getJson<FarmingState>(key);
 
     if (!state) {
-      const map = seedId ? await this.mapGenerator.resetMap(seedId) : await this.mapGenerator.getOrCreateMap();
+      const session = await (this.prisma as any).gameSession.findFirst({
+        where: {
+          OR: [
+            { player1Id: playerId, status: 'ACTIVE' },
+            { player2Id: playerId, status: 'ACTIVE' },
+          ],
+        },
+      });
+
+      const effectiveSeedId = (session?.mapSeedId as SeedId) || seedId || 'FORGE';
+      const effectiveMapSeed = session?.mapSeed ?? Math.floor(Math.random() * 1000000);
+
+      const map = await this.mapGenerator.getOrCreateMap(effectiveSeedId, effectiveMapSeed);
       
       const gridCells: {x: number, y: number, terrain: TerrainType}[] = [];
       map.grid.forEach((row, y) => {

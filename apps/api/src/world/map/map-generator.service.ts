@@ -6,12 +6,9 @@ import {
   SeedId,
   SEED_CONFIGS,
   ALL_SEED_IDS,
-  CombatTerrainType,
   TERRAIN_PROPERTIES,
 } from '@game/shared-types';
 import { RedisService } from '../../shared/redis/redis.service';
-
-const REDIS_MAP_KEY = 'game:reference-map';
 
 interface TerrainBudget {
   type: TerrainType;
@@ -34,31 +31,21 @@ const RESOURCE_BUDGETS: Record<TerrainType, { count: number; clustered: boolean 
 export class MapGeneratorService {
   constructor(private readonly redis: RedisService) {}
 
-  async getOrCreateMap(): Promise<GameMap> {
-    const cached = await this.redis.get(REDIS_MAP_KEY);
-    if (cached) {
-      return JSON.parse(cached) as GameMap;
-    }
-
-    const seedId = this.pickRandomSeed();
-    const map = this.generate(seedId);
-    await this.redis.set(REDIS_MAP_KEY, JSON.stringify(map));
-    return map;
+  async getOrCreateMap(seedId?: SeedId, randomSeed?: number): Promise<GameMap> {
+    const seed = seedId ?? this.pickRandomSeed();
+    return this.generate(seed, randomSeed);
   }
 
-  async resetMap(seedId?: SeedId): Promise<GameMap> {
-    await this.redis.del(REDIS_MAP_KEY);
+  async resetMap(seedId?: SeedId, randomSeed?: number): Promise<GameMap> {
     const id = seedId ?? this.pickRandomSeed();
-    const map = this.generate(id);
-    await this.redis.set(REDIS_MAP_KEY, JSON.stringify(map));
-    return map;
+    return this.generate(id, randomSeed);
   }
 
   private pickRandomSeed(): SeedId {
     return ALL_SEED_IDS[Math.floor(Math.random() * ALL_SEED_IDS.length)];
   }
 
-  generate(seedId: SeedId): GameMap {
+  generate(seedId: SeedId, randomSeed?: number): GameMap {
     const seedConfig = SEED_CONFIGS[seedId];
     const grid: TerrainType[][] = Array.from({ length: MAP_SIZE }, () =>
       Array.from({ length: MAP_SIZE }, () => TerrainType.GROUND),
@@ -71,12 +58,19 @@ export class MapGeneratorService {
       ...RESOURCE_BUDGETS[type],
     }));
 
+    // Simple seeded random function
+    let seed = randomSeed ?? Math.floor(Math.random() * 1000000);
+    const nextRandom = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+
     for (const budget of budgets) {
       if (budget.count === 0) continue;
       if (budget.clustered) {
-        this.placeCluster(grid, budget.type, budget.count, spawnZones);
+        this.placeCluster(grid, budget.type, budget.count, spawnZones, nextRandom);
       } else {
-        this.placeScattered(grid, budget.type, budget.count, spawnZones);
+        this.placeScattered(grid, budget.type, budget.count, spawnZones, nextRandom);
       }
     }
 
@@ -141,14 +135,15 @@ export class MapGeneratorService {
     type: TerrainType,
     count: number,
     spawnZones: Set<string>,
+    nextRandom: () => number,
   ): void {
     const clusterSize = Math.ceil(count / 2);
     let placed = 0;
     let attempts = 0;
 
     while (placed < count && attempts < 500) {
-      const sx = Math.floor(Math.random() * MAP_SIZE);
-      const sy = Math.floor(Math.random() * MAP_SIZE);
+      const sx = Math.floor(nextRandom() * MAP_SIZE);
+      const sy = Math.floor(nextRandom() * MAP_SIZE);
 
       if (spawnZones.has(`${sx},${sy}`) || grid[sy][sx] !== TerrainType.GROUND) {
         attempts++;
@@ -166,7 +161,7 @@ export class MapGeneratorService {
         [sx, sy + 1],
         [sx - 1, sy - 1],
         [sx + 1, sy + 1],
-      ]);
+      ], nextRandom);
 
       for (const [nx, ny] of neighbors) {
         if (placed >= count) break;
@@ -190,13 +185,14 @@ export class MapGeneratorService {
     type: TerrainType,
     count: number,
     spawnZones: Set<string>,
+    nextRandom: () => number,
   ): void {
     let placed = 0;
     let attempts = 0;
 
     while (placed < count && attempts < 500) {
-      const x = Math.floor(Math.random() * MAP_SIZE);
-      const y = Math.floor(Math.random() * MAP_SIZE);
+      const x = Math.floor(nextRandom() * MAP_SIZE);
+      const y = Math.floor(nextRandom() * MAP_SIZE);
 
       if (grid[y][x] === TerrainType.GROUND && !spawnZones.has(`${x},${y}`)) {
         grid[y][x] = type;
@@ -207,10 +203,10 @@ export class MapGeneratorService {
     }
   }
 
-  private shuffleArray<T>(arr: T[]): T[] {
+  private shuffleArray<T>(arr: T[], nextRandom: () => number): T[] {
     const shuffled = [...arr];
     for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(nextRandom() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     return shuffled;

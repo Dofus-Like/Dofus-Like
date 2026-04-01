@@ -62,8 +62,6 @@ interface OverlayLayerProps {
   reachableTiles: { x: number; y: number }[];
   spellRangeTiles: { x: number; y: number }[];
   combatPreviewPath: PathNode[];
-  previewPath?: PathNode[];
-  isMoving: boolean;
   map: GameMap;
   currentUserId?: string;
   playerPaths: Record<string, PathNode[]>;
@@ -77,8 +75,6 @@ export const UnifiedMapOverlayLayer = React.memo(
     reachableTiles,
     spellRangeTiles,
     combatPreviewPath,
-    previewPath,
-    isMoving,
     map,
     currentUserId,
     playerPaths,
@@ -94,9 +90,6 @@ export const UnifiedMapOverlayLayer = React.memo(
           />
         )}
 
-        {mode === 'farming' && previewPath && !isMoving && (
-          <PathPreview path={previewPath} gridSize={map.width} />
-        )}
 
         {mode === 'combat' && isMyTurn && currentUserId && !playerPaths[currentUserId] && (
           <PathPreview path={combatPreviewPath} gridSize={map.width} />
@@ -150,6 +143,7 @@ export const PlayersLayer = React.memo(
           onTileReached={onTileReached}
           playerData={{ username: farmingPlayerName, skin: farmingPlayerSkin }}
           setPawnRef={setPawnRef}
+          mode={mode}
         />
       );
     }
@@ -177,6 +171,7 @@ export const PlayersLayer = React.memo(
               isJumping={!!jumpingPlayers[player.playerId]}
               onPathComplete={() => onCombatPathComplete(player.playerId)}
               setPawnRef={setPawnRef}
+              mode={mode}
             />
           );
         })}

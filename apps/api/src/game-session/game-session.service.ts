@@ -40,6 +40,10 @@ export class GameSessionService {
     }
 
     try {
+      const { ALL_SEED_IDS } = await import('@game/shared-types');
+      const mapSeedId = ALL_SEED_IDS[Math.floor(Math.random() * ALL_SEED_IDS.length)];
+      const mapSeed = Math.floor(Math.random() * 1000000);
+
       return await (this.prisma as any).gameSession.create({
         data: {
           player1Id,
@@ -50,6 +54,8 @@ export class GameSessionService {
           player1Po: 0,
           player2Po: 0,
           player2Ready: isVsAi,
+          mapSeedId,
+          mapSeed,
         },
         include: {
           p1: { select: { username: true } },
