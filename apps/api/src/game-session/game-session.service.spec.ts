@@ -15,9 +15,6 @@ describe('GameSessionService', () => {
       deleteMany: jest.fn(),
       createMany: jest.fn(),
     },
-    spell: {
-      findMany: jest.fn(),
-    },
     equipmentSlot: {
       findMany: jest.fn(),
       updateMany: jest.fn(),
@@ -69,8 +66,8 @@ describe('GameSessionService', () => {
     computeEffectiveStatsFromSnapshot: jest.fn(),
   };
 
-  const spellResolver = {
-    resolveSpells: jest.fn(),
+  const playerSpellProjection = {
+    buildPlayerSpellAssignments: jest.fn(),
   };
 
   let service: GameSessionService;
@@ -89,7 +86,6 @@ describe('GameSessionService', () => {
       basePa: 6,
       basePm: 3,
     });
-    prisma.spell.findMany.mockResolvedValue([{ id: 'spell-1', name: 'spell-frappe' }]);
     prisma.equipmentSlot.findMany.mockResolvedValue([]);
     prisma.sessionItem.findMany.mockResolvedValue([]);
     prisma.$transaction.mockImplementation(async (operations: any[]) => Promise.all(operations));
@@ -121,7 +117,9 @@ describe('GameSessionService', () => {
       basePa: 6,
       basePm: 3,
     });
-    spellResolver.resolveSpells.mockReturnValue([]);
+    playerSpellProjection.buildPlayerSpellAssignments.mockImplementation(async (playerId: string) => [
+      { playerId, spellId: 'spell-claque-id', level: 1 },
+    ]);
     service = new GameSessionService(
       prisma as any,
       redis as any,
@@ -130,7 +128,7 @@ describe('GameSessionService', () => {
       sessionSecurity as any,
       sseTickets as any,
       statsCalculator as any,
-      spellResolver as any,
+      playerSpellProjection as any,
     );
   });
 
@@ -361,7 +359,7 @@ describe('GameSessionService', () => {
     });
   });
 
-  it('recomputes persistent stats and clears granted spells after session cleanup', async () => {
+  it('recomputes persistent stats and clears projected spells after session cleanup', async () => {
     sessionSecurity.assertCanEndGameSession.mockResolvedValue({
       id: 'session-1',
       player1Id: 'player-1',
@@ -382,17 +380,16 @@ describe('GameSessionService', () => {
       player1Id: 'player-1',
       player2Id: 'player-2',
     });
-    prisma.equipmentSlot.findMany
-      .mockResolvedValueOnce([{ slot: 'WEAPON_LEFT', inventoryItem: { item: { grantsSpells: ['spell-frappe'] } } }])
-      .mockResolvedValueOnce([{ slot: 'WEAPON_LEFT', inventoryItem: { item: { grantsSpells: ['spell-frappe'] } } }]);
-    spellResolver.resolveSpells.mockReturnValue([{ spellName: 'spell-frappe', level: 3 }]);
+    playerSpellProjection.buildPlayerSpellAssignments
+      .mockResolvedValueOnce([{ playerId: 'player-1', spellId: 'spell-1', level: 1 }])
+      .mockResolvedValueOnce([{ playerId: 'player-2', spellId: 'spell-2', level: 1 }]);
     prisma.gameSession.update.mockResolvedValue({ id: 'session-1', status: 'FINISHED' });
 
     await service.endSession('session-1', 'player-1');
 
     expect(prisma.playerSpell.createMany).toHaveBeenCalledTimes(2);
     expect(prisma.playerSpell.createMany).toHaveBeenCalledWith({
-      data: [{ playerId: 'player-1', spellId: 'spell-1', level: 3 }],
+      data: [{ playerId: 'player-1', spellId: 'spell-1', level: 1 }],
     });
   });
 
