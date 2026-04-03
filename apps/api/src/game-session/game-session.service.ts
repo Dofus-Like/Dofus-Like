@@ -175,12 +175,46 @@ export class GameSessionService {
       throw new BadRequestException('Joueur non autorise');
     }
 
-    const updatedSession = await (this.prisma as any).gameSession.update({
+    // Race-safe: atomically set our flag ONLY if the other player is already ready.
+    // Only one of two concurrent requests can match this WHERE clause.
+    let shouldStartMatch = false;
+
+    if (ready) {
+      const raceResult = await (this.prisma as any).gameSession.updateMany({
+        where: {
+          id: sessionId,
+          phase: 'FARMING',
+          ...(isPlayer1 ? { player2Ready: true } : { player1Ready: true }),
+        },
+        data: {
+          ...(isPlayer1 ? { player1Ready: true } : { player2Ready: true }),
+        },
+      });
+
+      shouldStartMatch = raceResult.count === 1;
+
+      // If the atomic match didn't hit (other player not ready yet), do a regular update.
+      if (!shouldStartMatch) {
+        await (this.prisma as any).gameSession.updateMany({
+          where: { id: sessionId, phase: 'FARMING' },
+          data: {
+            ...(isPlayer1 ? { player1Ready: true } : { player2Ready: true }),
+          },
+        });
+      }
+    } else {
+      // Unsetting ready — no race concern
+      await (this.prisma as any).gameSession.updateMany({
+        where: { id: sessionId },
+        data: {
+          ...(isPlayer1 ? { player1Ready: false } : { player2Ready: false }),
+        },
+      });
+    }
+
+    // Re-fetch the full session for SSE broadcast
+    const updatedSession = await (this.prisma as any).gameSession.findUnique({
       where: { id: sessionId },
-      data: {
-        player1Ready: isPlayer1 ? ready : session.player1Ready,
-        player2Ready: isPlayer2 ? ready : session.player2Ready,
-      },
       include: {
         p1: { select: { username: true } },
         p2: { select: { username: true } },
@@ -193,7 +227,7 @@ export class GameSessionService {
 
     this.sse.emit(`game-session:${sessionId}`, 'SESSION_UPDATED', updatedSession);
 
-    if (updatedSession.player1Ready && updatedSession.player2Ready) {
+    if (shouldStartMatch) {
       await this.startMatch(sessionId);
     }
 

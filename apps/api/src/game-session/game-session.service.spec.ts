@@ -250,7 +250,7 @@ describe('GameSessionService', () => {
     );
   });
 
-  it('starts the linked combat when the second player marks ready', async () => {
+  it('starts the linked combat when the second player marks ready (race-safe)', async () => {
     const session = {
       id: 'session-1',
       player1Id: 'player-1',
@@ -272,13 +272,30 @@ describe('GameSessionService', () => {
       player2Ready: false,
     };
     sessionSecurity.getGameSessionForParticipantOrThrow.mockResolvedValue(session);
-    prisma.gameSession.update
-      .mockResolvedValueOnce(updatedReadySession)
-      .mockResolvedValueOnce(fightingSession);
-    prisma.gameSession.findUnique.mockResolvedValue(session);
+
+    // The race-safe updateMany matches (other player already ready) → count: 1
+    prisma.gameSession.updateMany.mockResolvedValue({ count: 1 });
+    // findUnique returns the session with both flags set for SSE
+    prisma.gameSession.findUnique
+      .mockResolvedValueOnce(updatedReadySession) // re-fetch for SSE
+      .mockResolvedValueOnce(session);            // startMatch re-reads session
+    prisma.gameSession.update.mockResolvedValue(fightingSession);
     sessionService.startSessionCombat.mockResolvedValue({ id: 'combat-1' });
 
     await expect(service.setReady('session-1', 'player-2', true)).resolves.toEqual(updatedReadySession);
+
+    // Verify the race-safe updateMany was called with the correct WHERE
+    expect(prisma.gameSession.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'session-1',
+        phase: 'FARMING',
+        player1Ready: true,
+      },
+      data: {
+        player2Ready: true,
+      },
+    });
+
     expect(sessionService.startSessionCombat).toHaveBeenCalledWith('player-1', 'player-2', 'session-1');
     expect(sse.emit).toHaveBeenNthCalledWith(
       1,
@@ -292,6 +309,34 @@ describe('GameSessionService', () => {
       'SESSION_UPDATED',
       fightingSession,
     );
+  });
+
+  it('does NOT start match when the first player marks ready (other not ready yet)', async () => {
+    const session = {
+      id: 'session-1',
+      player1Id: 'player-1',
+      player2Id: 'player-2',
+      player1Ready: false,
+      player2Ready: false,
+      status: 'ACTIVE',
+      phase: 'FARMING',
+      combats: [],
+    };
+    const updatedSession = {
+      ...session,
+      player1Ready: true,
+    };
+    sessionSecurity.getGameSessionForParticipantOrThrow.mockResolvedValue(session);
+
+    // The race-safe updateMany does NOT match (other player not ready) → count: 0
+    prisma.gameSession.updateMany.mockResolvedValue({ count: 0 });
+    prisma.gameSession.findUnique.mockResolvedValue(updatedSession);
+
+    await expect(service.setReady('session-1', 'player-1', true)).resolves.toEqual(updatedSession);
+
+    expect(sessionService.startSessionCombat).not.toHaveBeenCalled();
+    // updateMany called twice: once for race-safe attempt, once for regular update
+    expect(prisma.gameSession.updateMany).toHaveBeenCalledTimes(2);
   });
 
   it('ends the active linked combat when a player abandons the session', async () => {
