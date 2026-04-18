@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useCombatStore } from '../../store/combat.store';
 import { useAuthStore } from '../../store/auth.store';
 import { getSkinById } from '../../game/constants/skins';
@@ -7,9 +7,10 @@ import './CombatMannequins.css';
 export function CombatMannequins() {
   const combatState = useCombatStore((s) => s.combatState);
   const user = useAuthStore((s) => s.player);
-  const [minimized, setMinimized] = useState(false);
+  const showMannequins = useCombatStore((s) => s.showMannequins);
 
   if (!combatState || !user) return null;
+  if (!showMannequins) return null;
 
   const playerIds = Object.keys(combatState.players);
   if (playerIds.length < 2) return null;
@@ -23,7 +24,7 @@ export function CombatMannequins() {
     const skinConfig = getSkinById(player.skin || 'soldier-classic');
     
     return (
-      <div className={`combat-mannequin-panel ${side} ${minimized ? 'minimized' : ''}`}>
+      <div className={`combat-mannequin-panel ${side}`}>
         <div className="mannequin-header">
            <div className={`portrait-mini avatar-${skinConfig.type}`} style={{ filter: `hue-rotate(${skinConfig.hue}deg) saturate(${skinConfig.saturation})` }} />
            <span>{player.username}</span>
@@ -51,9 +52,6 @@ export function CombatMannequins() {
 
   return (
     <div className="combat-mannequins-wrapper">
-       <button className="toggle-mannequins-btn" onClick={() => setMinimized(!minimized)}>
-           {minimized ? 'Afficher Mannequins' : 'Masquer Mannequins'}
-       </button>
        {renderPlayerPanel(p1, 'left')}
        {renderPlayerPanel(p2, 'right')}
     </div>

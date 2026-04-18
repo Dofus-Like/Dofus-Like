@@ -8,30 +8,6 @@
   z-index: 5;
 }
 
-.toggle-mannequins-btn {
-  position: absolute;
-  top: 15px;
-  left: 50%;
-  transform: translateX(-50%);
-  pointer-events: auto;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  cursor: pointer;
-  backdrop-filter: blur(4px);
-  transition: all 0.2s;
-}
-
-.toggle-mannequins-btn:hover {
-  background: rgba(30, 41, 59, 0.9);
-  border-color: rgba(255, 255, 255, 0.4);
-}
-
 .combat-mannequin-panel {
   position: absolute;
   top: 60px;
@@ -53,16 +29,6 @@
 }
 .combat-mannequin-panel.right {
   right: 20px;
-}
-
-.combat-mannequin-panel.minimized.left {
-  transform: translateX(-150%);
-  opacity: 0;
-}
-
-.combat-mannequin-panel.minimized.right {
-  transform: translateX(150%);
-  opacity: 0;
 }
 
 .mannequin-header {

@@ -45,6 +45,11 @@ export function CombatPage() {
   const logs = useCombatStore((s) => s.logs);
 
   const authInitialize = useAuthStore((s) => s.initialize);
+  const showEnemyHp = useCombatStore((s) => s.showEnemyHp);
+  const toggleShowEnemyHp = useCombatStore((s) => s.toggleShowEnemyHp);
+  const showMannequins = useCombatStore((s) => s.showMannequins);
+  const toggleShowMannequins = useCombatStore((s) => s.toggleShowMannequins);
+  const surrender = useCombatStore((s) => s.surrender);
   const [isCameraMoving, setIsCameraMoving] = React.useState(false);
   const controlsRef = React.useRef<CameraControlsImpl>(null);
   const wasLinkedSessionRef = React.useRef(false);
@@ -144,14 +149,6 @@ export function CombatPage() {
   return (
     <div className="combat-page-container">
       <header className="combat-toolbar">
-        {(!activeSession || activeSession.status !== 'ACTIVE') && (
-          <button type="button" className="combat-toolbar-back" onClick={() => navigate('/')}>
-            ← Quitter
-          </button>
-        )}
-        <button type="button" className="combat-toolbar-abandon" onClick={handleAbandon}>
-          Abandonner
-        </button>
         <h2 className="combat-toolbar-title">Combat</h2>
         {combatState && (
           <span className="combat-toolbar-turn">Tour {combatState.turnNumber}</span>
@@ -230,7 +227,6 @@ export function CombatPage() {
           </Canvas>
 
           <CombatHUD />
-          <CombatMannequins />
         </div>
 
         {/* RIGHT WINDOW: LOGS (Desktop only via CSS) */}

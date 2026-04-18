@@ -309,7 +309,12 @@ export const UnifiedMapScene = React.memo(
         }
 
         targetPositionsRef.current[player.playerId] = player.position;
-        const path = findPath(gameMap, visualPosition, player.position);
+        
+        // On exclut la position cible du joueur lui-même pour que le pathfinder accepte d'y aller
+        const filteredOccupied = new Set(occupiedPositionSet);
+        filteredOccupied.delete(toPositionKey(player.position.x, player.position.y));
+        
+        const path = findPath(gameMap, visualPosition, player.position, filteredOccupied);
 
         if (path && path.length > 0) {
           newPaths[player.playerId] = path;
@@ -437,7 +442,11 @@ export const UnifiedMapScene = React.memo(
 
       if (!closestTile) return [];
 
-      return findPath(gameMap, currentPlayer.position, closestTile) ?? [];
+      // Pour la preview du trajet, on exclut le joueur local du set d'obstacles pour ne pas bloquer le point de départ
+      const obstacles = new Set(occupiedPositionSet);
+      if (currentUserId) obstacles.delete(toPositionKey(currentPlayer.position.x, currentPlayer.position.y));
+
+      return findPath(gameMap, currentPlayer.position, closestTile, obstacles) ?? [];
     }, [currentPlayer, gameMap, hoveredTile, isMyTurn, mode, reachableTiles, selectedSpellId]);
 
     const spellRangeTiles = useMemo(() => {
