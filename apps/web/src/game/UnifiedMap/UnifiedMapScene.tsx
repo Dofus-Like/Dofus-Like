@@ -803,11 +803,11 @@ export const UnifiedMapScene = React.memo(
             previewPath={previewPath}
             isMoving={isMoving}
             map={activeMap}
-            currentUserId={currentUserId ?? undefined}
+            currentUserId={currentUserId}
             playerPaths={playerPaths}
-            tileSize={mode === 'combat' ? tileConfig.tileSize : undefined}
-            pmColor={mode === 'combat' ? tileConfig.pmColor : undefined}
-            rangeColor={mode === 'combat' ? tileConfig.rangeColor : undefined}
+            pmColor={tileConfig.pmColor}
+            rangeColor={tileConfig.rangeColor}
+            tileSize={tileConfig.tileSize}
             hoveredTile={hoveredTile}
           />
 
@@ -817,7 +817,7 @@ export const UnifiedMapScene = React.memo(
             playerPosition={playerPosition}
             movePath={movePath}
             onPathComplete={onPathComplete}
-            farmingPlayerName={user?.username || 'Joueur'}
+            farmingPlayerName={user?.username ?? ''}
             farmingPlayerSkin={user?.skin}
             combatPlayers={combatPlayers}
             visualPositions={visualPositions}
@@ -828,14 +828,12 @@ export const UnifiedMapScene = React.memo(
             onTileReached={onTileReached}
           />
 
-          {mode === 'combat' && (
-            <TransientEffectsLayer
-              vfx={vfx}
-              popups={popups}
-              onRemoveVfx={removeVfx}
-              onRemovePopup={removePopup}
-            />
-          )}
+          <TransientEffectsLayer
+            vfx={vfx}
+            popups={popups}
+            onRemoveVfx={removeVfx}
+            onRemovePopup={removePopup}
+          />
         </group>
       </group>
     );
