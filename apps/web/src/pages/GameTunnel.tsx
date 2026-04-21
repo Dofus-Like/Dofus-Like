@@ -162,7 +162,10 @@ export function GameSessionProvider({ children }: { children: React.ReactNode })
           return;
         }
 
-        setActiveSession((prev) => (prev && prev.id === next.id ? { ...prev, ...next } : next));
+        setActiveSession((prev) => {
+          console.log(`[GameTunnel] SSE Update for session ${next.id}: status=${next.status}, phase=${next.phase}, combats=${next.combats?.length}`);
+          return prev && prev.id === next.id ? { ...prev, ...next } : next;
+        });
       } catch (error) {
         console.error('Erreur parsing SSE:', error);
       }

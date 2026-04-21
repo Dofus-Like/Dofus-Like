@@ -415,15 +415,32 @@ export function FarmingPage() {
   }, [activeSession?.combats, activeSession?.currentRound, activeSession?.id, activeSession?.phase, refreshSession]);
 
   useEffect(() => {
-    if (activeSession?.phase !== 'FIGHTING') {
+    if (!activeSession) return;
+    
+    console.log(`[FarmingPage] Phase monitor: ${activeSession.phase}, Combats: ${activeSession.combats?.length || 0}`);
+    
+    if (activeSession.phase !== 'FIGHTING') {
       return;
     }
 
     const latestCombat = activeSession.combats?.length ? activeSession.combats[0] : undefined;
-    if (latestCombat?.status === 'ACTIVE') {
-      navigate(`/combat/${latestCombat.id}`);
+    
+    if (latestCombat) {
+      console.log(`[FarmingPage] Found combat: ID=${latestCombat.id}, status=${latestCombat.status}`);
+      
+      // On redirige si le combat est actif OU s'il vient d'être créé (WAITING)
+      if (latestCombat.status === 'ACTIVE' || latestCombat.status === 'WAITING') {
+        console.log(`[FarmingPage] Triggering navigation to /combat/${latestCombat.id}`);
+        navigate(`/combat/${latestCombat.id}`);
+      } else {
+        console.warn(`[FarmingPage] Combat found but status is ${latestCombat.status}, waiting...`);
+        const timer = setTimeout(() => {
+          void refreshSession({ silent: true });
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
     } else {
-      // Force a refresh if we are in fighting phase but no active combat is found yet
+      console.warn('[FarmingPage] Phase is FIGHTING but no combat found in list, refreshing...');
       const timer = setTimeout(() => {
         void refreshSession({ silent: true });
       }, 1000);

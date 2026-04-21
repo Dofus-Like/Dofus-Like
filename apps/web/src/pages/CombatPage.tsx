@@ -114,6 +114,8 @@ export function CombatPage() {
     // La redirection vers '/' reste active si la session est supprimée ou finie (status 'FINISHED').
     const isRecentlyMounted = Date.now() - mountedAtRef.current < 2000;
 
+    console.log(`[CombatPage] Phase monitor: phase=${phase}, status=${activeSession.status}, isRecentlyMounted=${isRecentlyMounted}`);
+
     if (activeSession.status === 'FINISHED' && !isRecentlyMounted) {
       console.log('[CombatPage] Session finished, redirecting to root');
       navigate('/', { replace: true });
