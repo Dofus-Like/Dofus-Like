@@ -1,8 +1,8 @@
 export const COMBAT_COLORS = {
   PA_YELLOW: '#fca800',
   PA_YELLOW_DARK: '#fbbf24',
-  PM_VIOLET: '#c084fc',
-  PM_VIOLET_DARK: '#a855f7',
+  PM_VIOLET: '#9531ffff',
+  PM_VIOLET_DARK: '#5900acff',
   HP_RED: '#ef4444',
   HP_RED_LIGHT: '#fca5a5',
   HEAL_GREEN: '#22c55e',
