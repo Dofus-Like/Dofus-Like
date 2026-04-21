@@ -308,6 +308,9 @@ export class GameSessionService {
     const newWinsP2 = !isPlayer1Winner ? session.player2Wins + 1 : session.player2Wins;
     const isGameOver = newWinsP1 >= 3 || newWinsP2 >= 3;
 
+    const bot = await this.prisma.player.findUnique({ where: { username: 'Bot' } });
+    const isVsAi = session.player2Id === bot?.id;
+
     const updated = await (this.prisma as any).gameSession.update({
       where: { id: session.id },
       data: {
@@ -316,7 +319,7 @@ export class GameSessionService {
         currentRound: session.currentRound + 1,
         phase: 'FARMING',
         player1Ready: false,
-        player2Ready: false,
+        player2Ready: isVsAi,
         status: isGameOver ? 'FINISHED' : 'ACTIVE',
         endedAt: isGameOver ? new Date() : null,
       },

@@ -47,31 +47,27 @@ export function ShopPage() {
 
   const sessionPo = getSessionPo(activeSession, player?.id);
   const spendableGold = activeSession ? (sessionPo ?? 0) : (player?.gold ?? 0);
-  const balanceLabel = activeSession ? `${sessionPo ?? 0} Po` : `${player?.gold ?? 0} or`;
+
+  const renderStats = (stats?: any) => {
+    if (!stats) return null;
+    return Object.entries(stats)
+      .map(([key, value]) => `+${value} ${key.toUpperCase()}`)
+      .join(', ');
+  };
 
   return (
     <div className="shop-container">
-      <div className="shop-meta-info" style={{ marginBottom: 24, textAlign: 'center' }}>
-        {seedConfig && (
-          <div className="current-seed-info">
-            Saison : <strong>{seedConfig.label}</strong> ({seedConfig.dominantBuild})
-          </div>
-        )}
-        {activeSession && sessionPo === 0 && (
-          <p className="shop-po-hint" role="status">
-            Gagnez des combats pour recevoir des Po.
-          </p>
-        )}
-      </div>
 
       <div className="item-filters">
-        <button className={`filter-btn ${activeFilter === 'ALL' ? 'active' : ''}`} onClick={() => setActiveFilter('ALL')}>Tout</button>
-        <button className={`filter-btn ${activeFilter === 'WEAPON' ? 'active' : ''}`} onClick={() => setActiveFilter('WEAPON')}>⚔️ Armes</button>
-        <button className={`filter-btn ${activeFilter === 'ARMOR' ? 'active' : ''}`} onClick={() => setActiveFilter('ARMOR')}>🛡️ Armures</button>
-        <button className={`filter-btn ${activeFilter === 'OTHER' ? 'active' : ''}`} onClick={() => setActiveFilter('OTHER')}>🎒 Autres</button>
+        <div className="filter-group">
+          <button className={`filter-btn ${activeFilter === 'ALL' ? 'active' : ''}`} onClick={() => setActiveFilter('ALL')}>Tout</button>
+          <button className={`filter-btn ${activeFilter === 'WEAPON' ? 'active' : ''}`} onClick={() => setActiveFilter('WEAPON')}>⚔️ Armes</button>
+          <button className={`filter-btn ${activeFilter === 'ARMOR' ? 'active' : ''}`} onClick={() => setActiveFilter('ARMOR')}>🛡️ Armures</button>
+          <button className={`filter-btn ${activeFilter === 'OTHER' ? 'active' : ''}`} onClick={() => setActiveFilter('OTHER')}>🎒 Autres</button>
+        </div>
       </div>
 
-      <div className="shop-grid">
+      <div className="shop-grid compact">
         {isLoading && <p className="shop-loading">Chargement...</p>}
         {items?.data?.filter((item: any) => {
           if (activeFilter === 'ALL') return true;
@@ -84,13 +80,7 @@ export function ShopPage() {
           const price = item.shopPrice ?? 0;
           const visual = getItemVisualMeta(item);
           return (
-            <div key={item.id} className={`shop-item-card ${!inSeed ? 'out-of-seed' : ''}`}>
-              <div className="shop-item-badges">
-                {item.family && (
-                  <span className={`family-badge ${item.family.toLowerCase()}`}>{item.family}</span>
-                )}
-                {!inSeed && <span className="seed-badge">HORS-SEED (-50%)</span>}
-              </div>
+            <div key={item.id} className={`shop-item-card compact ${!inSeed ? 'out-of-seed' : ''}`}>
               <div className="shop-item-visual">
                 {visual.iconPath ? (
                   <img src={visual.iconPath} alt={item.name} />
@@ -98,18 +88,27 @@ export function ShopPage() {
                   <span className="shop-item-emoji">{visual.icon}</span>
                 )}
               </div>
-              <div className="shop-item-type">{item.type}</div>
-              <h3 className="shop-item-name">{item.name}</h3>
-              <p className="shop-item-description">{item.description}</p>
-              <p className="shop-item-price">💰 {item.shopPrice} Po</p>
-              <button
-                type="button"
-                className="shop-buy-button"
-                onClick={() => buyMutation.mutate({ itemId: item.id, quantity: 1 })}
-                disabled={buyMutation.isPending || spendableGold < price}
-              >
-                {buyMutation.isPending ? 'Achat...' : spendableGold < price ? 'Or insuffisant' : 'Acheter'}
-              </button>
+
+              <div className="shop-item-content">
+                <div className="shop-item-type">{item.type}</div>
+                <h3 className="shop-item-name">{item.name}</h3>
+                
+                <div className="shop-item-stats-compact">
+                  {renderStats(item.statsBonus) || 'Pas de bonus'}
+                </div>
+
+                <div className="shop-item-footer">
+                  <p className="shop-item-price">💰 {item.shopPrice} Po</p>
+                  <button
+                    type="button"
+                    className="shop-buy-button"
+                    onClick={() => buyMutation.mutate({ itemId: item.id, quantity: 1 })}
+                    disabled={buyMutation.isPending || spendableGold < price}
+                  >
+                    {buyMutation.isPending ? 'Achat...' : spendableGold < price ? 'Or insuffisant' : 'Acheter'}
+                  </button>
+                </div>
+              </div>
             </div>
           );
         })}

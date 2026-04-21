@@ -6,7 +6,6 @@ import CameraControlsImpl from 'camera-controls';
 import * as THREE from 'three';
 import { UnifiedMapScene } from '../game/UnifiedMap/UnifiedMapScene';
 import { CombatHUD } from '../game/HUD/CombatHUD';
-import { CombatMannequins } from '../game/HUD/CombatMannequins';
 import { useCombatStore } from '../store/combat.store';
 import { useAuthStore } from '../store/auth.store';
 import { TerrainType } from '@game/shared-types';
@@ -46,10 +45,6 @@ export function CombatPage() {
   const logs = useCombatStore((s) => s.logs);
 
   const authInitialize = useAuthStore((s) => s.initialize);
-  const showEnemyHp = useCombatStore((s) => s.showEnemyHp);
-  const toggleShowEnemyHp = useCombatStore((s) => s.toggleShowEnemyHp);
-  const showMannequins = useCombatStore((s) => s.showMannequins);
-  const toggleShowMannequins = useCombatStore((s) => s.toggleShowMannequins);
   const surrender = useCombatStore((s) => s.surrender);
   const [isCameraMoving, setIsCameraMoving] = React.useState(false);
   const controlsRef = React.useRef<CameraControlsImpl>(null);
@@ -59,7 +54,7 @@ export function CombatPage() {
   const onRest = React.useCallback(() => setIsCameraMoving(false), []);
   const onStart = React.useCallback(() => setIsCameraMoving(true), []);
 
-  const handleAbandon = React.useCallback(async () => {
+  const handleEndSession = React.useCallback(async () => {
     if (!activeSession) return;
     const ok = window.confirm("Êtes-vous sûr de vouloir abandonner la partie ? Cela mettra fin au match pour tous les joueurs.");
     if (!ok) return;
@@ -69,7 +64,7 @@ export function CombatPage() {
       await refreshSession({ silent: true });
       navigate('/');
     } catch (error) {
-      console.error('Erreur abandon:', error);
+      console.error('Erreur fin session:', error);
     }
   }, [activeSession, refreshSession, navigate]);
 
@@ -150,10 +145,25 @@ export function CombatPage() {
   return (
     <div className="combat-page-container">
       <header className="combat-toolbar">
+        <button className="combat-toolbar-back" onClick={() => navigate('/farming')}>
+           Retour
+        </button>
         <h2 className="combat-toolbar-title">Combat</h2>
-        {combatState && (
-          <span className="combat-toolbar-turn">Tour {combatState.turnNumber}</span>
-        )}
+        <div className="toolbar-actions">
+          {combatState && (
+            <span className="combat-toolbar-turn">Tour {combatState.turnNumber}</span>
+          )}
+          {combatState && !winnerId && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="toolbar-btn surrender" onClick={surrender} title="Abandonner uniquement ce combat (défaite instantanée)">
+                🏳️ Abandonner combat
+              </button>
+              <button className="toolbar-btn surrender" onClick={handleEndSession} title="Quitter la partie pour tout le monde" style={{ opacity: 0.7 }}>
+                🔴 Abandonner session
+              </button>
+            </div>
+          )}
+        </div>
       </header>
       {!combatState && (
         <div className="combat-overlay">

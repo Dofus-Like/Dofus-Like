@@ -21,7 +21,10 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { label: '🏛️ Lobby', path: '/' },
-    { label: '⚔️ Combat', path: '/farming' },
+    { 
+      label: (location.pathname === '/farming' || (activeSession?.phase === 'FARMING')) ? '🚜 Récolte' : '⚔️ Combat', 
+      path: '/farming' 
+    },
     { label: '💰 Boutique', path: '/shop' },
     { label: '🎒 Sac', path: '/inventory' },
     { label: '🔨 Forge', path: '/crafting' },
@@ -34,14 +37,15 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`game-layout ${location.pathname === '/' ? 'in-lobby' : ''}`}>
-      {location.pathname !== '/' && (
-        <nav className="game-navbar">
-          <div className="nav-logo" onClick={() => navigate('/')}>
-            ⚔️ Moyenax
-          </div>
-          
-          <div className="nav-links">
-            {navItems.map((item) => (
+      <nav className="game-navbar">
+        <div className="nav-logo" onClick={() => navigate('/')}>
+          ⚔️ Moyenax
+        </div>
+        
+        <div className="nav-links">
+          {location.pathname !== '/' && navItems
+            .filter(item => item.path !== '/')
+            .map((item) => (
               <button
                 key={item.path}
                 className={`nav-btn ${location.pathname === item.path ? 'active' : ''}`}
@@ -50,19 +54,18 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
                 {item.label}
               </button>
             ))}
-          </div>
+        </div>
 
-          <div className="nav-user-info">
-            <div className="user-stats">
-              <span className="user-gold">💰 {spendableGold}</span>
-              <span className="user-name">{player?.username}</span>
-            </div>
-            <button className="nav-logout-btn" onClick={handleLogout}>
-              🚪
-            </button>
+        <div className="nav-user-info">
+          <div className="user-stats">
+            {activeSession && <span className="user-gold">💰 {spendableGold}</span>}
+            <span className="user-name">{player?.username}</span>
           </div>
-        </nav>
-      )}
+          <button className="nav-logout-btn" onClick={handleLogout} title="Se déconnecter">
+            🚪
+          </button>
+        </div>
+      </nav>
       
       <main className="game-content">
         {children}
