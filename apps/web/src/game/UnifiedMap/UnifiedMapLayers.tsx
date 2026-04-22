@@ -25,9 +25,10 @@ interface TerrainLayerProps {
   sideColor?: string;
   tileSize?: number;
   tileRadius?: number;
+  hideGrid?: boolean;
 }
 
-export const TerrainLayer = React.memo(({ map, checkerColorA, checkerColorB, sideColor, tileSize, tileRadius }: TerrainLayerProps) => {
+export const TerrainLayer = React.memo(({ map, checkerColorA, checkerColorB, sideColor, tileSize, tileRadius, hideGrid = false }: TerrainLayerProps) => {
   const decorations = useMemo(() => {
     const result: React.ReactElement[] = [];
 
@@ -60,14 +61,16 @@ export const TerrainLayer = React.memo(({ map, checkerColorA, checkerColorB, sid
 
   return (
     <group>
-      <InstancedTerrain 
-        map={map}
-        checkerColorA={checkerColorA}
-        checkerColorB={checkerColorB}
-        sideColor={sideColor}
-        tileSize={tileSize}
-        tileRadius={tileRadius}
-      />
+      {!hideGrid && (
+        <InstancedTerrain
+          map={map}
+          checkerColorA={checkerColorA}
+          checkerColorB={checkerColorB}
+          sideColor={sideColor}
+          tileSize={tileSize}
+          tileRadius={tileRadius}
+        />
+      )}
       <Suspense fallback={null}>
         <InstancedFoliage map={map} />
       </Suspense>
@@ -95,7 +98,7 @@ export const HoverLayer = React.memo(({ hoveredTile, map }: HoverLayerProps) => 
 });
 
 interface OverlayLayerProps {
-  mode: 'combat' | 'farming';
+  mode: 'combat' | 'farming' | 'hub';
   isMyTurn: boolean;
   selectedSpellId: string | null;
   reachableTiles: { x: number; y: number }[];
@@ -151,7 +154,7 @@ export const UnifiedMapOverlayLayer = React.memo(
 );
 
 interface PlayersLayerProps {
-  mode: 'combat' | 'farming';
+  mode: 'combat' | 'farming' | 'hub';
   mapWidth: number;
   playerPosition?: PathNode;
   movePath?: PathNode[] | null;
@@ -184,7 +187,7 @@ export const PlayersLayer = React.memo(
     onCombatPathComplete,
     onTileReached,
   }: PlayersLayerProps) => {
-    if (mode === 'farming' && playerPosition) {
+    if (mode !== 'combat' && playerPosition) {
       return (
         <PlayerPawn
           gridPosition={playerPosition}
@@ -194,7 +197,7 @@ export const PlayersLayer = React.memo(
           onTileReached={onTileReached}
           playerData={{ username: farmingPlayerName, skin: farmingPlayerSkin }}
           setPawnRef={setPawnRef}
-          mode={mode}
+          mode="farming"
         />
       );
     }

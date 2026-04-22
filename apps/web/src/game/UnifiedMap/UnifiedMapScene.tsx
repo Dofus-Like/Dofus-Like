@@ -9,6 +9,8 @@ import {
   findPath,
 } from '@game/shared-types';
 import { Castle } from '../ResourceMap/Castle';
+import { HubPOILayer } from '../Hub/HubPOILayer';
+import { HubPoiDef } from '../Hub/hubMap';
 import { ThreeEvent, useThree } from '@react-three/fiber';
 import { canJumpTo, canMoveTo, hasLineOfSight, isInRange } from '@game/game-engine';
 import { useCombatStore } from '../../store/combat.store';
@@ -31,7 +33,7 @@ import {
 import { PlayerPawnHandle } from '../ResourceMap/PlayerPawn';
 
 interface UnifiedMapSceneProps {
-  mode: 'combat' | 'farming';
+  mode: 'combat' | 'farming' | 'hub';
   map: GameMap;
   sessionId?: string;
   playerPosition?: PathNode;
@@ -43,6 +45,7 @@ interface UnifiedMapSceneProps {
   isCameraMoving?: boolean;
   isMoving?: boolean;
   onTileReached?: (node: PathNode) => void;
+  activePoi?: HubPoiDef | null;
 }
 
 function getProjectileType(spellId: string) {
@@ -66,6 +69,7 @@ export const UnifiedMapScene = React.memo(
     onTileHover,
     isMoving = false,
     onTileReached,
+    activePoi = null,
   }: UnifiedMapSceneProps) => {
     const combatState = useCombatStore((state) => state.combatState);
     const selectedSpellId = useCombatStore((state) => state.selectedSpellId);
@@ -105,7 +109,7 @@ export const UnifiedMapScene = React.memo(
     const currentUserId = user?.id ?? (user as { _id?: string } | null)?._id ?? undefined;
 
     const gameMap = useMemo(() => {
-      if (mode === 'farming') return map;
+      if (mode === 'farming' || mode === 'hub') return map;
       if (!combatState?.map?.tiles) return null;
 
       const grid = Array.from({ length: combatState.map.height }, () =>
@@ -688,10 +692,25 @@ export const UnifiedMapScene = React.memo(
       }
 
       if (e.button !== 0 || !e.uv || !activeMap) return;
-      
+
       const gx = Math.min(activeMap.width - 1, Math.floor(e.uv.x * activeMap.width));
       const gz = Math.min(activeMap.height - 1, Math.floor((1 - e.uv.y) * activeMap.height));
 
+      const terrain = activeMap.grid[gz][gx] as TerrainType;
+      handleTileClickDispatcher(gx, gz, terrain);
+    }, [activeMap, handleTileClickDispatcher]);
+
+    // Hub: click handler on the scene group — fires even when castle geometry blocks hit plane.
+    // Derives tile from e.point (3D intersection, X/Z only) — same approach as farming's e.uv,
+    // but works regardless of which surface (castle wall or ground plane) was hit.
+    const handleHubClick = useCallback((e: ThreeEvent<PointerEvent>) => {
+      if (wasDraggingRef.current) return;
+      if (e.button !== 0) return;
+      if (!activeMap) return;
+      // stopPropagation prevents double-fire when ray hits both castle geometry and hit-plane
+      e.stopPropagation();
+      const gx = Math.max(0, Math.min(activeMap.width - 1, Math.floor(e.point.x + activeMap.width / 2)));
+      const gz = Math.max(0, Math.min(activeMap.height - 1, Math.floor(e.point.z + activeMap.height / 2)));
       const terrain = activeMap.grid[gz][gx] as TerrainType;
       handleTileClickDispatcher(gx, gz, terrain);
     }, [activeMap, handleTileClickDispatcher]);
@@ -709,6 +728,9 @@ export const UnifiedMapScene = React.memo(
     );
 
     useEffect(() => {
+      // Hub uses CameraControls for camera (right-click truck) — no map rotation needed
+      if (mode === 'hub') return;
+
       let isDragging = false;
       let previousX = 0;
 
@@ -726,7 +748,7 @@ export const UnifiedMapScene = React.memo(
 
         const delta = event.clientX - previousX;
         dragDistanceRef.current += Math.abs(delta);
-        
+
         // If moved more than 5 pixels, consider it a drag
         if (dragDistanceRef.current > 5) {
           wasDraggingRef.current = true;
@@ -751,7 +773,7 @@ export const UnifiedMapScene = React.memo(
         window.removeEventListener('pointermove', onPointerMoveWindow);
         window.removeEventListener('pointerup', onPointerUpWindow);
       };
-    }, []);
+    }, [mode]);
 
     const setPawnRef = useCallback((playerId: string, handle: PlayerPawnHandle | null) => {
       if (handle) {
@@ -800,6 +822,9 @@ export const UnifiedMapScene = React.memo(
       <group
         onPointerUp={handlePointerUp}
         onContextMenu={(event) => event.nativeEvent.preventDefault()}
+        onPointerMove={handlePointerMove}
+        onClick={mode === 'hub' ? handleHubClick : undefined}
+        onPointerLeave={() => setHoveredTile(null)}
       >
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]}>
           <planeGeometry args={[1000, 1000]} />
@@ -807,33 +832,33 @@ export const UnifiedMapScene = React.memo(
         </mesh>
 
         <group ref={mapGroupRef} rotation={[0, mapRotation, 0]}>
-          {mode === 'combat' && (
+          {(mode === 'combat' || mode === 'hub') && (
             <Suspense fallback={null}>
-              <Castle 
-                position={[-1.07, 5.34, -0.94]} 
-                targetSize={14.0} 
-                rotation={[0, 0, 0]} 
+              <Castle
+                position={mode === 'hub' ? [-1, 1.5, -1] : [-1.07, 5.34, -0.94]}
+                targetSize={mode === 'hub' ? 8.0 : 14.0}
+                rotation={[0, 0, 0]}
               />
             </Suspense>
           )}
-          <TerrainLayer 
-            map={activeMap} 
-            onTileClick={handleTileClickDispatcher} 
+          <TerrainLayer
+            map={activeMap}
+            onTileClick={handleTileClickDispatcher}
             checkerColorA={mode === 'combat' ? currentTileColors.checkerColorA : undefined}
             checkerColorB={mode === 'combat' ? currentTileColors.checkerColorB : undefined}
             sideColor={mode === 'combat' ? currentTileColors.sideColor : undefined}
             tileSize={mode === 'combat' ? tileConfig.tileSize : undefined}
             tileRadius={mode === 'combat' ? tileConfig.tileRadius : undefined}
+            hideGrid={mode === 'hub'}
           />
-          
-          {/* Interaction Plane - Must be visible=true for raycasting but transparent for user */}
+
+          {/* Interaction Plane — transparent, used for UV-based tile detection */}
           <mesh
             name="map-hit-plane"
             rotation={[-Math.PI / 2, 0, 0]}
             position={[0, 0, 0]}
-            onPointerMove={handlePointerMove}
-            onClick={handlePointerDown}
-            onPointerLeave={() => setHoveredTile(null)}
+            onPointerMove={mode !== 'hub' ? handlePointerMove : undefined}
+            onClick={mode !== 'hub' ? handlePointerDown : undefined}
             visible={true}
           >
             <planeGeometry args={[activeMap.width, activeMap.height]} />
@@ -842,21 +867,23 @@ export const UnifiedMapScene = React.memo(
 
           <HoverLayer hoveredTile={hoveredTile} map={activeMap} />
 
-          <UnifiedMapOverlayLayer
-            mode={mode}
-            isMyTurn={isMyTurn}
-            selectedSpellId={selectedSpellId}
-            reachableTiles={filteredReachableTiles}
-            spellRangeTiles={spellRangeTiles}
-            combatPreviewPath={combatPreviewPath}
-            map={activeMap}
-            currentUserId={currentUserId}
-            playerPaths={playerPaths}
-            pmColor={tileConfig.pmColor}
-            rangeColor={tileConfig.rangeColor}
-            tileSize={tileConfig.tileSize}
-            hoveredTile={hoveredTile}
-          />
+          {mode !== 'hub' && (
+            <UnifiedMapOverlayLayer
+              mode={mode}
+              isMyTurn={isMyTurn}
+              selectedSpellId={selectedSpellId}
+              reachableTiles={filteredReachableTiles}
+              spellRangeTiles={spellRangeTiles}
+              combatPreviewPath={combatPreviewPath}
+              map={activeMap}
+              currentUserId={currentUserId}
+              playerPaths={playerPaths}
+              pmColor={tileConfig.pmColor}
+              rangeColor={tileConfig.rangeColor}
+              tileSize={tileConfig.tileSize}
+              hoveredTile={hoveredTile}
+            />
+          )}
 
           <PlayersLayer
             mode={mode}
@@ -875,12 +902,18 @@ export const UnifiedMapScene = React.memo(
             onTileReached={onTileReached}
           />
 
-          <TransientEffectsLayer
-            vfx={vfx}
-            popups={popups}
-            onRemoveVfx={removeVfx}
-            onRemovePopup={removePopup}
-          />
+          {mode === 'hub' && (
+            <HubPOILayer mapSize={activeMap.width} activePoi={activePoi} />
+          )}
+
+          {mode !== 'hub' && (
+            <TransientEffectsLayer
+              vfx={vfx}
+              popups={popups}
+              onRemoveVfx={removeVfx}
+              onRemovePopup={removePopup}
+            />
+          )}
         </group>
       </group>
     );

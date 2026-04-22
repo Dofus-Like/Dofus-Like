@@ -354,8 +354,8 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
           </sprite>
         )}
 
-        {/* BARRE DE VIE (Contrôlée par l'option globale) */}
-        {showEnemyHp && isEnemy && playerData && (
+        {/* BARRE DE VIE (Combat uniquement) */}
+        {mode === 'combat' && showEnemyHp && isEnemy && playerData && (
           <Billboard position={[0, 1.4, 0]}>
             {/* Outline Arrondi (Tracé fin) */}
             <RoundedBox args={[1.54, 0.18, 0.01]} radius={0.09} smoothness={4}>

@@ -1,0 +1,31 @@
+.hub-page {
+  position: fixed;
+  inset: 0;
+  background: #0a0a12;
+  overflow: hidden;
+}
+
+.hub-canvas-container {
+  width: 100%;
+  height: 100%;
+}
+
+.hub-canvas-container > div,
+.hub-canvas-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* Overlay layer sits on top of the canvas, pointer-events none by default */
+.hub-overlay-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* The backdrop inside re-enables pointer events */
+.hub-overlay-layer .hub-overlay-backdrop {
+  pointer-events: all;
+}

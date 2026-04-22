@@ -16,15 +16,15 @@ export function Castle({ position, targetSize, rotation = [0, 0, 0] }: CastlePro
 
   const { clonedScene, scaleFactor, offset, materials } = useMemo(() => {
     const clone = scene.clone(true);
-    
+
     // Calculate bounding box to determine intrinsic size
     const box = new THREE.Box3().setFromObject(clone);
     const size = new THREE.Vector3();
     box.getSize(size);
-    
+
     const maxDim = Math.max(size.x, size.z);
     const factor = targetSize ? targetSize / maxDim : 1;
-    
+
     // On centre en X/Z mais on aligne le HAUT du modèle à Y=0
     const center = new THREE.Vector3();
     box.getCenter(center);
@@ -37,9 +37,9 @@ export function Castle({ position, targetSize, rotation = [0, 0, 0] }: CastlePro
       }
     });
 
-    return { 
-      clonedScene: clone, 
-      scaleFactor: factor, 
+    return {
+      clonedScene: clone,
+      scaleFactor: factor,
       offset: new THREE.Vector3(-center.x, -topY, -center.z),
       materials: Array.from(new Set(clone.children.flatMap(c => {
         const ms: THREE.Material[] = [];

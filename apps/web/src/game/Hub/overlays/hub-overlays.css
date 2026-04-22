@@ -1,0 +1,137 @@
+.hub-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  animation: hub-fade-in 0.18s ease-out;
+  pointer-events: all;
+}
+
+@keyframes hub-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.hub-overlay-panel {
+  background: rgba(12, 16, 22, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: hub-slide-up 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes hub-slide-up {
+  from { transform: translateY(24px) scale(0.97); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.hub-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+
+.hub-overlay-header h2 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+.hub-overlay-close {
+  background: rgba(255, 255, 255, 0.07);
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.hub-overlay-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.hub-overlay-body {
+  padding: 20px 24px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ── Skin overlay ─────────────────────────────────────── */
+.hub-skins-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+/* Reuse lobby skin-card classes */
+
+/* ── Room overlay ─────────────────────────────────────── */
+.hub-room-section {
+  margin-bottom: 20px;
+}
+
+.hub-room-section:last-child {
+  margin-bottom: 0;
+}
+
+.hub-room-section h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 12px;
+}
+
+.hub-room-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hub-rooms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── VS AI overlay ────────────────────────────────────── */
+.hub-vsai-body {
+  text-align: center;
+  padding: 16px 0 8px;
+}
+
+.hub-vsai-body p {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.95rem;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.hub-vsai-body .vs-ai-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.hub-vsai-body .reset-session-link {
+  margin: 12px auto 0;
+}

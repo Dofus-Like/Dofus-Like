@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LoginPage } from './pages/LoginPage';
 import { LobbyPage } from './pages/LobbyPage';
+import { HubPage } from './pages/HubPage';
 import { ShopPage } from './pages/ShopPage';
 import { InventoryPage } from './pages/InventoryPage';
 import { DebugPage } from './pages/DebugPage';
@@ -57,6 +58,16 @@ root.render(
             <Route path="/login" element={<LoginPage />} />
             <Route
               path="/"
+              element={
+                <ProtectedRoute>
+                  <GameTunnelGuard>
+                    <HubPage />
+                  </GameTunnelGuard>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/lobby-legacy"
               element={
                 <ProtectedRoute>
                   <GameTunnelGuard>
