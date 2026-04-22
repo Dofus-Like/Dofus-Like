@@ -544,7 +544,7 @@ async function main() {
       description: "Augmente la force brute. Attention : ne pas se curer le nez avec, sous peine de luxation.",
       statsBonus: { vit: 100, atk: 20, def: 10, pa: 1 },
       craftCost: { [fer.id]: 2, [or.id]: 2 },
-      shopPrice: 25,
+      shopPrice: 350,
       iconPath: '/assets/items/anneauGuerrier.png',
     },
   });
@@ -556,7 +556,7 @@ async function main() {
       description: "Fait circuler le mana. Et provoque des picotements bizarres dans les mains.",
       statsBonus: { vit: 50, mag: 30, res: 15, pa: 1 },
       craftCost: { [cristal.id]: 2, [or.id]: 2 },
-      shopPrice: 25,
+      shopPrice: 350,
       iconPath: '/assets/items/anneauMage.png',
     },
   });
@@ -568,7 +568,7 @@ async function main() {
       description: "Rend plus agile. Ou alors c'est juste l'effet placebo de porter un truc brillant.",
       statsBonus: { vit: 50, atk: 15, mag: 5, ini: 500, pm: 1 },
       craftCost: { [cuir.id]: 1, [bois.id]: 1, [or.id]: 2 },
-      shopPrice: 25,
+      shopPrice: 350,
       iconPath: '/assets/items/anneauNinja.png',
     },
   });
@@ -579,7 +579,7 @@ async function main() {
       type: ItemType.ACCESSORY,
       description: "Un anneau moulé directement sur l'artisan le plus expérimenté de Vergeronce. Il paraît qu'il procure un bonus de 'Vigueur' insoupçonné.",
       statsBonus: { vit: 9999, atk: 999, mag: 999, def: 100, res: 100, pa: 12, pm: 12 },
-      shopPrice: 69,
+      shopPrice: 500,
       iconPath: '/assets/items/anneauPenien.png',
     },
   });
