@@ -108,21 +108,29 @@ export function CombatPage() {
       return;
     }
     const phase = activeSession.phase;
+    const combatIdFromUrl = sessionId; 
+    const latestCombatId = activeSession.combats?.[0]?.id;
     
-    // Redirection manuelle uniquement : on retire la redirection automatique vers farming
-    // pour que le joueur puisse voir ses récompenses et cliquer sur "Continuer" dans le HUD.
-    // La redirection vers '/' reste active si la session est supprimée ou finie (status 'FINISHED').
-    const isRecentlyMounted = Date.now() - mountedAtRef.current < 2000;
+    // Si la phase globale repasse en FARMING mais que notre combat est toujours le dernier 
+    // et qu'on vient d'arriver (moins de 3s), on reste sur la page pour laisser le temps
+    // au state de se stabiliser et au joueur de voir le résultat.
+    const isRecentlyMounted = Date.now() - mountedAtRef.current < 3000;
 
-    console.log(`[CombatPage] Phase monitor: phase=${phase}, status=${activeSession.status}, isRecentlyMounted=${isRecentlyMounted}`);
+    console.log(`[CombatPage] Phase monitor [UrlId: ${combatIdFromUrl}, LatestId: ${latestCombatId}]: phase=${phase}, status=${activeSession.status}, isRecentlyMounted=${isRecentlyMounted}`);
 
     if (activeSession.status === 'FINISHED' && !isRecentlyMounted) {
-      console.log('[CombatPage] Session finished, redirecting to root');
+      console.log('[CombatPage] Session completely finished, redirecting to root');
       navigate('/', { replace: true });
     }
 
+    // On ignore le passage à FARMING si on est en plein milieu du combat ou si on vient de le lancer
+    if (phase === 'FARMING' && latestCombatId === combatIdFromUrl && isRecentlyMounted) {
+      console.warn('[CombatPage] Ignoring FARMING phase flip due to recent mount / latest match match');
+      return;
+    }
+
     prevGamePhaseRef.current = phase ?? null;
-  }, [activeSession, navigate]);
+  }, [activeSession, navigate, sessionId]);
 
   // Construire une GameMap fictive à partir de combatState pour UnifiedMapScene
   const gameMap = useMemo(() => {

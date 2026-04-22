@@ -58,13 +58,18 @@ export function FarmingPage() {
   const [isCameraMoving, setIsCameraMoving] = useState(false);
   const [isReadyToRender, setIsReadyToRender] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const isActionInProgressRef = useRef(false);
   const [queuedAction, setQueuedAction] = useState<{ type: 'gather'; x: number; y: number } | null>(
     null,
   );
 
   React.useEffect(() => {
+    // Reset internal locks on mount to prevent stale states
+    isActionInProgressRef.current = false;
+    void refreshSession({ silent: true });
+
     // Délai pour laisser le temps au GPU de nettoyer les anciens contextes (ex: CombatPage)
-    const timer = setTimeout(() => setIsReadyToRender(true), 500);
+    const timer = setTimeout(() => setIsReadyToRender(true), 800);
     return () => clearTimeout(timer);
   }, []);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: 'info' | 'error' } | null>(
@@ -350,98 +355,96 @@ export function FarmingPage() {
       return;
     }
 
+    // Abandonner should NEVER be blocked by other actions, as it's an emergency escape
+    // if (isActionInProgressRef.current) return; 
+
     try {
+      isActionInProgressRef.current = true;
+      setIsTransitioning(true);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      
       await gameSessionApi.endSession(activeSession.id);
+      clearTimeout(timeoutId);
+      
       await refreshSession({ silent: true });
       navigate('/');
     } catch (error) {
       console.error('Erreur fin de session:', error);
+      showActionMessage("Impossible d'abandonner. Redirection forcée...", 'error');
+      setTimeout(() => navigate('/'), 1500);
+    } finally {
+      setIsTransitioning(false);
+      isActionInProgressRef.current = false;
     }
   }, [activeSession, navigate, refreshSession]);
 
   const handleToggleReady = useCallback(async () => {
     if (!activeSession) return;
-    setIsTransitioning(true);
-    
+    if (isActionInProgressRef.current) {
+      console.log("[FarmingPage] Action already in progress, skipping.");
+      return;
+    }
+
     try {
+      isActionInProgressRef.current = true;
+      setIsTransitioning(true);
+      
       const isReady =
         activeSession.player1Id === currentPlayerId ? activeSession.player1Ready : activeSession.player2Ready;
-      console.log(`[FarmingPage] Toggling ready from ${isReady} to ${!isReady}`);
+      
+      console.log(`[FarmingPage] Toggling ready to ${!isReady}`);
       const { data: updated } = await gameSessionApi.toggleReady(!isReady, activeSession.id);
       
-      // Si le combat vient de se lancer, on redirige immédiatement avec l'ID du nouveau combat
-      if (updated.phase === 'FIGHTING' && updated.combats?.length > 0) {
+      // We use a small delay here to let the state settle before checking for navigation
+      if (updated.phase === 'FIGHTING' && updated.combats?.[0]) {
         const latestCombat = updated.combats[0];
-        console.log(`[FarmingPage] API Response: Phase is FIGHTING. Latest combat: ${latestCombat.id}, status: ${latestCombat.status}`);
-        
         if (latestCombat.status === 'ACTIVE' || latestCombat.status === 'WAITING') {
-          console.log("[FarmingPage] Match started! Navigating to combat:", latestCombat.id);
+          console.log(`[FarmingPage] Combat detected in response, navigating to /combat/${latestCombat.id}`);
           navigate(`/combat/${latestCombat.id}`);
-          return; // Navigation will unmount, no need to setIsTransitioning(false)
+          return;
         }
       }
       
-      setIsTransitioning(false);
       await refreshSession({ silent: true });
     } catch (error) {
       console.error("[FarmingPage] Error toggling ready:", error);
+      showActionMessage("Erreur lors du changement d'état prêt", 'error');
+    } finally {
       setIsTransitioning(false);
+      isActionInProgressRef.current = false;
     }
   }, [activeSession, currentPlayerId, refreshSession, navigate]);
 
-  const combatListRefreshKey = useRef<string | null>(null);
-  useEffect(() => {
-    if (activeSession?.phase !== 'FIGHTING') {
-      combatListRefreshKey.current = null;
-      return;
-    }
-
-    if (activeSession.combats && activeSession.combats.length > 0) {
-      return;
-    }
-
-    const key = `${activeSession.id}-${activeSession.currentRound}`;
-    if (combatListRefreshKey.current === key) {
-      return;
-    }
-
-    combatListRefreshKey.current = key;
-    void refreshSession({ silent: true });
-  }, [activeSession?.combats, activeSession?.currentRound, activeSession?.id, activeSession?.phase, refreshSession]);
-
+  // -- Phase monitoring --
   useEffect(() => {
     if (!activeSession) return;
     
-    console.log(`[FarmingPage] Phase monitor: ${activeSession.phase}, Combats: ${activeSession.combats?.length || 0}`);
-    
-    if (activeSession.phase !== 'FIGHTING') {
-      return;
-    }
+    if (activeSession.phase !== 'FIGHTING') return;
 
-    const latestCombat = activeSession.combats?.length ? activeSession.combats[0] : undefined;
+    const latestCombat = activeSession.combats?.[0];
+    if (!latestCombat) return;
+
+    console.log(`[FarmingPage] Monitor: Phase is FIGHTING. Latest combat: ${latestCombat.id}, status: ${latestCombat.status}`);
     
-    if (latestCombat) {
-      console.log(`[FarmingPage] Found combat: ID=${latestCombat.id}, status=${latestCombat.status}`);
-      
-      // On redirige si le combat est actif OU s'il vient d'être créé (WAITING)
-      if (latestCombat.status === 'ACTIVE' || latestCombat.status === 'WAITING') {
-        console.log(`[FarmingPage] Triggering navigation to /combat/${latestCombat.id}`);
-        navigate(`/combat/${latestCombat.id}`);
-      } else {
-        console.warn(`[FarmingPage] Combat found but status is ${latestCombat.status}, waiting...`);
-        const timer = setTimeout(() => {
-          void refreshSession({ silent: true });
-        }, 1500);
-        return () => clearTimeout(timer);
-      }
-    } else {
-      console.warn('[FarmingPage] Phase is FIGHTING but no combat found in list, refreshing...');
-      const timer = setTimeout(() => {
-        void refreshSession({ silent: true });
-      }, 1000);
-      return () => clearTimeout(timer);
+    // On redirige seulement si le combat est encore valide et qu'on n'y est pas déjà
+    if ((latestCombat.status === 'ACTIVE' || latestCombat.status === 'WAITING') && 
+        window.location.pathname !== `/combat/${latestCombat.id}`) {
+      navigate(`/combat/${latestCombat.id}`);
     }
-  }, [activeSession?.combats, activeSession?.phase, navigate, refreshSession]);
+  }, [activeSession?.phase, activeSession?.combats?.[0]?.id, navigate]);
+
+  // -- Transition Safety: Always unlock if we are in FARMING phase --
+  useEffect(() => {
+    if (activeSession?.phase === 'FARMING') {
+      if (isActionInProgressRef.current) {
+        console.log("[FarmingPage] Phase changed to FARMING. Unlocking UI.");
+        isActionInProgressRef.current = false;
+        setIsTransitioning(false);
+      }
+    }
+  }, [activeSession?.phase]);
 
   const p1IsMe = activeSession?.player1Id === currentPlayerId;
   const amIReady = p1IsMe ? activeSession?.player1Ready : activeSession?.player2Ready;

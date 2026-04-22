@@ -244,7 +244,7 @@ export class SessionService {
     const gameSessionId = session.gameSessionId;
 
     if (gameSessionId) {
-      const gs = await (this.prisma as any).gameSession.findUnique({
+      const gs = await this.prisma.gameSession.findUnique({
         where: { id: gameSessionId },
       });
 
@@ -263,26 +263,14 @@ export class SessionService {
           where: { id: combatSessionId },
           data: { status: 'FINISHED', winnerId, endedAt: new Date() },
         }),
-        (this.prisma as any).gameSession.update({
+        this.prisma.gameSession.update({
           where: { id: gameSessionId },
           data: poData,
         }),
       ]);
 
-      const updated = await (this.prisma as any).gameSession.findUnique({
-        where: { id: gameSessionId },
-        include: {
-          p1: { select: { username: true } },
-          p2: { select: { username: true } },
-          combats: {
-            orderBy: { createdAt: 'desc' },
-            take: 5,
-          },
-        },
-      });
-      if (updated) {
-        this.sse.emit(`game-session:${gameSessionId}`, 'SESSION_UPDATED', updated);
-      }
+      // SSE emission removed from here. GameSessionService will emit it after 
+      // correctly reconciling the phase (FARMING or FINISHED).
     } else {
       await this.prisma.$transaction([
         this.prisma.combatSession.update({
@@ -306,7 +294,8 @@ export class SessionService {
     this.eventEmitter.emit(GAME_EVENTS.COMBAT_ENDED, { 
       winnerId, 
       loserId, 
-      sessionId: combatSessionId 
+      sessionId: combatSessionId, // CRITICAL: This MUST be the combat session ID for lookup
+      gameSessionId: gameSessionId, // Optional but good for logs
     });
 
     this.sse.emit(combatSessionId, 'COMBAT_ENDED', {

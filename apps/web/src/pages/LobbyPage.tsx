@@ -111,7 +111,30 @@ export function LobbyPage() {
       navigate('/farming');
     } catch (error) {
       console.error('Failed to join room', error);
-      window.alert(getErrorMessage(error, 'Impossible de rejoindre la room.'));
+      const msg = getErrorMessage(error, 'Impossible de rejoindre la room.');
+      if (msg.includes('deja une room ouverte')) {
+        if (window.confirm('Vous avez déjà une session active. Voulez-vous la rejoindre ?')) {
+          navigate('/farming');
+        }
+      } else {
+        window.alert(msg);
+      }
+    }
+  };
+
+  const handleResetSession = async () => {
+    if (!window.confirm('Êtes-vous sûr de vouloir réinitialiser votre session ? Toute progression non sauvegardée sera perdue.')) {
+      return;
+    }
+
+    try {
+      await gameSessionApi.resetSession();
+      await refreshSession({ silent: true });
+      await fetchLobbyState();
+      window.alert('Session réinitialisée avec succès.');
+    } catch (error) {
+      console.error('Failed to reset session', error);
+      window.alert(getErrorMessage(error, 'Impossible de réinitialiser la session.'));
     }
   };
 
@@ -309,12 +332,22 @@ export function LobbyPage() {
           </div>
           <button
             type="button"
-            className="vs-ai-btn"
-            onClick={handleStartVsAiCombat}
-            disabled={hasOpenSession || isInQueue}
+            className={`vs-ai-btn ${hasOpenSession ? 'resume' : ''}`}
+            onClick={hasOpenSession ? () => navigate('/farming') : handleStartVsAiCombat}
+            disabled={isInQueue}
           >
-            Lancer VS AI
+            {hasOpenSession ? 'Reprendre la partie' : 'Lancer VS AI'}
           </button>
+          
+          {hasOpenSession && (
+            <button
+              type="button"
+              className="reset-session-link"
+              onClick={handleResetSession}
+            >
+              🔄 Réinitialiser
+            </button>
+          )}
         </div>
       </section>
     </div>

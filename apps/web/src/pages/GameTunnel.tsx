@@ -19,7 +19,12 @@ interface GameSession {
   gold: number;
   player1Po: number;
   player2Po: number;
-  combats: any[];
+  combats: Array<{
+    id: string;
+    status: 'WAITING' | 'ACTIVE' | 'FINISHED';
+    createdAt: string;
+    winnerId?: string | null;
+  }>;
 }
 
 interface GameSessionContextType {
@@ -75,12 +80,17 @@ export function GameSessionProvider({ children }: { children: React.ReactNode })
     }
 
     try {
-      const response = await gameSessionApi.getActiveSession();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await gameSessionApi.getActiveSession({ signal: controller.signal });
+      clearTimeout(timeoutId);
       setActiveSession(response.data ?? null);
     } catch (error: unknown) {
       if (getErrorStatus(error) === 401) {
         setActiveSession(null);
       }
+      console.error("[GameTunnel] Failed to refresh session:", error);
     } finally {
       if (!silent) {
         setLoading(false);
