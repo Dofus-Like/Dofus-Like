@@ -55,6 +55,18 @@ export function InventoryPage() {
     e.dataTransfer.setData('inventoryItemId', id);
   };
 
+  const handleDropUnequip = (e: React.DragEvent) => {
+    e.preventDefault();
+    const slot = e.dataTransfer.getData('unequipSlot') as EquipmentSlotType;
+    if (slot) {
+      unequipMutation.mutate(slot);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
   const handleDoubleClick = (inv: InventoryItem) => {
     const equippedSlot = Object.entries(equipment?.data || {}).find(
       ([, equippedItem]) => (equippedItem as InventoryItem)?.id === inv.id,
@@ -150,7 +162,11 @@ export function InventoryPage() {
               <button className={`filter-btn ${activeFilter === 'OTHER' ? 'active' : ''}`} onClick={() => setActiveFilter('OTHER')}>🎒 Autres</button>
             </div>
           </div>
-          <div className="inventory-grid">
+          <div 
+            className="inventory-grid"
+            onDrop={handleDropUnequip}
+            onDragOver={handleDragOver}
+          >
             {invLoading && <p className="inventory-loading">Chargement...</p>}
             {inventory?.data?.filter((inv: InventoryItem) => {
               if (activeFilter === 'ALL') return true;
@@ -158,25 +174,32 @@ export function InventoryPage() {
               if (activeFilter === 'ARMOR' && ['ARMOR_HEAD', 'ARMOR_CHEST', 'ARMOR_LEGS'].includes(inv.item.type)) return true;
               if (activeFilter === 'OTHER' && !['WEAPON', 'ARMOR_HEAD', 'ARMOR_CHEST', 'ARMOR_LEGS'].includes(inv.item.type)) return true;
               return false;
-            }).map((inv: InventoryItem) => (
-              <div
-                key={inv.id}
-                className={`inventory-card ${selectedItem?.id === inv.id ? 'selected' : ''}`}
-                draggable
-                onDragStart={(e) => handleDragStart(e, inv.id)}
-                onClick={() => setSelectedItem(inv)}
-                onDoubleClick={() => handleDoubleClick(inv)}
-              >
-                <div className="item-icon">
-                  {(() => { const v = getItemVisualMeta(inv.item); return v.iconPath ? <img src={v.iconPath} alt={inv.item.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <span>{v.icon}</span>; })()}
+            }).map((inv: InventoryItem) => {
+              const isCurrentlyEquipped = Object.values(equipment?.data || {}).some(
+                (equipped: any) => equipped?.id === inv.id
+              );
+
+              return (
+                <div
+                  key={inv.id}
+                  className={`inventory-card ${selectedItem?.id === inv.id ? 'selected' : ''} ${isCurrentlyEquipped ? 'equipped-variant' : ''}`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, inv.id)}
+                  onClick={() => setSelectedItem(inv)}
+                  onDoubleClick={() => handleDoubleClick(inv)}
+                >
+                  {isCurrentlyEquipped && <div className="equipped-badge">EQUIPÉ</div>}
+                  <div className="item-icon">
+                    {(() => { const v = getItemVisualMeta(inv.item); return v.iconPath ? <img src={v.iconPath} alt={inv.item.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <span>{v.icon}</span>; })()}
+                  </div>
+                  <div className="item-info">
+                    <span className="item-name">{inv.item.name}</span>
+                    <span className="item-type">{inv.item.type}</span>
+                  </div>
+                  <span className="item-qty">x{inv.quantity}</span>
                 </div>
-                <div className="item-info">
-                  <span className="item-name">{inv.item.name}</span>
-                  <span className="item-type">{inv.item.type}</span>
-                </div>
-                <span className="item-qty">x{inv.quantity}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </main>
 

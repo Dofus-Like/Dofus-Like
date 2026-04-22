@@ -9,7 +9,6 @@ export function LoginPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedClass, setSelectedClass] = useState('warrior');
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { setToken, setPlayer } = useAuthStore();
@@ -21,7 +20,7 @@ export function LoginPage() {
     try {
       let response;
       if (isRegister) {
-        response = await authApi.register({ username, email, password, selectedClass });
+        response = await authApi.register({ username, email, password });
       } else {
         response = await authApi.login({ email, password });
       }
@@ -87,31 +86,6 @@ export function LoginPage() {
             required
             minLength={8}
           />
-
-          {isRegister && (
-            <div className="class-selector">
-              <p className="selector-title">Choisis ta classe :</p>
-              <div className="class-options">
-                {[
-                  { id: 'warrior', name: 'Guerrier', emoji: '🛡️', desc: 'HP+ et Dégâts Physiques' },
-                  { id: 'mage', name: 'Mage', emoji: '🧙', desc: 'Portée et Sorts Utiles' },
-                  { id: 'ninja', name: 'Ninja', emoji: '🥷', desc: 'Mobilité et Initiative' }
-                ].map(cls => (
-                  <div 
-                    key={cls.id}
-                    className={`class-option ${selectedClass === cls.id ? 'active' : ''}`}
-                    onClick={() => setSelectedClass(cls.id)}
-                  >
-                    <span className="class-emoji">{cls.emoji}</span>
-                    <div className="class-info">
-                      <strong>{cls.name}</strong>
-                      <small>{cls.desc}</small>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {error && <p className="login-error">{error}</p>}
           <button type="submit" className="login-button">
