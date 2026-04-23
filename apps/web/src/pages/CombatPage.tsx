@@ -13,6 +13,7 @@ import { useGameSession } from './GameTunnel';
 import { gameSessionApi } from '../api/game-session.api';
 import { CombatBackgroundShader } from '../game/Combat/CombatBackgroundShader';
 import { CameraEffects } from '../game/Combat/CameraEffects';
+import '../game/constants/colors';
 import './CombatPage.css';
 
 /**

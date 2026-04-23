@@ -2,30 +2,14 @@
   --combat-bg: #0f172a;
   --combat-bg-light: #1e293b;
   --combat-border: rgba(255, 255, 255, 0.1);
-  --hp-red: #ef4444;
-  --hp-red-light: #fca5a5;
-  --pa-yellow: #fbbf24;
-  --pa-yellow-dark: #d97706;
-  --pm-violet: #a855f7;
-  --pm-violet-dark: #7e22ce;
+
+  /* Legacy aliases (also fed by COMBAT_COLORS via colors.ts injector) */
   --turn-active: #f59e0b;
   --turn-waiting: #64748b;
-  --victory-gold: #fbbf24;
-  --defeat-red: #ef4444;
-  --warrior-color: #dc2626;
-  --mage-color: #7c3aed;
-  --ninja-color: #16a34a;
-  --common-color: #f59e0b;
-  --mage-blue: #3b82f6;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
 
-  /* GLASS — DA3 tokens */
-  --glass-accent: #a78bfa;
-  --glass-accent-soft: rgba(167, 139, 250, 0.3);
+  /* GLASS — DA3 tokens (values injected from colors.ts, here = fallbacks) */
   --glass-bg: rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-bg-strong: rgba(13, 8, 21, 0.85);
   --glass-radius: 14px;
   --glass-blur: blur(20px);
 
@@ -88,7 +72,7 @@
   padding: 12px 18px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(13, 8, 21, 0.85);
+  background: rgb(var(--glass-bg-strong-rgb) / 0.85);
   backdrop-filter: blur(20px);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
   font-size: 0.82rem;
@@ -100,12 +84,12 @@
 
 .combat-toast.info {
   color: #c7d2fe;
-  border-color: rgba(167, 139, 250, 0.4);
+  border-color: rgb(var(--glass-accent-rgb) / 0.4);
 }
 
 .combat-toast.error {
-  color: #fecaca;
-  border-color: rgba(239, 68, 68, 0.4);
+  color: var(--log-damage-text);
+  border-color: rgb(var(--hp-red-rgb) / 0.4);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -146,13 +130,13 @@
 }
 
 .hud-initiative-row.active.self {
-  background: rgba(167, 139, 250, 0.14);
-  border-color: rgba(167, 139, 250, 0.4);
+  background: rgb(var(--glass-accent-rgb) / 0.14);
+  border-color: rgb(var(--glass-accent-rgb) / 0.4);
 }
 
 .hud-initiative-row.active.foe {
-  background: rgba(248, 113, 113, 0.14);
-  border-color: rgba(248, 113, 113, 0.4);
+  background: rgb(var(--enemy-red-rgb) / 0.14);
+  border-color: rgb(var(--enemy-red-rgb) / 0.4);
 }
 
 .hud-initiative-token {
@@ -160,13 +144,13 @@
   height: 22px;
   border-radius: 50%;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #818cf8, #4338ca);
+  background: linear-gradient(135deg, var(--glass-token-a), var(--glass-token-b));
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 .hud-initiative-row.foe .hud-initiative-token {
-  background: linear-gradient(135deg, #f87171, #b91c1c);
+  background: linear-gradient(135deg, var(--enemy-red), var(--enemy-red-deep));
 }
 
 .hud-initiative-info {
@@ -188,11 +172,11 @@
 }
 
 .hud-initiative-row.active.self .hud-initiative-name {
-  color: #c4b5fd;
+  color: var(--glass-accent-light);
 }
 
 .hud-initiative-row.active.foe .hud-initiative-name {
-  color: #fca5a5;
+  color: var(--enemy-red-light);
 }
 
 .hud-initiative-ini {
@@ -231,17 +215,17 @@
 
 .combat-end-overlay.victory .end-modal {
   border-color: var(--victory-gold);
-  box-shadow: 0 0 60px rgba(251, 191, 36, 0.3);
+  box-shadow: 0 0 60px rgb(var(--victory-gold-rgb) / 0.3);
 }
 
 .combat-end-overlay.victory h1 {
   color: var(--victory-gold);
-  text-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+  text-shadow: 0 0 20px rgb(var(--victory-gold-rgb) / 0.5);
 }
 
 .combat-end-overlay.defeat .end-modal {
   border-color: var(--defeat-red);
-  box-shadow: 0 0 60px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 60px rgb(var(--defeat-red-rgb) / 0.3);
 }
 
 .combat-end-overlay.defeat h1 {
@@ -303,7 +287,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-  background: linear-gradient(0deg, rgba(13, 8, 21, 0.85) 0%, transparent 100%);
+  background: linear-gradient(0deg, rgb(var(--glass-bg-strong-rgb) / 0.85) 0%, transparent 100%);
   padding: 40px 0 20px;
   pointer-events: none;
   z-index: 50;
@@ -353,9 +337,9 @@
 }
 
 .spell-card.active {
-  background: rgba(167, 139, 250, 0.18);
+  background: rgb(var(--glass-accent-rgb) / 0.18);
   border-color: var(--glass-accent);
-  box-shadow: 0 0 16px rgba(167, 139, 250, 0.35);
+  box-shadow: 0 0 16px rgb(var(--glass-accent-rgb) / 0.35);
 }
 
 .spell-card.disabled {
@@ -365,10 +349,10 @@
 }
 
 /* Family hover accents */
-.family-common:hover  { border-color: #fbbf24; box-shadow: 0 0 18px rgba(251, 191, 36, 0.35); }
-.family-warrior:hover { border-color: #f87171; box-shadow: 0 0 18px rgba(248, 113, 113, 0.35); }
-.family-mage:hover    { border-color: #60a5fa; box-shadow: 0 0 18px rgba(96, 165, 250, 0.35); }
-.family-ninja:hover   { border-color: #4ade80; box-shadow: 0 0 18px rgba(74, 222, 128, 0.35); }
+.family-common:hover  { border-color: var(--family-common);  box-shadow: 0 0 18px rgb(var(--family-common-rgb)  / 0.35); }
+.family-warrior:hover { border-color: var(--family-warrior); box-shadow: 0 0 18px rgb(var(--family-warrior-rgb) / 0.35); }
+.family-mage:hover    { border-color: var(--family-mage);    box-shadow: 0 0 18px rgb(var(--family-mage-rgb)    / 0.35); }
+.family-ninja:hover   { border-color: var(--family-ninja);   box-shadow: 0 0 18px rgb(var(--family-ninja-rgb)   / 0.35); }
 
 /* --- badges on spell cards --- */
 .spell-index-badge {
@@ -378,7 +362,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: rgba(13, 8, 21, 0.9);
+  background: rgb(var(--glass-bg-strong-rgb) / 0.9);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: rgba(255, 255, 255, 0.65);
   font-size: 0.6rem;
@@ -396,7 +380,7 @@
   width: 20px;
   height: 20px;
   clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-  background: linear-gradient(135deg, #c4b5fd, #7c3aed);
+  background: linear-gradient(135deg, var(--glass-accent-light), var(--glass-accent-deep));
   color: #ffffff;
   font-size: 0.65rem;
   font-weight: 900;
@@ -404,7 +388,7 @@
   align-items: center;
   justify-content: center;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-  filter: drop-shadow(0 2px 4px rgba(124, 58, 237, 0.4));
+  filter: drop-shadow(0 2px 4px rgb(var(--glass-accent-deep-rgb) / 0.4));
   z-index: 2;
 }
 
@@ -433,19 +417,19 @@
 
 /* Family icon tints */
 .family-common .spell-icon-img {
-  filter: drop-shadow(0 2px 4px rgba(245, 158, 11, 0.4));
+  filter: drop-shadow(0 2px 4px rgb(var(--family-common-rgb) / 0.4));
 }
 
 .family-warrior .spell-icon-img {
-  filter: sepia(1) saturate(8) hue-rotate(-60deg) drop-shadow(0 2px 4px rgba(239, 68, 68, 0.4));
+  filter: sepia(1) saturate(8) hue-rotate(-60deg) drop-shadow(0 2px 4px rgb(var(--family-warrior-rgb) / 0.4));
 }
 
 .family-mage .spell-icon-img {
-  filter: sepia(1) saturate(8) hue-rotate(160deg) drop-shadow(0 2px 4px rgba(59, 130, 246, 0.4));
+  filter: sepia(1) saturate(8) hue-rotate(160deg) drop-shadow(0 2px 4px rgb(var(--family-mage-rgb) / 0.4));
 }
 
 .family-ninja .spell-icon-img {
-  filter: sepia(1) saturate(8) hue-rotate(60deg) drop-shadow(0 2px 4px rgba(34, 197, 94, 0.4));
+  filter: sepia(1) saturate(8) hue-rotate(60deg) drop-shadow(0 2px 4px rgb(var(--family-ninja-rgb) / 0.4));
 }
 
 /* Cooldown overlay */
@@ -473,7 +457,7 @@
   left: 50%;
   transform: translateX(-50%);
   padding: 4px 10px;
-  background: rgba(13, 8, 21, 0.92);
+  background: rgb(var(--glass-bg-strong-rgb) / 0.92);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
   color: var(--text-main);
@@ -496,8 +480,8 @@
 /* --- Actions (Grimoire & Passer) --- */
 .spell-bar-action {
   align-self: center;
-  background: rgba(167, 139, 250, 0.12);
-  border: 1px solid rgba(167, 139, 250, 0.3);
+  background: rgb(var(--glass-accent-rgb) / 0.12);
+  border: 1px solid rgb(var(--glass-accent-rgb) / 0.3);
   color: var(--text-main);
   border-radius: 12px;
   cursor: pointer;
@@ -509,7 +493,7 @@
 
 .spell-bar-action:hover:not(:disabled) {
   transform: translateY(-2px);
-  background: rgba(167, 139, 250, 0.2);
+  background: rgb(var(--glass-accent-rgb) / 0.2);
 }
 
 .spell-bar-action:disabled {
@@ -524,9 +508,9 @@
 }
 
 .spell-bar-action.grimoire.active {
-  background: rgba(167, 139, 250, 0.28);
+  background: rgb(var(--glass-accent-rgb) / 0.28);
   border-color: var(--glass-accent);
-  box-shadow: 0 0 16px rgba(167, 139, 250, 0.35);
+  box-shadow: 0 0 16px rgb(var(--glass-accent-rgb) / 0.35);
 }
 
 .spell-bar-action.pass {
@@ -544,16 +528,16 @@
 }
 
 .spell-bar-action.pass.ready {
-  background: rgba(167, 139, 250, 0.22);
+  background: rgb(var(--glass-accent-rgb) / 0.22);
   border-color: var(--glass-accent);
   color: #ffffff;
-  box-shadow: 0 4px 16px rgba(167, 139, 250, 0.35);
+  box-shadow: 0 4px 16px rgb(var(--glass-accent-rgb) / 0.35);
   animation: passPulse 2s ease-in-out infinite;
 }
 
 @keyframes passPulse {
-  0%, 100% { box-shadow: 0 4px 16px rgba(167, 139, 250, 0.3); }
-  50% { box-shadow: 0 4px 24px rgba(167, 139, 250, 0.55); }
+  0%, 100% { box-shadow: 0 4px 16px rgb(var(--glass-accent-rgb) / 0.3); }
+  50%      { box-shadow: 0 4px 24px rgb(var(--glass-accent-rgb) / 0.55); }
 }
 
 /* --- Targeting prompt --- */
@@ -562,7 +546,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-main);
-  border-color: rgba(167, 139, 250, 0.5) !important;
+  border-color: rgb(var(--glass-accent-rgb) / 0.5) !important;
   display: flex;
   align-items: center;
   gap: 8px;

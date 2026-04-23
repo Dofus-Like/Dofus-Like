@@ -13,7 +13,7 @@
   align-items: center;
   gap: 15px;
   padding: 10px 20px;
-  background: rgba(13, 8, 21, 0.7);
+  background: rgb(var(--glass-bg-strong-rgb) / 0.7);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   z-index: 1000;
   backdrop-filter: blur(20px);
@@ -96,11 +96,11 @@
 
 .combat-toolbar-turn {
   font-size: 0.85rem;
-  color: #a78bfa;
+  color: var(--glass-accent);
   font-weight: 800;
   padding: 6px 14px;
-  background: rgba(167, 139, 250, 0.12);
-  border: 1px solid rgba(167, 139, 250, 0.3);
+  background: rgb(var(--glass-accent-rgb) / 0.12);
+  border: 1px solid rgb(var(--glass-accent-rgb) / 0.3);
   border-radius: 999px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -124,7 +124,7 @@
 /* SIDEBAR LOGS (DROITE) — DA3 Glassmorphism Journal */
 .combat-logs-side {
   width: 300px;
-  background: rgba(13, 8, 21, 0.85);
+  background: rgb(var(--glass-bg-strong-rgb) / 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-left: 1px solid rgba(255, 255, 255, 0.08);
@@ -144,7 +144,7 @@
   text-transform: uppercase;
   font-size: 0.75rem;
   letter-spacing: 0.18em;
-  color: #a78bfa;
+  color: var(--glass-accent);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -156,7 +156,7 @@
   flex-direction: column;
   gap: 6px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(167, 139, 250, 0.3) transparent;
+  scrollbar-color: rgb(var(--glass-accent-rgb) / 0.3) transparent;
 }
 
 .logs-sidebar-content::-webkit-scrollbar {
@@ -164,7 +164,7 @@
 }
 
 .logs-sidebar-content::-webkit-scrollbar-thumb {
-  background: rgba(167, 139, 250, 0.25);
+  background: rgb(var(--glass-accent-rgb) / 0.25);
   border-radius: 10px;
 }
 
@@ -184,9 +184,9 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
-.log-entry.type-info { border-left-color: #60a5fa; color: #dbeafe; }
-.log-entry.type-damage { border-left-color: #f87171; color: #fecaca; background: rgba(248, 113, 113, 0.06); }
-.log-entry.type-victory { border-left-color: #fbbf24; color: #fef3c7; background: rgba(251, 191, 36, 0.06); }
+.log-entry.type-info    { border-left-color: var(--log-info);    color: var(--log-info-text); }
+.log-entry.type-damage  { border-left-color: var(--log-damage);  color: var(--log-damage-text);  background: rgb(var(--log-damage-rgb)  / 0.06); }
+.log-entry.type-victory { border-left-color: var(--log-victory); color: var(--log-victory-text); background: rgb(var(--log-victory-rgb) / 0.06); }
 
 .logs-empty {
   text-align: center;

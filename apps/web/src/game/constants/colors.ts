@@ -33,4 +33,66 @@ export const COMBAT_COLORS = {
   TILE_NIGHT_A: '#b3b7ff',
   TILE_NIGHT_B: '#686b99',
   TILE_SIDE_NIGHT: '#373752',
+
+  /* ─────────────────────────────────────────────
+     DA3 — Full Glassmorphism UI palette
+     (used by CombatHUD / CombatPlayerPanel / CombatPage)
+  ───────────────────────────────────────────── */
+  GLASS_ACCENT: '#a78bfa',
+  GLASS_ACCENT_LIGHT: '#c4b5fd',
+  GLASS_ACCENT_DEEP: '#7c3aed',
+  GLASS_TOKEN_A: '#818cf8',
+  GLASS_TOKEN_B: '#4338ca',
+  GLASS_BG_STRONG: '#0d0815',
+
+  ENEMY_RED: '#f87171',
+  ENEMY_RED_DEEP: '#b91c1c',
+  ENEMY_RED_LIGHT: '#fca5a5',
+
+  STAT_ATK: '#f87171',
+  STAT_DEF: '#60a5fa',
+  STAT_MAG: '#c084fc',
+  STAT_RES: '#4ade80',
+
+  FAMILY_COMMON: '#fbbf24',
+  FAMILY_WARRIOR: '#f87171',
+  FAMILY_MAGE: '#60a5fa',
+  FAMILY_NINJA: '#4ade80',
+
+  LOG_INFO: '#60a5fa',
+  LOG_INFO_TEXT: '#dbeafe',
+  LOG_DAMAGE: '#f87171',
+  LOG_DAMAGE_TEXT: '#fecaca',
+  LOG_VICTORY: '#fbbf24',
+  LOG_VICTORY_TEXT: '#fef3c7',
+
+  TEXT_MAIN: '#f8fafc',
+  TEXT_MUTED: '#94a3b8',
 };
+
+/**
+ * Convertit une couleur hex (#rrggbb) en triplet RGB "r g b".
+ * Utilisé pour exposer les couleurs en variables CSS compatibles
+ * avec la syntaxe `rgb(var(--xxx-rgb) / 0.5)` ou `color-mix()`.
+ */
+function hexToRgbTriplet(hex: string): string | null {
+  const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!match) return null;
+  return `${parseInt(match[1], 16)} ${parseInt(match[2], 16)} ${parseInt(match[3], 16)}`;
+}
+
+/**
+ * Injecte toutes les COMBAT_COLORS comme custom properties sur :root
+ * — `--pa-yellow`, `--glass-accent`, etc. pour usage CSS direct
+ * — `--pa-yellow-rgb`, etc. pour compositions alpha via color-mix()
+ */
+if (typeof document !== 'undefined') {
+  const root = document.documentElement;
+  for (const [key, value] of Object.entries(COMBAT_COLORS)) {
+    if (typeof value !== 'string') continue;
+    const name = '--' + key.toLowerCase().replace(/_/g, '-');
+    root.style.setProperty(name, value);
+    const rgb = hexToRgbTriplet(value);
+    if (rgb) root.style.setProperty(`${name}-rgb`, rgb);
+  }
+}

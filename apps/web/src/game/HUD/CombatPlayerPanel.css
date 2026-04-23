@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════
    COMBAT PLAYER PANEL — DA3 Full Glassmorphism
    Vertical card anchored to the bottom corners.
+   Couleurs centralisées dans /game/constants/colors.ts
 ═══════════════════════════════════════════════════════════════ */
 
 .combat-player-panel.glass {
@@ -31,22 +32,22 @@
 
 .combat-player-panel.glass.side-right {
   right: 20px;
-  border-color: rgba(248, 113, 113, 0.25);
+  border-color: rgb(var(--enemy-red-rgb) / 0.25);
 }
 
 .combat-player-panel.glass.is-turn {
-  border-color: rgba(167, 139, 250, 0.55);
+  border-color: rgb(var(--glass-accent-rgb) / 0.55);
   box-shadow:
-    0 0 0 1px rgba(167, 139, 250, 0.35),
-    0 8px 32px rgba(167, 139, 250, 0.25),
+    0 0 0 1px rgb(var(--glass-accent-rgb) / 0.35),
+    0 8px 32px rgb(var(--glass-accent-rgb) / 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .combat-player-panel.glass.is-enemy.is-turn {
-  border-color: rgba(248, 113, 113, 0.55);
+  border-color: rgb(var(--enemy-red-rgb) / 0.55);
   box-shadow:
-    0 0 0 1px rgba(248, 113, 113, 0.35),
-    0 8px 32px rgba(248, 113, 113, 0.25),
+    0 0 0 1px rgb(var(--enemy-red-rgb) / 0.35),
+    0 8px 32px rgb(var(--enemy-red-rgb) / 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
@@ -77,26 +78,26 @@
   letter-spacing: 0.15em;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid rgba(167, 139, 250, 0.45);
-  background: rgba(167, 139, 250, 0.15);
-  color: #c4b5fd;
+  border: 1px solid rgb(var(--glass-accent-rgb) / 0.45);
+  background: rgb(var(--glass-accent-rgb) / 0.15);
+  color: var(--glass-accent-light);
 }
 
 .combat-player-panel.glass.is-enemy .cpp-archetype {
-  border-color: rgba(248, 113, 113, 0.45);
-  background: rgba(248, 113, 113, 0.15);
-  color: #fca5a5;
+  border-color: rgb(var(--enemy-red-rgb) / 0.45);
+  background: rgb(var(--enemy-red-rgb) / 0.15);
+  color: var(--enemy-red-light);
 }
 
 .cpp-archetype.family-warrior {
-  border-color: rgba(251, 191, 36, 0.45);
-  background: rgba(251, 191, 36, 0.15);
+  border-color: rgb(var(--victory-gold-rgb) / 0.45);
+  background: rgb(var(--victory-gold-rgb) / 0.15);
   color: #fcd34d;
 }
 
 .cpp-archetype.family-ninja {
-  border-color: rgba(74, 222, 128, 0.45);
-  background: rgba(74, 222, 128, 0.15);
+  border-color: rgb(var(--stat-res-rgb) / 0.45);
+  background: rgb(var(--stat-res-rgb) / 0.15);
   color: #86efac;
 }
 
@@ -112,7 +113,9 @@
   width: 92px;
   height: 92px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(167, 139, 250, 0.3), rgba(167, 139, 250, 0.08));
+  background: linear-gradient(135deg,
+    rgb(var(--glass-accent-rgb) / 0.3),
+    rgb(var(--glass-accent-rgb) / 0.08));
   border: 1.5px solid rgba(255, 255, 255, 0.12);
   overflow: hidden;
   display: flex;
@@ -122,7 +125,9 @@
 }
 
 .combat-player-panel.glass.is-enemy .cpp-portrait {
-  background: linear-gradient(135deg, rgba(248, 113, 113, 0.3), rgba(248, 113, 113, 0.08));
+  background: linear-gradient(135deg,
+    rgb(var(--enemy-red-rgb) / 0.3),
+    rgb(var(--enemy-red-rgb) / 0.08));
 }
 
 .cpp-portrait.pulse {
@@ -130,16 +135,16 @@
 }
 
 .combat-player-panel.glass.is-me .cpp-portrait.pulse {
-  border-color: rgba(167, 139, 250, 0.7);
+  border-color: rgb(var(--glass-accent-rgb) / 0.7);
 }
 
 .combat-player-panel.glass.is-enemy .cpp-portrait.pulse {
-  border-color: rgba(248, 113, 113, 0.7);
+  border-color: rgb(var(--enemy-red-rgb) / 0.7);
 }
 
 @keyframes cpp-portrait-pulse {
-  0%, 100% { box-shadow: 0 0 0 rgba(167, 139, 250, 0); }
-  50% { box-shadow: 0 0 16px rgba(167, 139, 250, 0.35); }
+  0%, 100% { box-shadow: 0 0 0 rgb(var(--glass-accent-rgb) / 0); }
+  50%      { box-shadow: 0 0 16px rgb(var(--glass-accent-rgb) / 0.35); }
 }
 
 .cpp-portrait .portrait-image {
@@ -162,7 +167,7 @@
 
 @keyframes cpp-portrait-idle {
   from { background-position-x: -110px; }
-  to { background-position-x: -1910px; }
+  to   { background-position-x: -1910px; }
 }
 
 /* --- STATS GRID --- */
@@ -200,17 +205,29 @@
   line-height: 1;
 }
 
-.cpp-stat.stat-atk { background: rgba(248, 113, 113, 0.08); border-color: rgba(248, 113, 113, 0.25); }
-.cpp-stat.stat-atk strong { color: #f87171; }
+.cpp-stat.stat-atk {
+  background: rgb(var(--stat-atk-rgb) / 0.08);
+  border-color: rgb(var(--stat-atk-rgb) / 0.25);
+}
+.cpp-stat.stat-atk strong { color: var(--stat-atk); }
 
-.cpp-stat.stat-def { background: rgba(96, 165, 250, 0.08); border-color: rgba(96, 165, 250, 0.25); }
-.cpp-stat.stat-def strong { color: #60a5fa; }
+.cpp-stat.stat-def {
+  background: rgb(var(--stat-def-rgb) / 0.08);
+  border-color: rgb(var(--stat-def-rgb) / 0.25);
+}
+.cpp-stat.stat-def strong { color: var(--stat-def); }
 
-.cpp-stat.stat-mag { background: rgba(192, 132, 252, 0.08); border-color: rgba(192, 132, 252, 0.25); }
-.cpp-stat.stat-mag strong { color: #c084fc; }
+.cpp-stat.stat-mag {
+  background: rgb(var(--stat-mag-rgb) / 0.08);
+  border-color: rgb(var(--stat-mag-rgb) / 0.25);
+}
+.cpp-stat.stat-mag strong { color: var(--stat-mag); }
 
-.cpp-stat.stat-res { background: rgba(74, 222, 128, 0.08); border-color: rgba(74, 222, 128, 0.25); }
-.cpp-stat.stat-res strong { color: #4ade80; }
+.cpp-stat.stat-res {
+  background: rgb(var(--stat-res-rgb) / 0.08);
+  border-color: rgb(var(--stat-res-rgb) / 0.25);
+}
+.cpp-stat.stat-res strong { color: var(--stat-res); }
 
 /* --- HP BAR --- */
 .cpp-hp-row {
@@ -228,9 +245,9 @@
 
 .cpp-hp-fill {
   height: 100%;
-  background: linear-gradient(90deg, #f87171, #ef4444);
+  background: linear-gradient(90deg, var(--enemy-red), var(--hp-red));
   border-radius: 999px;
-  box-shadow: 0 0 8px rgba(248, 113, 113, 0.45);
+  box-shadow: 0 0 8px rgb(var(--enemy-red-rgb) / 0.45);
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -250,9 +267,9 @@
   white-space: nowrap;
 }
 
-.cpp-res.res-pa { color: #a78bfa; }
-.cpp-res.res-pm { color: #c084fc; }
-.cpp-res.res-hp { color: #f87171; }
+.cpp-res.res-pa { color: var(--glass-accent); }
+.cpp-res.res-pm { color: var(--stat-mag); }
+.cpp-res.res-hp { color: var(--enemy-red); }
 
 /* --- RESPONSIVE --- */
 @media (max-width: 1024px) {
