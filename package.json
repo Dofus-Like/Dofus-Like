@@ -30,7 +30,8 @@
     "ci:prepush": "node scripts/ci/prepush.mjs",
     "setup": "yarn install && yarn docker:dev:infra && yarn db:migrate && yarn db:seed",
     "game:sim": "node scripts/balance_sim.js",
-    "clean": "taskkill /F /IM node.exe /T 2>nul & powershell -Command \"Get-NetTCPConnection -LocalPort 3000, 5173 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }\" 2>nul & exit 0"
+    "clean": "taskkill /F /IM node.exe /T 2>nul & powershell -Command \"Get-NetTCPConnection -LocalPort 3000, 5173 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }\" 2>nul & exit 0",
+    "prepare": "husky"
   },
   "private": true,
   "dependencies": {
@@ -108,6 +109,7 @@
     "dotenv-cli": "^11.0.0",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
+    "husky": "^9.1.7",
     "jest": "^30.0.2",
     "jest-environment-node": "^30.0.2",
     "jest-util": "^30.0.2",
