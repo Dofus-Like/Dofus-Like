@@ -5,7 +5,6 @@ import { useAuthStore } from '../../store/auth.store';
 import { useGameSession } from '../../pages/GameTunnel';
 import { combatApi } from '../../api/combat.api';
 import { CombatActionType, SpellFamily } from '@game/shared-types';
-import { getSkinById } from '../../game/constants/skins';
 import { CombatPlayerPanel } from './CombatPlayerPanel';
 import './CombatHUD.css';
 
@@ -44,11 +43,8 @@ export function CombatHUD() {
   const setSelectedSpell = useCombatStore((s) => s.setSelectedSpell);
   const setCombatState = useCombatStore((s) => s.setCombatState);
   const winnerId = useCombatStore((s) => s.winnerId);
-  const showEnemyHp = useCombatStore((s) => s.showEnemyHp);
-  const toggleShowEnemyHp = useCombatStore((s) => s.toggleShowEnemyHp);
   const showMannequins = useCombatStore((s) => s.showMannequins);
   const toggleShowMannequins = useCombatStore((s) => s.toggleShowMannequins);
-  const surrender = useCombatStore((s) => s.surrender);
   const disconnect = useCombatStore((s) => s.disconnect);
   const uiMessage = useCombatStore((s) => s.uiMessage);
   const setUiMessage = useCombatStore((s) => s.setUiMessage);
@@ -60,22 +56,6 @@ export function CombatHUD() {
   const currentPlayer = (combatState && user) ? combatState.players[user.id] : null;
   const enemyId = combatState && user ? Object.keys(combatState.players).find(id => id !== user.id) : null;
   const isMyTurn = (combatState && user) ? combatState.currentTurnPlayerId === user.id : false;
-
-  const skinConfig = React.useMemo(() => {
-    return getSkinById(currentPlayer?.skin || 'soldier-classic');
-  }, [currentPlayer?.skin]);
-
-  const [isClosing, setIsClosing] = React.useState(false);
-  const turnRef = React.useRef(isMyTurn);
-
-  React.useEffect(() => {
-    if (turnRef.current && !isMyTurn) {
-        setIsClosing(true);
-        const timer = setTimeout(() => setIsClosing(false), 450);
-        return () => clearTimeout(timer);
-    }
-    turnRef.current = isMyTurn;
-  }, [isMyTurn]);
 
   React.useEffect(() => {
     if (!uiMessage) return;
@@ -99,14 +79,8 @@ export function CombatHUD() {
 
   const sortedSpells = [...currentPlayer.spells].sort((a, b) => {
     const familyOrder = SPELL_FAMILY_ORDER[a.family] - SPELL_FAMILY_ORDER[b.family];
-    if (familyOrder !== 0) {
-      return familyOrder;
-    }
-
-    if (a.sortOrder !== b.sortOrder) {
-      return a.sortOrder - b.sortOrder;
-    }
-
+    if (familyOrder !== 0) return familyOrder;
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
     return a.name.localeCompare(b.name);
   });
 
@@ -122,8 +96,10 @@ export function CombatHUD() {
     }
   };
 
-  const hpPercent = (currentPlayer.currentVit / (currentPlayer.stats?.vit || 1)) * 100;
-  const avatarClass = skinConfig.type;
+  // Initiative order (highest INI first)
+  const orderedFighters = Object.values(combatState.players)
+    .slice()
+    .sort((a, b) => (b.stats?.ini ?? 0) - (a.stats?.ini ?? 0));
 
   return (
     <div className="combat-hud">
@@ -148,13 +124,35 @@ export function CombatHUD() {
         </div>
       )}
 
+      {/* TOP LEFT: Initiative panel */}
+      <div className="hud-initiative glass">
+        <div className="hud-initiative-title">Tour {combatState.turnNumber}</div>
+        {orderedFighters.map((f) => {
+          const active = combatState.currentTurnPlayerId === f.playerId;
+          const self = f.playerId === user.id;
+          return (
+            <div
+              key={f.playerId}
+              className={`hud-initiative-row ${active ? 'active' : ''} ${self ? 'self' : 'foe'}`}
+            >
+              <div className="hud-initiative-token" />
+              <div className="hud-initiative-info">
+                <div className="hud-initiative-name">{f.username}</div>
+                <div className="hud-initiative-ini">INI {f.stats?.ini ?? '—'}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* BOTTOM PLAYER PANELS */}
       <CombatPlayerPanel playerId={user.id} side="left" />
       {enemyId && <CombatPlayerPanel playerId={enemyId} side="right" />}
 
       {/* BOTTOM CENTER: SPELLS */}
       <div className="hud-bottom-anchor">
-        <div className="spell-bar">
-          {sortedSpells.map((spell) => {
+        <div className="spell-bar glass">
+          {sortedSpells.map((spell, index) => {
             const onCooldown = (currentPlayer.spellCooldowns[spell.id] ?? 0) > 0;
             const notEnoughPa = currentPlayer.remainingPa < spell.paCost;
             const isActive = selectedSpellId === spell.id;
@@ -163,7 +161,7 @@ export function CombatHUD() {
             const isHovered = hoveredSpellId === spell.id;
 
             return (
-              <div 
+              <div
                 key={spell.id}
                 className={`spell-card ${disabled ? 'disabled' : ''} ${isActive ? 'active' : ''} ${familyClassName}`}
                 onMouseEnter={() => setHoveredSpellId(spell.id)}
@@ -171,22 +169,59 @@ export function CombatHUD() {
                 onClick={() => !disabled && setSelectedSpell(isActive ? null : spell.id)}
               >
                 {isHovered && (
-                  <div className="spell-hover-tag">
-                    {spell.name}
+                  <div className="spell-hover-tag">{spell.name}</div>
+                )}
+
+                <span className="spell-index-badge">{index + 1}</span>
+                <span className="spell-pa-cost">{spell.paCost}</span>
+
+                <img
+                  src={spell.iconPath ?? '/assets/pack/spells/epee.png'}
+                  className="spell-icon-img"
+                  alt={spell.name}
+                />
+                <span className="spell-name">{spell.name}</span>
+                {onCooldown && (
+                  <div className="spell-cooldown-overlay">
+                    <span className="spell-cooldown-value">{currentPlayer.spellCooldowns[spell.id]}</span>
                   </div>
                 )}
-                
-                <div className="spell-pa-cost">{spell.paCost}</div>
-                <img 
-                  src={spell.iconPath ?? '/assets/pack/spells/epee.png'}
-                  className="spell-icon-img" 
-                  alt={spell.name} 
-                />
-                {onCooldown && <div className="spell-cooldown-timer">{currentPlayer.spellCooldowns[spell.id]}</div>}
               </div>
             );
           })}
+
+          {/* Separator */}
+          <div className="spell-bar-separator" />
+
+          {/* Grimoire / Equipment toggle */}
+          <button
+            type="button"
+            className={`spell-bar-action grimoire ${showMannequins ? 'active' : ''}`}
+            onClick={() => toggleShowMannequins()}
+            title="Grimoire / Équipement"
+          >
+            📖
+          </button>
+
+          {/* Passer = End turn */}
+          <button
+            type="button"
+            className={`spell-bar-action pass ${isMyTurn ? 'ready' : ''}`}
+            disabled={!isMyTurn}
+            onClick={handleEndTurn}
+            title="Passer le tour"
+          >
+            <span className="pass-icon">⏭</span>
+            <span className="pass-label">Passer</span>
+          </button>
         </div>
+
+        {/* Targeting prompt when a spell is selected */}
+        {selectedSpellId && (
+          <div className="spell-targeting-prompt glass">
+            🎯 Cliquez une case pour <strong>{sortedSpells.find(s => s.id === selectedSpellId)?.name}</strong>
+          </div>
+        )}
       </div>
     </div>
   );
