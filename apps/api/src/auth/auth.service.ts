@@ -3,7 +3,6 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createDefaultPlayerStats } from '../player/default-player-stats';
 import { PrismaService } from '../shared/prisma/prisma.service';
-import { DEFAULT_SKIN_BY_CLASS } from '../shared/security/security.constants';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -26,59 +25,20 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    const skin = DEFAULT_SKIN_BY_CLASS[dto.selectedClass as keyof typeof DEFAULT_SKIN_BY_CLASS];
-
+    // Registration now creates a simple character without initial items
+    // Classes are intended to be equipment-based (rings)
     const player = await this.prisma.player.create({
       data: {
         username: dto.username,
         email: normalizedEmail,
         passwordHash,
         gold: 100,
-        skin,
+        skin: 'warrior', // Default skin
         stats: {
           create: createDefaultPlayerStats(),
         },
       },
     });
-
-    const ringNames = ['Anneau du Guerrier', 'Anneau du Mage', 'Anneau du Ninja'];
-    const rings = await this.prisma.item.findMany({
-      where: { name: { in: ringNames } },
-    });
-
-    const inventoryItems = await Promise.all(
-      rings.map((ring: { id: string }) =>
-        this.prisma.inventoryItem.create({
-          data: {
-            playerId: player.id,
-            itemId: ring.id,
-            quantity: 1,
-            rank: 3,
-          },
-        }),
-      ),
-    );
-
-    let targetRingName = 'Anneau du Guerrier';
-    if (dto.selectedClass === 'mage') targetRingName = 'Anneau du Mage';
-    if (dto.selectedClass === 'ninja') targetRingName = 'Anneau du Ninja';
-
-    const selectedInventoryItem = inventoryItems.find((inventoryItem: { itemId: string }) => {
-      const ring = rings.find(
-        (candidate: { id: string; name: string }) => candidate.id === inventoryItem.itemId,
-      );
-      return ring?.name === targetRingName;
-    });
-
-    if (selectedInventoryItem) {
-      await this.prisma.equipmentSlot.create({
-        data: {
-          playerId: player.id,
-          slot: 'ACCESSORY',
-          inventoryItemId: selectedInventoryItem.id,
-        },
-      });
-    }
 
     const accessToken = this.jwtService.sign({
       sub: player.id,

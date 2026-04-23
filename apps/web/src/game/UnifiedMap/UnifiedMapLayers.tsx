@@ -1,40 +1,79 @@
 import React, { Suspense, useMemo } from 'react';
-import { CombatPlayer, GameMap, PathNode, TerrainType } from '@game/shared-types';
-import { TerrainTile, TerrainTileProps } from '../ResourceMap/TerrainTile';
+import { 
+  CombatPlayer, 
+  GameMap, 
+  PathNode, 
+  TerrainType, 
+  TERRAIN_PROPERTIES, 
+  CombatTerrainType 
+} from '@game/shared-types';
+import { TerrainTile } from '../ResourceMap/TerrainTile';
 import { TileHoverEffect } from '../ResourceMap/TileHoverEffect';
 import { PlayerPawn, PlayerPawnHandle } from '../ResourceMap/PlayerPawn';
 import { PathPreview } from '../ResourceMap/PathPreview';
 import { CombatHighlightsLayer } from './CombatHighlights';
 import { SpellVFX } from './overlays/SpellVFX';
 import { DamagePopup } from './overlays/DamagePopup';
+import { InstancedTerrain } from './InstancedTerrain';
+import { InstancedFoliage } from './InstancedFoliage';
 
 interface TerrainLayerProps {
   map: GameMap;
   onTileClick?: (x: number, y: number, terrain: TerrainType) => void;
+  checkerColorA?: string;
+  checkerColorB?: string;
+  sideColor?: string;
+  tileSize?: number;
+  tileRadius?: number;
 }
 
-export const TerrainLayer = React.memo(({ map, onTileClick }: TerrainLayerProps) => {
-  const tiles = useMemo(() => {
+export const TerrainLayer = React.memo(({ map, checkerColorA, checkerColorB, sideColor, tileSize, tileRadius }: TerrainLayerProps) => {
+  const decorations = useMemo(() => {
     const result: React.ReactElement[] = [];
 
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         const terrain = map.grid[y][x] as TerrainType;
-        const tileProps: TerrainTileProps = {
-          x,
-          y,
-          terrain,
-          gridSize: map.width,
-          onTileClick,
-        };
-        result.push(<TerrainTile key={`${x}-${y}`} {...tileProps} />);
+        const props = TERRAIN_PROPERTIES[terrain];
+
+        // Check if this decoration is now handled by InstancedFoliage
+        const isInstancedFoliage = (props.combatType === CombatTerrainType.WALL && terrain === TerrainType.WOOD) || 
+                                   (props.combatType === CombatTerrainType.FLAT && props.harvestable && terrain === TerrainType.HERB);
+
+        // Only render TerrainTile if it has non-ground decorations that are NOT instanced foliage
+        if (!isInstancedFoliage && (props.combatType !== CombatTerrainType.FLAT || props.harvestable)) {
+          result.push(
+            <TerrainTile 
+              key={x + '-' + y} 
+              x={x} 
+              y={y} 
+              terrain={terrain} 
+              gridSize={map.width} 
+            />
+          );
+        }
       }
     }
 
     return result;
-  }, [map, onTileClick]);
+  }, [map]);
 
-  return <>{tiles}</>;
+  return (
+    <group>
+      <InstancedTerrain 
+        map={map}
+        checkerColorA={checkerColorA}
+        checkerColorB={checkerColorB}
+        sideColor={sideColor}
+        tileSize={tileSize}
+        tileRadius={tileRadius}
+      />
+      <Suspense fallback={null}>
+        <InstancedFoliage map={map} />
+      </Suspense>
+      {decorations}
+    </group>
+  );
 });
 
 interface HoverLayerProps {
@@ -65,6 +104,10 @@ interface OverlayLayerProps {
   map: GameMap;
   currentUserId?: string;
   playerPaths: Record<string, PathNode[]>;
+  tileSize?: number;
+  pmColor?: string;
+  rangeColor?: string;
+  hoveredTile?: { x: number; y: number } | null;
 }
 
 export const UnifiedMapOverlayLayer = React.memo(
@@ -78,6 +121,10 @@ export const UnifiedMapOverlayLayer = React.memo(
     map,
     currentUserId,
     playerPaths,
+    tileSize,
+    pmColor,
+    rangeColor,
+    hoveredTile,
   }: OverlayLayerProps) => {
     return (
       <Suspense fallback={null}>
@@ -87,12 +134,16 @@ export const UnifiedMapOverlayLayer = React.memo(
             spellRangeTiles={spellRangeTiles}
             pathTarget={combatPreviewPath.length > 0 ? combatPreviewPath[combatPreviewPath.length - 1] : null}
             gridSize={map.width}
+            tileSize={tileSize}
+            pmColor={pmColor}
+            rangeColor={rangeColor}
+            hoveredTile={hoveredTile}
           />
         )}
 
 
         {mode === 'combat' && isMyTurn && currentUserId && !playerPaths[currentUserId] && (
-          <PathPreview path={combatPreviewPath} gridSize={map.width} />
+          <PathPreview path={combatPreviewPath} gridSize={map.width} tileSize={tileSize} color={pmColor} />
         )}
       </Suspense>
     );

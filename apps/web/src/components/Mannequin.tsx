@@ -32,6 +32,10 @@ export const Mannequin: React.FC<MannequinProps> = ({ equipment, onEquip, onUneq
     e.preventDefault();
   };
 
+  const handleDragStart = (e: React.DragEvent, slot: EquipmentSlotType) => {
+    e.dataTransfer.setData('unequipSlot', slot);
+  };
+
   return (
     <div className="mannequin-wrapper">
       <div className="mannequin-grid">
@@ -46,7 +50,11 @@ export const Mannequin: React.FC<MannequinProps> = ({ equipment, onEquip, onUneq
 
             <span className="slot-label">{s.label}</span>
             {equipment[s.type] && (
-              <div className="equipped-item">
+              <div 
+                className="equipped-item"
+                draggable
+                onDragStart={(e) => handleDragStart(e, s.type)}
+              >
                 <span className="item-name">{equipment[s.type]?.item.name}</span>
               </div>
             )}

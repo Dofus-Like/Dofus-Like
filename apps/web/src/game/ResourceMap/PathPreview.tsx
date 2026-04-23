@@ -1,20 +1,33 @@
 import React from 'react';
 import { PathNode } from '@game/shared-types';
+import { COMBAT_COLORS } from '../constants/colors';
+import { BoundaryOutline } from '../UnifiedMap/CombatHighlights';
 
 interface PathPreviewProps {
   path: PathNode[];
   gridSize: number;
+  tileSize?: number;
+  color?: string;
 }
 
-export function PathPreview({ path, gridSize }: PathPreviewProps) {
+export const PathPreview = ({ path, gridSize, tileSize = 1, color }: PathPreviewProps) => {
   if (path.length === 0) return null;
 
   return (
     <group>
+      <BoundaryOutline 
+        tiles={path} 
+        gridSize={gridSize} 
+        color={color || COMBAT_COLORS.PM_VIOLET} 
+        width={3}
+        yOffset={0.07} // Slightly higher than range outlines
+      />
       {path.map((node, i) => {
+        const isLast = i === path.length - 1;
+        if (isLast) return null; // Skip redundant target dot
+
         const wx = node.x - gridSize / 2 + 0.5;
         const wz = node.y - gridSize / 2 + 0.5;
-        const isLast = i === path.length - 1;
 
         return (
           <mesh
@@ -22,11 +35,11 @@ export function PathPreview({ path, gridSize }: PathPreviewProps) {
             position={[wx, 0.02, wz]}
             rotation={[-Math.PI / 2, 0, 0]}
           >
-            <circleGeometry args={[isLast ? 0.2 : 0.1, 12]} />
+            <planeGeometry args={[tileSize, tileSize]} />
             <meshBasicMaterial
-              color={isLast ? '#22c55e' : '#6366f1'}
+              color={color || COMBAT_COLORS.PM_VIOLET}
               transparent
-              opacity={0.6}
+              opacity={0.45}
             />
           </mesh>
         );
