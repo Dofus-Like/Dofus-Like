@@ -25,6 +25,7 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
   const { activeSession } = useGameSession();
 
   const isCombatPage = location.pathname.startsWith('/combat');
+  const isFarmingPage = location.pathname.startsWith('/farming');
 
   const spendableGold = activeSession 
     ? (getSessionPo(activeSession, player?.id) ?? 0) 
@@ -50,10 +51,11 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className={`game-layout ${location.pathname === '/' ? 'in-lobby' : ''}`}>
+    <div className={`game-layout ${location.pathname === '/' ? 'in-lobby' : ''} ${(isCombatPage || isFarmingPage) ? 'no-navbar' : ''}`}>
       {!isCombatPage && <GlobalBackground />}
       
-      <nav className="game-navbar">
+      {!isCombatPage && !isFarmingPage && (
+        <nav className="game-navbar">
         <div className="nav-logo" onClick={() => navigate('/')}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path d="M14.5 2.5 21 9 9 21l-3 .5.5-3L14.5 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -99,7 +101,8 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
             </svg>
           </button>
         </div>
-      </nav>
+        </nav>
+      )}
       
       <main className="game-content">
         {children}

@@ -76,7 +76,7 @@ model InventoryItem {
   item          Item           @relation(fields: [itemId], references: [id])
   player        Player         @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
-  @@unique([playerId, itemId, rank])
+  @@index([playerId, itemId, rank])
 }
 
 model EquipmentSlot {
@@ -203,7 +203,7 @@ model SessionItem {
   item          Item           @relation(fields: [itemId], references: [id])
   session       GameSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
-  @@unique([sessionId, playerId, itemId])
+  @@index([sessionId, playerId, itemId])
 }
 
 enum ItemType {

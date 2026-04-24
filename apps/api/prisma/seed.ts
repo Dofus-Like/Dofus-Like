@@ -37,7 +37,7 @@ const SPELL_DEFINITIONS = [
   },
   {
     code: 'spell-frappe',
-    name: 'Frappe',
+    name: "Coup d'épée",
     description: 'Une attaque physique de mêlée.',
     paCost: 3,
     minRange: 1,

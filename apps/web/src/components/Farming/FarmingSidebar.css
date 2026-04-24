@@ -1,0 +1,128 @@
+.farming-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  width: 320px;
+  pointer-events: auto;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  background: var(--rm-surface);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--rm-border);
+  border-radius: 24px;
+  overflow: hidden; /* Mask everything inside */
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.section-top {
+  flex: 1.2;
+}
+
+.section-bottom {
+  flex: 1;
+}
+
+.sidebar-header, .section-bottom-header {
+  display: flex;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn, .mode-toggle {
+  flex: 1;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  color: var(--rm-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active, .mode-toggle.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--rm-accent);
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.tab-btn:hover, .mode-toggle:hover {
+  color: #fff;
+}
+
+.detail-indicator {
+  padding: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--rm-accent);
+}
+
+.sidebar-content, .sidebar-content-bottom {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-content::-webkit-scrollbar, .sidebar-content-bottom::-webkit-scrollbar {
+  width: 5px;
+}
+
+.sidebar-content::-webkit-scrollbar-track, .sidebar-content-bottom::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb, .sidebar-content-bottom::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover, .sidebar-content-bottom::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.filter-bar {
+  display: flex;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.filter-group {
+  display: flex;
+  gap: 4px;
+}
+
+.filter-btn {
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  color: var(--rm-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.filter-btn.active {
+  background: var(--rm-accent);
+  color: #000;
+  border-color: transparent;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+}
