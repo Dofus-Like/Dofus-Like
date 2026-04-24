@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { useGameSession } from '../pages/GameTunnel';
 import { getSessionPo } from '../utils/sessionPo';
+import { GlobalBackground } from './GlobalBackground';
 import './GameLayout.css';
 
 export function GameLayout({ children }: { children: React.ReactNode }) {
@@ -14,6 +15,8 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
   
   const { player, logout } = useAuthStore();
   const { activeSession } = useGameSession();
+
+  const isCombatPage = location.pathname.startsWith('/combat');
 
   const spendableGold = activeSession 
     ? (getSessionPo(activeSession, player?.id) ?? 0) 
@@ -37,6 +40,8 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`game-layout ${location.pathname === '/' ? 'in-lobby' : ''}`}>
+      {!isCombatPage && <GlobalBackground />}
+      
       <nav className="game-navbar">
         <div className="nav-logo" onClick={() => navigate('/')}>
           ⚔️ Moyenax
