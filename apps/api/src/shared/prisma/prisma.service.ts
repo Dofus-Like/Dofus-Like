@@ -10,6 +10,11 @@ function isDebugEnabled(): boolean {
   return flag === '1' || flag === 'true' || flag === 'on' || flag === 'yes';
 }
 
+function isDebugEnabled(): boolean {
+  const flag = (process.env.SHOW_DEBUG ?? '').toLowerCase().trim();
+  return flag === '1' || flag === 'true' || flag === 'on' || flag === 'yes';
+}
+
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor(
