@@ -1,51 +1,275 @@
+/* ═══════════════════════════════════════════════════════════════
+   COMBAT PAGE — DA4 Ornate Glass (arcane grimoire)
+   Frames violet, coins en losange, runes ambiantes, bougies
+═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --ornate-violet: #a78bfa;
+  --ornate-violet-deep: #5b21b6;
+  --ornate-violet-rgb: 167 139 250;
+  --ornate-bg-a: #130724;
+  --ornate-bg-b: #0a0414;
+  --ornate-bg-c: #1d0b35;
+  --ornate-edge: rgba(167, 139, 250, 0.35);
+  --ornate-edge-soft: rgba(167, 139, 250, 0.16);
+  --ornate-text: #e9d5ff;
+  --ornate-text-muted: #a8a0c8;
+
+  --candle-flame: #ffb347;
+  --candle-flame-hot: #fff4b8;
+  --candle-wax: #ede3c7;
+}
+
 .combat-page-container {
   display: flex;
   flex-direction: column;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #0f172a;
+  position: relative;
+  color: var(--ornate-text);
+  font-family: 'Inter', sans-serif;
+  background:
+    radial-gradient(ellipse at 20% 30%, rgba(91, 33, 182, 0.28), transparent 55%),
+    radial-gradient(ellipse at 80% 70%, rgba(76, 29, 149, 0.22), transparent 50%),
+    linear-gradient(180deg, var(--ornate-bg-a) 0%, var(--ornate-bg-b) 50%, var(--ornate-bg-c) 100%);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   AMBIENT DECORATION — runes & bougies
+═══════════════════════════════════════════════════════════════ */
+.combat-ambient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.combat-ambient-runes {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 8% 22%, rgba(167, 139, 250, 0.12) 0%, transparent 2%),
+    radial-gradient(circle at 92% 18%, rgba(167, 139, 250, 0.10) 0%, transparent 2%),
+    radial-gradient(circle at 15% 75%, rgba(167, 139, 250, 0.10) 0%, transparent 2%),
+    radial-gradient(circle at 85% 82%, rgba(167, 139, 250, 0.12) 0%, transparent 2%),
+    radial-gradient(circle at 50% 50%, rgba(88, 28, 135, 0.22) 0%, transparent 60%);
+  opacity: 0.9;
+}
+
+.combat-ambient-runes::before,
+.combat-ambient-runes::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: 6% 35%, 94% 28%, 11% 68%, 89% 72%, 4% 10%, 96% 88%;
+  background-size: 14px 14px;
+  background-image:
+    radial-gradient(circle, rgba(196, 181, 253, 0.35) 30%, transparent 40%),
+    radial-gradient(circle, rgba(196, 181, 253, 0.35) 30%, transparent 40%),
+    radial-gradient(circle, rgba(196, 181, 253, 0.3) 30%, transparent 40%),
+    radial-gradient(circle, rgba(196, 181, 253, 0.3) 30%, transparent 40%),
+    radial-gradient(circle, rgba(196, 181, 253, 0.2) 30%, transparent 40%),
+    radial-gradient(circle, rgba(196, 181, 253, 0.2) 30%, transparent 40%);
+  filter: blur(0.3px);
+  animation: rune-pulse 7s ease-in-out infinite;
+}
+
+.combat-ambient-runes::after {
+  background-position: 24% 12%, 78% 45%, 34% 82%, 70% 18%, 50% 88%, 10% 48%;
+  background-size: 10px 10px;
+  animation-duration: 9s;
+  animation-delay: -3s;
+  opacity: 0.7;
+}
+
+@keyframes rune-pulse {
+  0%, 100% { opacity: 0.55; transform: translateY(0); }
+  50% { opacity: 0.95; transform: translateY(-2px); }
+}
+
+/* Candles */
+.combat-candle {
+  position: absolute;
+  width: 18px;
+  height: 60px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.combat-candle::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 42px;
+  background: linear-gradient(180deg, #fff8dc 0%, #ede3c7 60%, #b8a982 100%);
+  border-radius: 4px 4px 2px 2px;
+  box-shadow:
+    inset -2px 0 3px rgba(0, 0, 0, 0.25),
+    inset 2px 0 2px rgba(255, 255, 255, 0.3),
+    0 0 12px rgba(255, 179, 71, 0.35);
+}
+
+.combat-candle::after {
+  content: '';
+  position: absolute;
+  bottom: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 16px;
+  background:
+    radial-gradient(ellipse at 50% 65%, #fff4b8 0%, #ffb347 35%, #ff7b2a 70%, transparent 85%);
+  border-radius: 50% 50% 45% 45% / 70% 70% 35% 35%;
+  filter: blur(0.5px);
+  animation: candle-flicker 1.2s ease-in-out infinite alternate;
+  box-shadow:
+    0 0 14px rgba(255, 179, 71, 0.85),
+    0 0 28px rgba(255, 140, 0, 0.45),
+    0 0 44px rgba(255, 87, 34, 0.25);
+}
+
+@keyframes candle-flicker {
+  0%   { transform: translateX(-50%) scale(1, 1) rotate(-1deg); opacity: 0.95; }
+  40%  { transform: translateX(-50%) scale(1.04, 0.96) rotate(2deg); opacity: 1; }
+  60%  { transform: translateX(-50%) scale(0.97, 1.05) rotate(-1deg); opacity: 0.9; }
+  100% { transform: translateX(-50%) scale(1, 1) rotate(1deg); opacity: 1; }
+}
+
+.candle-left-top    { top: 60px;  left: 16px; }
+.candle-left-bottom { bottom: 40px; left: 20px; }
+.candle-right-top    { top: 60px;  right: 16px; }
+.candle-right-bottom { bottom: 40px; right: 20px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   ORNATE FRAME primitives
+   Utilisé en combinaison avec .glass par ex.
+═══════════════════════════════════════════════════════════════ */
+.ornate-frame {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(29, 11, 53, 0.82), rgba(13, 8, 21, 0.88));
+  border: 1px solid var(--ornate-edge);
+  border-radius: 18px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(167, 139, 250, 0.08),
+    0 0 42px rgba(167, 139, 250, 0.14);
+}
+
+.ornate-frame::before,
+.ornate-frame::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(196, 181, 253, 0.45), transparent);
+  pointer-events: none;
+}
+
+.ornate-frame::before { top: 4px; }
+.ornate-frame::after  { bottom: 4px; }
+
+/* Diamond corners */
+.ornate-corner {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: linear-gradient(135deg, #e9d5ff, var(--ornate-violet));
+  transform: rotate(45deg);
+  box-shadow:
+    0 0 10px rgba(196, 181, 253, 0.7),
+    inset 0 0 4px rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.ornate-corner-tl { top: -5px;    left: -5px; }
+.ornate-corner-tr { top: -5px;    right: -5px; }
+.ornate-corner-bl { bottom: -5px; left: -5px; }
+.ornate-corner-br { bottom: -5px; right: -5px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   TOP TOOLBAR
+═══════════════════════════════════════════════════════════════ */
 .combat-toolbar {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 10px 20px;
-  background: rgb(var(--glass-bg-strong-rgb) / 0.7);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  z-index: 1000;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  gap: 16px;
+  margin: 14px 18px 10px;
+  padding: 12px 20px;
+  z-index: 120;
 }
 
 .combat-toolbar-back {
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--combat-border);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-main);
-  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--ornate-edge);
+  background: rgba(29, 11, 53, 0.65);
+  color: var(--ornate-text);
+  font-size: 0.82rem;
   font-weight: 700;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  transition: all var(--trans-fast);
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.combat-toolbar-back .toolbar-back-arrow {
+  font-size: 1rem;
+  color: var(--ornate-violet);
 }
 
 .combat-toolbar-back:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(76, 29, 149, 0.4);
+  border-color: var(--ornate-violet);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 18px rgba(167, 139, 250, 0.35);
+}
+
+.combat-toolbar-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
 }
 
 .combat-toolbar-title {
   margin: 0;
-  font-size: 0.9rem;
-  font-weight: 900;
+  font-family: 'Cinzel', 'Inter', serif;
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: #f5ebff;
+  text-shadow:
+    0 0 18px rgba(167, 139, 250, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.combat-toolbar-subtitle {
+  margin-top: 4px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--text-muted);
-  flex: 1;
-  text-align: center;
+  color: var(--ornate-text-muted);
 }
 
 .toolbar-actions {
@@ -54,63 +278,93 @@
   gap: 10px;
 }
 
+.combat-toolbar-turn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(167, 139, 250, 0.55);
+  background: rgba(76, 29, 149, 0.22);
+  color: #ddd6fe;
+  font-family: 'Cinzel', 'Inter', serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(167, 139, 250, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 14px rgba(167, 139, 250, 0.25);
+}
+
 .toolbar-btn {
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all var(--trans-fast);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--combat-border);
-  background: rgba(15, 23, 42, 0.4);
-  color: var(--text-main);
+  padding: 9px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--ornate-edge);
+  background: rgba(29, 11, 53, 0.65);
+  color: var(--ornate-text);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(76, 29, 149, 0.4);
+  border-color: var(--ornate-violet);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 4px 16px rgba(167, 139, 250, 0.3);
 }
 
 .toolbar-btn.surrender {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: var(--hp-red-light);
+  background: linear-gradient(180deg, rgba(127, 29, 29, 0.7), rgba(76, 5, 25, 0.85));
+  border-color: rgba(248, 113, 113, 0.55);
+  color: #fecaca;
+  text-shadow: 0 0 10px rgba(248, 113, 113, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 18px rgba(220, 38, 38, 0.3);
 }
 
 .toolbar-btn.surrender:hover {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: var(--hp-red);
+  background: linear-gradient(180deg, rgba(153, 27, 27, 0.85), rgba(88, 28, 135, 0.7));
+  border-color: #f87171;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 0 24px rgba(220, 38, 38, 0.45);
 }
 
-.toolbar-btn.utility.active {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: var(--turn-active);
-  color: var(--victory-gold);
+.toolbar-btn-compact {
+  padding: 9px 12px;
 }
 
-.toolbar-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-
-.combat-toolbar-turn {
+.toolbar-btn-icon {
   font-size: 0.85rem;
-  color: var(--glass-accent);
-  font-weight: 800;
-  padding: 6px 14px;
-  background: rgb(var(--glass-accent-rgb) / 0.12);
-  border: 1px solid rgb(var(--glass-accent-rgb) / 0.3);
-  border-radius: 999px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  line-height: 1;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════════════════════ */
 .combat-layout {
   display: flex;
   flex: 1;
   min-height: 0;
   width: 100%;
+  gap: 18px;
+  padding: 0 18px 18px;
+  position: relative;
+  z-index: 2;
 }
 
 /* ZONE JEU (GAUCHE) */
@@ -118,102 +372,98 @@
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse at center,
+      rgba(29, 11, 53, 0.35) 0%,
+      rgba(10, 4, 20, 0.7) 90%);
+  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.55);
 }
 
-/* SIDEBAR LOGS (DROITE) — DA3 Glassmorphism Journal */
+/* SIDEBAR LOGS (DROITE) — Framed ornate panel */
 .combat-logs-side {
-  width: 300px;
-  background: rgb(var(--glass-bg-strong-rgb) / 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  width: 320px;
   display: flex;
   flex-direction: column;
-  box-shadow:
-    -10px 0 30px rgba(0, 0, 0, 0.5),
-    inset 1px 0 0 rgba(255, 255, 255, 0.06);
   z-index: 100;
   transition: width 0.3s ease;
+  padding: 14px 0;
 }
 
 .logs-sidebar-header {
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.02);
-  font-weight: 800;
+  padding: 14px 22px 10px;
+  font-family: 'Cinzel', 'Inter', serif;
+  font-weight: 700;
   text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.18em;
-  color: var(--glass-accent);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.82rem;
+  letter-spacing: 0.2em;
+  color: #f5ebff;
+  text-align: left;
+  text-shadow: 0 0 14px rgba(167, 139, 250, 0.4);
 }
 
 .logs-sidebar-content {
   flex: 1;
   overflow-y: auto;
-  padding: 14px 14px;
+  padding: 6px 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   scrollbar-width: thin;
-  scrollbar-color: rgb(var(--glass-accent-rgb) / 0.3) transparent;
+  scrollbar-color: rgba(167, 139, 250, 0.35) transparent;
 }
 
-.logs-sidebar-content::-webkit-scrollbar {
-  width: 6px;
-}
-
+.logs-sidebar-content::-webkit-scrollbar { width: 6px; }
 .logs-sidebar-content::-webkit-scrollbar-thumb {
-  background: rgb(var(--glass-accent-rgb) / 0.25);
+  background: rgba(167, 139, 250, 0.3);
   border-radius: 10px;
 }
 
 .log-entry {
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(167, 139, 250, 0.06);
   font-size: 0.78rem;
   line-height: 1.45;
-  border-left: 3px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(167, 139, 250, 0.18);
+  color: var(--ornate-text);
   animation: logFadeIn 0.3s ease-out;
+  backdrop-filter: blur(8px);
 }
 
 @keyframes logFadeIn {
   from { opacity: 0; transform: translateX(10px); }
-  to { opacity: 1; transform: translateX(0); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-.log-entry.type-info    { border-left-color: var(--log-info);    color: var(--log-info-text); }
-.log-entry.type-damage  { border-left-color: var(--log-damage);  color: var(--log-damage-text);  background: rgb(var(--log-damage-rgb)  / 0.06); }
-.log-entry.type-victory { border-left-color: var(--log-victory); color: var(--log-victory-text); background: rgb(var(--log-victory-rgb) / 0.06); }
+.log-entry.type-info    { border-color: rgba(96, 165, 250, 0.45); color: var(--log-info-text); }
+.log-entry.type-damage  { border-color: rgba(248, 113, 113, 0.45); color: var(--log-damage-text);  background: rgba(248, 113, 113, 0.08); }
+.log-entry.type-victory { border-color: rgba(251, 191, 36, 0.45); color: var(--log-victory-text); background: rgba(251, 191, 36, 0.08); }
 
-.logs-empty {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.2);
-  margin-top: 50px;
+.log-entry-placeholder {
+  color: var(--ornate-text-muted);
   font-style: italic;
-  font-size: 0.9rem;
 }
 
 /* LOADING OVERLAYS */
 .combat-overlay {
   position: fixed;
   inset: 0;
-  background: #0f172a;
+  background: rgba(10, 4, 20, 0.92);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   gap: 20px;
+  color: var(--ornate-text);
 }
 
 .loading-spinner {
   width: 60px;
   height: 60px;
-  border: 4px solid rgba(255, 255, 255, 0.05);
-  border-top-color: #60a5fa;
+  border: 4px solid rgba(167, 139, 250, 0.1);
+  border-top-color: var(--ornate-violet);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -222,9 +472,26 @@
   to { transform: rotate(360deg); }
 }
 
-/* MEDIA QUERIES MOBILE / TABLETTE : On cache la sidebar */
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 1280px) {
+  .combat-logs-side { width: 280px; }
+  .combat-toolbar-title { font-size: 1.5rem; }
+}
+
 @media (max-width: 1024px) {
-  .combat-logs-side {
-    display: none;
-  }
+  .combat-logs-side { display: none; }
+  .combat-layout { padding: 0 12px 12px; gap: 12px; }
+  .combat-candle { display: none; }
+  .combat-toolbar { margin: 10px 12px 8px; padding: 10px 14px; }
+  .combat-toolbar-title { font-size: 1.25rem; letter-spacing: 0.18em; }
+}
+
+@media (max-width: 768px) {
+  .combat-toolbar { gap: 8px; }
+  .combat-toolbar-title { font-size: 1rem; letter-spacing: 0.14em; }
+  .combat-toolbar-back { padding: 7px 12px; font-size: 0.7rem; }
+  .toolbar-btn { padding: 7px 10px; font-size: 0.6rem; }
+  .combat-toolbar-turn { padding: 6px 12px; font-size: 0.65rem; }
 }

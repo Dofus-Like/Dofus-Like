@@ -172,7 +172,7 @@ export function CombatHUD() {
                   <div className="spell-hover-tag">{spell.name}</div>
                 )}
 
-                <span className="spell-index-badge">{index + 1}</span>
+                <span className="spell-index-badge"><span className="spell-index-value">{index + 1}</span></span>
                 <span className="spell-pa-cost">{spell.paCost}</span>
 
                 <img

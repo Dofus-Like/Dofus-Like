@@ -163,24 +163,42 @@ export function CombatPage() {
   return (
     <ProfiledRegion id="CombatPage">
     <div className="combat-page-container">
-      <header className="combat-toolbar">
-        <button className="combat-toolbar-back" onClick={() => navigate('/farming')}>
-           Retour
+      <div className="combat-ambient" aria-hidden="true">
+        <div className="combat-ambient-runes" />
+        <div className="combat-candle candle-left-top" />
+        <div className="combat-candle candle-left-bottom" />
+        <div className="combat-candle candle-right-top" />
+        <div className="combat-candle candle-right-bottom" />
+      </div>
+      <header className="combat-toolbar ornate-frame">
+        <span className="ornate-corner ornate-corner-tl" aria-hidden="true" />
+        <span className="ornate-corner ornate-corner-tr" aria-hidden="true" />
+        <span className="ornate-corner ornate-corner-bl" aria-hidden="true" />
+        <span className="ornate-corner ornate-corner-br" aria-hidden="true" />
+        <button className="combat-toolbar-back ornate-btn" onClick={() => navigate('/farming')}>
+          <span className="toolbar-back-arrow">←</span>
+          <span>Retour</span>
         </button>
-        <h2 className="combat-toolbar-title">Combat</h2>
+        <div className="combat-toolbar-center">
+          <h1 className="combat-toolbar-title">COMBAT</h1>
+          {combatState && (
+            <div className="combat-toolbar-subtitle">Tour {combatState.turnNumber}</div>
+          )}
+        </div>
         <div className="toolbar-actions">
           {combatState && (
-            <span className="combat-toolbar-turn">Tour {combatState.turnNumber}</span>
+            <span className="combat-toolbar-turn">TOUR {combatState.turnNumber}</span>
           )}
           {combatState && !winnerId && (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="toolbar-btn surrender" onClick={surrender} title="Abandonner uniquement ce combat (défaite instantanée)">
-                🏳️ Abandonner combat
+            <>
+              <button className="toolbar-btn surrender ornate-btn" onClick={surrender} title="Abandonner uniquement ce combat (défaite instantanée)">
+                <span className="toolbar-btn-icon">🏳</span>
+                <span>ABANDONNER COMBAT</span>
               </button>
-              <button className="toolbar-btn surrender" onClick={handleEndSession} title="Quitter la partie pour tout le monde" style={{ opacity: 0.7 }}>
-                🔴 Abandonner session
+              <button className="toolbar-btn surrender toolbar-btn-compact ornate-btn" onClick={handleEndSession} title="Quitter la partie pour tout le monde">
+                <span className="toolbar-btn-icon">🔴</span>
               </button>
-            </div>
+            </>
           )}
         </div>
       </header>
@@ -261,15 +279,23 @@ export function CombatPage() {
         </div>
 
         {/* RIGHT WINDOW: LOGS (Desktop only via CSS) */}
-        <div className="combat-logs-side">
-            <div className="logs-sidebar-header">Journal de Combat</div>
+        <div className="combat-logs-side ornate-frame">
+            <span className="ornate-corner ornate-corner-tl" aria-hidden="true" />
+            <span className="ornate-corner ornate-corner-tr" aria-hidden="true" />
+            <span className="ornate-corner ornate-corner-bl" aria-hidden="true" />
+            <span className="ornate-corner ornate-corner-br" aria-hidden="true" />
+            <div className="logs-sidebar-header">JOURNAL DE COMBAT</div>
             <div className="logs-sidebar-content">
                {logs.map((log) => (
                  <div key={log.id} className={`log-entry type-${log.type}`}>
                    <span className="log-msg">{log.message}</span>
                  </div>
                ))}
-               {logs.length === 0 && <div className="logs-empty">Aucune action...</div>}
+               {logs.length === 0 && (
+                 <div className="log-entry log-entry-placeholder">
+                   <span className="log-msg">Combat initialisé</span>
+                 </div>
+               )}
             </div>
         </div>
       </div>

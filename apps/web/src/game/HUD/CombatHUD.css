@@ -51,15 +51,36 @@
 
 /* Shared glass surface */
 .glass {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--glass-radius);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  background:
+    linear-gradient(180deg, rgba(29, 11, 53, 0.78), rgba(13, 8, 21, 0.86));
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  border-radius: 18px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 14px 40px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 32px rgba(167, 139, 250, 0.14);
 }
+
+/* Diamond corner accents reusable on any panel */
+.glass-corner {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  background: linear-gradient(135deg, #e9d5ff, #a78bfa);
+  transform: rotate(45deg);
+  box-shadow:
+    0 0 10px rgba(196, 181, 253, 0.75),
+    inset 0 0 4px rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.glass-corner-tl { top: -5px;    left: -5px; }
+.glass-corner-tr { top: -5px;    right: -5px; }
+.glass-corner-bl { bottom: -5px; left: -5px; }
+.glass-corner-br { bottom: -5px; right: -5px; }
 
 /* --- TOAST --- */
 .combat-toast {
@@ -71,10 +92,10 @@
   max-width: 520px;
   padding: 12px 18px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgb(var(--glass-bg-strong-rgb) / 0.85);
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  background: rgba(13, 8, 21, 0.85);
   backdrop-filter: blur(20px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
   font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -84,7 +105,7 @@
 
 .combat-toast.info {
   color: #c7d2fe;
-  border-color: rgb(var(--glass-accent-rgb) / 0.4);
+  border-color: rgba(167, 139, 250, 0.5);
 }
 
 .combat-toast.error {
@@ -93,86 +114,116 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   TOP LEFT: INITIATIVE PANEL
+   TOP LEFT: INITIATIVE PANEL (ornate)
 ═══════════════════════════════════════════════════════════════ */
 .hud-initiative {
   position: absolute;
-  top: 16px;
-  left: 16px;
+  top: 20px;
+  left: 20px;
   z-index: 80;
-  padding: 8px 10px;
-  min-width: 140px;
+  padding: 12px 14px 14px;
+  min-width: 200px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
+.hud-initiative::before,
+.hud-initiative::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, #e9d5ff, #a78bfa);
+  transform: rotate(45deg);
+  box-shadow: 0 0 10px rgba(196, 181, 253, 0.7);
+  pointer-events: none;
+}
+
+.hud-initiative::before { top: -4px; left: -4px; }
+.hud-initiative::after  { top: -4px; right: -4px; }
+
 .hud-initiative-title {
-  font-size: 0.58rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
+  font-family: 'Cinzel', 'Inter', serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: var(--glass-accent);
+  color: #e9d5ff;
   text-align: center;
-  padding-bottom: 6px;
+  padding-bottom: 8px;
   margin-bottom: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(167, 139, 250, 0.22);
+  text-shadow: 0 0 12px rgba(167, 139, 250, 0.5);
 }
 
 .hud-initiative-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 6px;
-  border-radius: 10px;
-  border: 1px solid transparent;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(167, 139, 250, 0.18);
+  background: rgba(76, 29, 149, 0.12);
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .hud-initiative-row.active.self {
-  background: rgb(var(--glass-accent-rgb) / 0.14);
-  border-color: rgb(var(--glass-accent-rgb) / 0.4);
+  background: rgba(167, 139, 250, 0.22);
+  border-color: rgba(167, 139, 250, 0.55);
+  box-shadow: 0 0 16px rgba(167, 139, 250, 0.25);
 }
 
 .hud-initiative-row.active.foe {
-  background: rgb(var(--enemy-red-rgb) / 0.14);
-  border-color: rgb(var(--enemy-red-rgb) / 0.4);
+  background: rgb(var(--enemy-red-rgb) / 0.18);
+  border-color: rgb(var(--enemy-red-rgb) / 0.5);
+  box-shadow: 0 0 16px rgb(var(--enemy-red-rgb) / 0.25);
 }
 
 .hud-initiative-token {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   flex-shrink: 0;
-  background: linear-gradient(135deg, var(--glass-token-a), var(--glass-token-b));
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  background:
+    radial-gradient(circle at 35% 30%, #c4b5fd 0%, #8b5cf6 55%, #5b21b6 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  box-shadow:
+    inset 0 0 6px rgba(255, 255, 255, 0.25),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 10px rgba(167, 139, 250, 0.35);
 }
 
 .hud-initiative-row.foe .hud-initiative-token {
-  background: linear-gradient(135deg, var(--enemy-red), var(--enemy-red-deep));
+  background:
+    radial-gradient(circle at 35% 30%, #fca5a5 0%, #ef4444 55%, #991b1b 100%);
+  box-shadow:
+    inset 0 0 6px rgba(255, 255, 255, 0.25),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 10px rgb(var(--enemy-red-rgb) / 0.4);
 }
 
 .hud-initiative-info {
   display: flex;
   flex-direction: column;
-  line-height: 1.1;
+  line-height: 1.15;
   min-width: 0;
+  flex: 1;
 }
 
 .hud-initiative-name {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 800;
-  color: var(--text-main);
-  letter-spacing: 0.02em;
+  color: #f5ebff;
+  letter-spacing: 0.03em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 120px;
+  max-width: 140px;
 }
 
 .hud-initiative-row.active.self .hud-initiative-name {
-  color: var(--glass-accent-light);
+  color: #e9d5ff;
 }
 
 .hud-initiative-row.active.foe .hud-initiative-name {
@@ -180,10 +231,11 @@
 }
 
 .hud-initiative-ini {
-  font-size: 0.55rem;
+  font-size: 0.58rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.55);
-  letter-spacing: 0.08em;
+  color: rgba(233, 213, 255, 0.55);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -233,9 +285,11 @@
 }
 
 .end-modal h1 {
+  font-family: 'Cinzel', 'Inter', serif;
   font-size: 4rem;
   margin-bottom: 20px;
-  font-weight: 900;
+  font-weight: 800;
+  letter-spacing: 0.15em;
 }
 
 .end-modal p {
@@ -287,59 +341,85 @@
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-  background: linear-gradient(0deg, rgb(var(--glass-bg-strong-rgb) / 0.85) 0%, transparent 100%);
-  padding: 40px 0 20px;
+  background: linear-gradient(0deg, rgba(13, 8, 21, 0.5) 0%, transparent 100%);
+  padding: 40px 0 24px;
   pointer-events: none;
   z-index: 50;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SPELL BAR (DA3 glass)
+   SPELL BAR (DA4 ornate glass)
 ═══════════════════════════════════════════════════════════════ */
 .spell-bar.glass {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  padding: 14px 14px 10px;
+  gap: 10px;
+  padding: 18px 20px 14px;
   pointer-events: auto;
   position: relative;
 }
 
+.spell-bar.glass::before,
+.spell-bar.glass::after {
+  content: '';
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  background: linear-gradient(135deg, #e9d5ff, #a78bfa);
+  transform: rotate(45deg);
+  box-shadow: 0 0 10px rgba(196, 181, 253, 0.75);
+  pointer-events: none;
+}
+
+.spell-bar.glass::before { top: -5px; left: 18px; }
+.spell-bar.glass::after  { top: -5px; right: 18px; }
+
 .spell-bar-separator {
   width: 1px;
-  height: 40px;
-  background: rgba(255, 255, 255, 0.15);
+  height: 48px;
+  background: linear-gradient(180deg, transparent, rgba(167, 139, 250, 0.45), transparent);
   align-self: center;
-  margin: 0 4px;
+  margin: 0 6px;
 }
 
 /* --- SPELL CARD --- */
 .spell-card {
   position: relative;
-  width: 62px;
-  height: 72px;
+  width: 72px;
+  height: 84px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(76, 29, 149, 0.25), rgba(29, 11, 53, 0.6));
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  border-radius: 14px;
   cursor: pointer;
   transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease, border-color 0.12s ease;
   user-select: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 4px 14px rgba(0, 0, 0, 0.35);
 }
 
 .spell-card:hover:not(.disabled) {
   transform: translateY(-3px);
-  background: rgba(255, 255, 255, 0.07);
+  background:
+    linear-gradient(180deg, rgba(124, 58, 237, 0.35), rgba(76, 29, 149, 0.5));
+  border-color: rgba(167, 139, 250, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 6px 20px rgba(167, 139, 250, 0.35);
 }
 
 .spell-card.active {
-  background: rgb(var(--glass-accent-rgb) / 0.18);
-  border-color: var(--glass-accent);
-  box-shadow: 0 0 16px rgb(var(--glass-accent-rgb) / 0.35);
+  background: linear-gradient(180deg, rgba(167, 139, 250, 0.35), rgba(91, 33, 182, 0.55));
+  border-color: #c4b5fd;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 0 20px rgba(196, 181, 253, 0.55);
 }
 
 .spell-card.disabled {
@@ -349,63 +429,77 @@
 }
 
 /* Family hover accents */
-.family-common:hover  { border-color: var(--family-common);  box-shadow: 0 0 18px rgb(var(--family-common-rgb)  / 0.35); }
-.family-warrior:hover { border-color: var(--family-warrior); box-shadow: 0 0 18px rgb(var(--family-warrior-rgb) / 0.35); }
-.family-mage:hover    { border-color: var(--family-mage);    box-shadow: 0 0 18px rgb(var(--family-mage-rgb)    / 0.35); }
-.family-ninja:hover   { border-color: var(--family-ninja);   box-shadow: 0 0 18px rgb(var(--family-ninja-rgb)   / 0.35); }
+.family-common:hover:not(.disabled)  { border-color: var(--family-common);  box-shadow: 0 0 18px rgb(var(--family-common-rgb)  / 0.4); }
+.family-warrior:hover:not(.disabled) { border-color: var(--family-warrior); box-shadow: 0 0 18px rgb(var(--family-warrior-rgb) / 0.4); }
+.family-mage:hover:not(.disabled)    { border-color: var(--family-mage);    box-shadow: 0 0 18px rgb(var(--family-mage-rgb)    / 0.4); }
+.family-ninja:hover:not(.disabled)   { border-color: var(--family-ninja);   box-shadow: 0 0 18px rgb(var(--family-ninja-rgb)   / 0.4); }
 
 /* --- badges on spell cards --- */
+/* Diamond index (1-4) au-dessus du slot */
 .spell-index-badge {
   position: absolute;
-  top: -6px;
-  left: -6px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: rgb(var(--glass-bg-strong-rgb) / 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 0.6rem;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-}
-
-.spell-pa-cost {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 20px;
-  height: 20px;
-  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-  background: linear-gradient(135deg, var(--glass-accent-light), var(--glass-accent-deep));
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 22px;
+  height: 22px;
+  background: linear-gradient(135deg, #ddd6fe 0%, #a78bfa 55%, #6d28d9 100%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   color: #ffffff;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-  filter: drop-shadow(0 2px 4px rgb(var(--glass-accent-deep-rgb) / 0.4));
+  z-index: 3;
+  box-shadow:
+    0 0 12px rgba(196, 181, 253, 0.7),
+    inset 0 0 5px rgba(255, 255, 255, 0.4);
+}
+
+.spell-index-badge > .spell-index-value {
+  display: inline-block;
+  transform: rotate(-45deg);
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.spell-pa-cost {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(13, 8, 21, 0.9);
+  border: 1px solid rgba(167, 139, 250, 0.55);
+  color: #c4b5fd;
+  font-size: 0.6rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   z-index: 2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
 .spell-icon-img {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
 }
 
 .spell-name {
   font-size: 0.55rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(233, 213, 255, 0.75);
   line-height: 1;
-  max-width: 54px;
+  max-width: 64px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -417,19 +511,19 @@
 
 /* Family icon tints */
 .family-common .spell-icon-img {
-  filter: drop-shadow(0 2px 4px rgb(var(--family-common-rgb) / 0.4));
+  filter: drop-shadow(0 2px 6px rgba(251, 191, 36, 0.45));
 }
 
 .family-warrior .spell-icon-img {
-  filter: sepia(1) saturate(8) hue-rotate(-60deg) drop-shadow(0 2px 4px rgb(var(--family-warrior-rgb) / 0.4));
+  filter: drop-shadow(0 2px 6px rgba(248, 113, 113, 0.45));
 }
 
 .family-mage .spell-icon-img {
-  filter: sepia(1) saturate(8) hue-rotate(160deg) drop-shadow(0 2px 4px rgb(var(--family-mage-rgb) / 0.4));
+  filter: drop-shadow(0 2px 6px rgba(96, 165, 250, 0.45));
 }
 
 .family-ninja .spell-icon-img {
-  filter: sepia(1) saturate(8) hue-rotate(60deg) drop-shadow(0 2px 4px rgb(var(--family-ninja-rgb) / 0.4));
+  filter: drop-shadow(0 2px 6px rgba(74, 222, 128, 0.45));
 }
 
 /* Cooldown overlay */
@@ -437,7 +531,7 @@
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -453,21 +547,21 @@
 /* Hover tag */
 .spell-hover-tag {
   position: absolute;
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 10px);
   left: 50%;
   transform: translateX(-50%);
-  padding: 4px 10px;
-  background: rgb(var(--glass-bg-strong-rgb) / 0.92);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  color: var(--text-main);
-  font-size: 0.7rem;
+  padding: 5px 12px;
+  background: rgba(13, 8, 21, 0.92);
+  border: 1px solid rgba(167, 139, 250, 0.4);
+  border-radius: 10px;
+  color: #f5ebff;
+  font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
   animation: fadeInTag 0.18s ease-out;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   z-index: 120;
 }
@@ -480,20 +574,28 @@
 /* --- Actions (Grimoire & Passer) --- */
 .spell-bar-action {
   align-self: center;
-  background: rgb(var(--glass-accent-rgb) / 0.12);
-  border: 1px solid rgb(var(--glass-accent-rgb) / 0.3);
-  color: var(--text-main);
-  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(76, 29, 149, 0.25), rgba(29, 11, 53, 0.6));
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  color: #e9d5ff;
+  border-radius: 14px;
   cursor: pointer;
   transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 4px 14px rgba(0, 0, 0, 0.35);
 }
 
 .spell-bar-action:hover:not(:disabled) {
   transform: translateY(-2px);
-  background: rgb(var(--glass-accent-rgb) / 0.2);
+  background:
+    linear-gradient(180deg, rgba(124, 58, 237, 0.35), rgba(76, 29, 149, 0.5));
+  border-color: rgba(167, 139, 250, 0.55);
+  box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3);
 }
 
 .spell-bar-action:disabled {
@@ -502,112 +604,130 @@
 }
 
 .spell-bar-action.grimoire {
-  width: 44px;
-  height: 44px;
-  font-size: 1.1rem;
+  width: 64px;
+  height: 84px;
+  font-size: 1.3rem;
+  gap: 4px;
+}
+
+.spell-bar-action.grimoire::after {
+  content: 'LIVRE';
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(233, 213, 255, 0.75);
 }
 
 .spell-bar-action.grimoire.active {
-  background: rgb(var(--glass-accent-rgb) / 0.28);
-  border-color: var(--glass-accent);
-  box-shadow: 0 0 16px rgb(var(--glass-accent-rgb) / 0.35);
+  background: linear-gradient(180deg, rgba(167, 139, 250, 0.35), rgba(91, 33, 182, 0.55));
+  border-color: #c4b5fd;
+  box-shadow: 0 0 20px rgba(196, 181, 253, 0.45);
 }
 
 .spell-bar-action.pass {
-  padding: 10px 16px;
-  height: 44px;
-  gap: 6px;
-  font-size: 0.75rem;
+  width: 84px;
+  height: 84px;
+  gap: 4px;
+  font-size: 0.6rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .spell-bar-action.pass .pass-icon {
-  font-size: 0.9rem;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.spell-bar-action.pass .pass-label {
+  color: rgba(233, 213, 255, 0.8);
 }
 
 .spell-bar-action.pass.ready {
-  background: rgb(var(--glass-accent-rgb) / 0.22);
-  border-color: var(--glass-accent);
+  background: linear-gradient(180deg, rgba(167, 139, 250, 0.3), rgba(91, 33, 182, 0.55));
+  border-color: #c4b5fd;
   color: #ffffff;
-  box-shadow: 0 4px 16px rgb(var(--glass-accent-rgb) / 0.35);
-  animation: passPulse 2s ease-in-out infinite;
+  box-shadow: 0 0 22px rgba(196, 181, 253, 0.45);
+  animation: passPulse 2.1s ease-in-out infinite;
 }
 
+.spell-bar-action.pass.ready .pass-label { color: #f5ebff; }
+
 @keyframes passPulse {
-  0%, 100% { box-shadow: 0 4px 16px rgb(var(--glass-accent-rgb) / 0.3); }
-  50%      { box-shadow: 0 4px 24px rgb(var(--glass-accent-rgb) / 0.55); }
+  0%, 100% { box-shadow: 0 0 16px rgba(196, 181, 253, 0.35); }
+  50%      { box-shadow: 0 0 28px rgba(196, 181, 253, 0.6); }
 }
 
 /* --- Targeting prompt --- */
 .spell-targeting-prompt {
-  padding: 6px 14px;
-  font-size: 0.75rem;
+  padding: 8px 18px;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--text-main);
-  border-color: rgb(var(--glass-accent-rgb) / 0.5) !important;
+  border-color: rgba(167, 139, 250, 0.55) !important;
   display: flex;
   align-items: center;
   gap: 8px;
   pointer-events: auto;
+  letter-spacing: 0.04em;
 }
 
 /* ═══════════════════════════════════════════════════════════════
    RESPONSIVE
 ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 1280px) {
+  .hud-initiative { min-width: 170px; }
+  .spell-card { width: 64px; height: 76px; }
+  .spell-icon-img { width: 30px; height: 30px; }
+  .spell-bar-action.grimoire { width: 56px; height: 76px; }
+  .spell-bar-action.pass { width: 72px; height: 76px; }
+}
+
 @media (max-width: 1024px) {
-  .hud-initiative {
-    min-width: 120px;
-  }
-
-  .spell-card {
-    width: 54px;
-    height: 64px;
-  }
-
-  .spell-icon-img {
-    width: 24px;
-    height: 24px;
-  }
+  .hud-initiative { min-width: 150px; padding: 10px 12px; }
+  .spell-card { width: 58px; height: 68px; }
+  .spell-icon-img { width: 26px; height: 26px; }
+  .spell-bar-action.grimoire { width: 50px; height: 68px; }
+  .spell-bar-action.pass { width: 66px; height: 68px; font-size: 0.55rem; }
+  .spell-bar-action.pass .pass-icon { font-size: 1.3rem; }
 }
 
 @media (max-width: 768px) {
   .hud-initiative {
     top: 8px;
     left: 8px;
-    padding: 6px 8px;
-    min-width: 110px;
+    padding: 8px 10px;
+    min-width: 130px;
   }
 
   .hud-initiative-title {
-    font-size: 0.5rem;
+    font-size: 0.64rem;
   }
 
   .hud-initiative-name {
-    font-size: 0.6rem;
-    max-width: 80px;
+    font-size: 0.68rem;
+    max-width: 90px;
   }
 
   .hud-initiative-token {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
   }
 
   .hud-bottom-anchor {
     min-height: 90px;
-    padding: 20px 0 10px;
+    padding: 20px 0 12px;
   }
 
   .spell-bar.glass {
-    padding: 10px;
-    gap: 5px;
+    padding: 12px 12px 10px;
+    gap: 6px;
   }
 
   .spell-card {
-    width: 46px;
-    height: 56px;
-    border-radius: 10px;
+    width: 50px;
+    height: 60px;
+    border-radius: 12px;
   }
 
   .spell-icon-img {
@@ -621,19 +741,20 @@
   }
 
   .spell-bar-action.grimoire {
-    width: 38px;
-    height: 38px;
-    font-size: 1rem;
+    width: 42px;
+    height: 60px;
   }
 
   .spell-bar-action.pass {
-    height: 38px;
-    padding: 6px 10px;
-    font-size: 0.65rem;
+    width: 56px;
+    height: 60px;
+    font-size: 0.52rem;
   }
 
+  .spell-bar-action.pass .pass-icon { font-size: 1.1rem; }
+
   .spell-bar-separator {
-    height: 30px;
+    height: 34px;
   }
 
   .end-modal {
