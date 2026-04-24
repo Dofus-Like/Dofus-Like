@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { calculateDamage, calculateHeal } from '@game/game-engine';
+import { performance } from 'node:perf_hooks';
 import {
   type CombatPosition,
   type CombatState,
@@ -9,6 +10,7 @@ import {
   TerrainType,
   TERRAIN_PROPERTIES,
 } from '@game/shared-types';
+import { PerfStatsService } from '../../shared/perf/perf-stats.service';
 
 export type SpellRuntimeEvent =
   | {
@@ -42,31 +44,38 @@ export interface SpellExecutionResult {
 
 @Injectable()
 export class SpellsService {
+  constructor(private readonly perfStats: PerfStatsService) {}
+
   executeEffect(
     state: CombatState,
     spell: SpellDefinition,
     caster: CombatPlayer,
     targetPos: CombatPosition,
   ): SpellExecutionResult {
-    switch (spell.effectKind) {
-      case SpellEffectKind.DAMAGE_PHYSICAL:
-        return this.applyDamage(state, targetPos, spell, caster.stats, false);
-      case SpellEffectKind.DAMAGE_MAGICAL:
-        return this.applyDamage(state, targetPos, spell, caster.stats, true);
-      case SpellEffectKind.HEAL:
-        return this.applyHeal(state, targetPos, spell, caster.stats);
-      case SpellEffectKind.TELEPORT:
-        return this.applyTeleport(state, caster, targetPos);
-      case SpellEffectKind.BUFF_VIT_MAX:
-        return this.applyVitBuff(caster, spell.effectConfig);
-      case SpellEffectKind.SUMMON_MENHIR:
-        return this.applySummonMenhir(state, targetPos, spell.effectConfig);
-      case SpellEffectKind.PUSH_LINE:
-        return this.applyPush(state, caster.position, targetPos, spell.effectConfig);
-      case SpellEffectKind.BUFF_PM:
-        return this.applyPmBuff(caster, spell.effectConfig);
-      default:
-        throw new BadRequestException(`Effet de sort non supporté: ${spell.effectKind}`);
+    const startedAt = performance.now();
+    try {
+      switch (spell.effectKind) {
+        case SpellEffectKind.DAMAGE_PHYSICAL:
+          return this.applyDamage(state, targetPos, spell, caster.stats, false);
+        case SpellEffectKind.DAMAGE_MAGICAL:
+          return this.applyDamage(state, targetPos, spell, caster.stats, true);
+        case SpellEffectKind.HEAL:
+          return this.applyHeal(state, targetPos, spell, caster.stats);
+        case SpellEffectKind.TELEPORT:
+          return this.applyTeleport(state, caster, targetPos);
+        case SpellEffectKind.BUFF_VIT_MAX:
+          return this.applyVitBuff(caster, spell.effectConfig);
+        case SpellEffectKind.SUMMON_MENHIR:
+          return this.applySummonMenhir(state, targetPos, spell.effectConfig);
+        case SpellEffectKind.PUSH_LINE:
+          return this.applyPush(state, caster.position, targetPos, spell.effectConfig);
+        case SpellEffectKind.BUFF_PM:
+          return this.applyPmBuff(caster, spell.effectConfig);
+        default:
+          throw new BadRequestException(`Effet de sort non supporté: ${spell.effectKind}`);
+      }
+    } finally {
+      this.perfStats.recordGameMetric('game.spell', spell.effectKind, performance.now() - startedAt);
     }
   }
 
@@ -85,8 +94,12 @@ export class SpellsService {
       return { events: [] };
     }
 
-    const defBuffs = targetPlayer.buffs.filter((buff) => buff.type === 'DEF').reduce((sum, buff) => sum + buff.value, 0);
-    const resBuffs = targetPlayer.buffs.filter((buff) => buff.type === 'RES').reduce((sum, buff) => sum + buff.value, 0);
+    const defBuffs = targetPlayer.buffs
+      .filter((buff) => buff.type === 'DEF')
+      .reduce((sum, buff) => sum + buff.value, 0);
+    const resBuffs = targetPlayer.buffs
+      .filter((buff) => buff.type === 'RES')
+      .reduce((sum, buff) => sum + buff.value, 0);
 
     const effectiveStats = {
       ...targetPlayer.stats,
@@ -158,7 +171,9 @@ export class SpellsService {
       throw new BadRequestException('Case occupée');
     }
 
-    const tile = state.map.tiles.find((entry) => entry.x === targetPos.x && entry.y === targetPos.y);
+    const tile = state.map.tiles.find(
+      (entry) => entry.x === targetPos.x && entry.y === targetPos.y,
+    );
     if (!tile || !(TERRAIN_PROPERTIES[tile.type as TerrainType]?.traversable ?? false)) {
       throw new BadRequestException('Terrain invalide');
     }
@@ -180,7 +195,10 @@ export class SpellsService {
     };
   }
 
-  private applyVitBuff(caster: CombatPlayer, effectConfig: Record<string, unknown> | null): SpellExecutionResult {
+  private applyVitBuff(
+    caster: CombatPlayer,
+    effectConfig: Record<string, unknown> | null,
+  ): SpellExecutionResult {
     const buffValue = this.readNumber(effectConfig, 'buffValue', 20);
     const buffDuration = this.readNumber(effectConfig, 'buffDuration', 99);
 
@@ -203,7 +221,9 @@ export class SpellsService {
       throw new BadRequestException('Case occupée');
     }
 
-    const tile = state.map.tiles.find((entry) => entry.x === targetPos.x && entry.y === targetPos.y);
+    const tile = state.map.tiles.find(
+      (entry) => entry.x === targetPos.x && entry.y === targetPos.y,
+    );
     if (!tile) {
       throw new BadRequestException('Case introuvable');
     }
@@ -300,7 +320,10 @@ export class SpellsService {
     return { events: [] };
   }
 
-  private applyPmBuff(caster: CombatPlayer, effectConfig: Record<string, unknown> | null): SpellExecutionResult {
+  private applyPmBuff(
+    caster: CombatPlayer,
+    effectConfig: Record<string, unknown> | null,
+  ): SpellExecutionResult {
     const buffValue = this.readNumber(effectConfig, 'buffValue', 2);
     const buffDuration = this.readNumber(effectConfig, 'buffDuration', 1);
     const applyImmediately = effectConfig?.applyImmediately !== false;

@@ -24,9 +24,14 @@ async function bootstrap() {
   );
   app.use(helmet());
 
-  perfLogger.logDuration('bootstrap', 'nest_factory.create', performance.now() - bootstrapStartedAt, {
-    stage: 'create',
-  });
+  perfLogger.logDuration(
+    'bootstrap',
+    'nest_factory.create',
+    performance.now() - bootstrapStartedAt,
+    {
+      stage: 'create',
+    },
+  );
 
   app.setGlobalPrefix('api/v1');
 
@@ -39,6 +44,7 @@ async function bootstrap() {
     origin: allowedOrigins,
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Server-Timing', 'x-request-id'],
   });
 
   const swaggerEnabled = configService.get<string>('ENABLE_SWAGGER', 'false') === 'true';
