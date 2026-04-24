@@ -534,9 +534,10 @@ export function FarmingPage() {
           }} 
           onToggleMannequins={() => setShowSettings(true)}
           onPassTurn={handleToggleReady}
-          passLabel={amIReady ? 'PRÊT ✓' : 'PRÊT !'}
+          passLabel="PRÊT !"
           isReadyMode={true}
           canPassTurn={!isTransitioning}
+          isReady={amIReady}
           disableGrimoire={true}
         />
       </div>

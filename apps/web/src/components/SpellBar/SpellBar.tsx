@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { SpellFamily } from '@game/shared-types';
 import './SpellBar.css';
 
@@ -35,6 +36,7 @@ interface SpellBarProps {
   canPassTurn?: boolean;
   passLabel?: string;
   isReadyMode?: boolean;
+  isReady?: boolean;
   disableGrimoire?: boolean;
 }
 
@@ -50,6 +52,7 @@ export const SpellBar = ({
   canPassTurn = true,
   passLabel = 'Passer',
   isReadyMode = false,
+  isReady = false,
   disableGrimoire = false,
 }: SpellBarProps) => {
   const [hoveredSpellId, setHoveredSpellId] = React.useState<string | null>(null);
@@ -118,7 +121,7 @@ export const SpellBar = ({
       {/* Passer = End turn or Ready button */}
       <button
         type="button"
-        className={`spell-bar-action pass ${((isMyTurn && canPassTurn) || isReadyMode) ? 'ready' : ''} ${isReadyMode && passLabel.includes('✓') ? 'is-ready' : ''}`}
+        className={`spell-bar-action pass ${((isMyTurn && canPassTurn) || isReadyMode) ? 'ready' : ''} ${isReady ? 'is-ready' : ''}`}
         disabled={(!isMyTurn || !canPassTurn) && !isReadyMode}
         onClick={onPassTurn}
         title={isReadyMode ? 'Prêt' : 'Terminer le tour'}
