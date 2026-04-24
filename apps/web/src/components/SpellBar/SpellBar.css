@@ -1,13 +1,13 @@
 /* Shared glass surface */
 .glass {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px; /* More rounded as in the screenshot */
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -16,9 +16,9 @@
 ═══════════════════════════════════════════════════════════════ */
 .spell-bar.glass {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 14px 14px 10px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
   pointer-events: auto;
   position: relative;
 }
@@ -34,18 +34,18 @@
 /* --- SPELL CARD --- */
 .spell-card {
   position: relative;
-  width: 72px;
-  height: 88px;
+  width: 76px;
+  height: 92px;
   display: flex;
   flex-direction: column;
-  background: rgba(30, 41, 59, 0.7);
+  background: rgba(15, 23, 42, 0.8);
   border: 1.5px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  overflow: visible; /* To allow badges to slightly pop out if needed, but let's keep it clean */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .spell-card:hover:not(.disabled) {
@@ -55,9 +55,12 @@
 }
 
 .spell-card.active {
-  background: rgba(96, 165, 250, 0.15);
+  background: rgba(96, 165, 250, 0.2);
   border-color: #60a5fa;
-  box-shadow: 0 0 25px rgba(96, 165, 250, 0.5);
+  box-shadow: 
+    0 0 25px rgba(96, 165, 250, 0.4),
+    inset 0 0 10px rgba(96, 165, 250, 0.2);
+  transform: translateY(-4px); /* Keep it slightly raised when active */
 }
 
 .spell-card.disabled {
@@ -69,10 +72,12 @@
 /* --- ICON (FULL BLEED) --- */
 .spell-icon-img {
   width: 100%;
-  height: 62px;
+  height: 66px;
   object-fit: cover;
   background: #000;
   display: block;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
 }
 
 .spell-name {
@@ -80,16 +85,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.58rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.85);
-  padding: 0 2px;
+  color: #fff;
+  padding: 0 4px;
   text-align: center;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(2, 6, 23, 0.9);
   line-height: 1.1;
   word-break: break-word;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
 }
 
 .spell-card.active .spell-name {
