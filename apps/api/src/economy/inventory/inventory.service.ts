@@ -40,8 +40,8 @@ export class InventoryService {
     if (!session) {
       throw new NotFoundException('Pas de session de jeu active');
     }
-    const sessionItem = await (this.prisma as any).sessionItem.findUnique({
-      where: { sessionId_playerId_itemId: { sessionId: session.id, playerId, itemId } },
+    const sessionItem = await (this.prisma as any).sessionItem.findFirst({
+      where: { sessionId: session.id, playerId, itemId },
     });
     if (!sessionItem) throw new NotFoundException('Item non trouvé');
 
@@ -59,8 +59,8 @@ export class InventoryService {
     if (!session) {
       throw new NotFoundException('Pas de session de jeu active');
     }
-    const sessionItem = await (this.prisma as any).sessionItem.findUnique({
-      where: { sessionId_playerId_itemId: { sessionId: session.id, playerId, itemId } },
+    const sessionItem = await (this.prisma as any).sessionItem.findFirst({
+      where: { sessionId: session.id, playerId, itemId },
     });
     if (!sessionItem) throw new NotFoundException('Item non trouvé');
 
@@ -81,8 +81,8 @@ export class InventoryService {
 
     const session = await this.gameSession.getActiveSession(playerId);
     if (session) {
-      const existingSessionItem = await (this.prisma as any).sessionItem.findUnique({
-        where: { sessionId_playerId_itemId: { sessionId: session.id, playerId, itemId: item.id } },
+      const existingSessionItem = await (this.prisma as any).sessionItem.findFirst({
+        where: { sessionId: session.id, playerId, itemId: item.id },
       });
 
       if (existingSessionItem) {

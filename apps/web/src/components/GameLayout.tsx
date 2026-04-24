@@ -17,6 +17,7 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
   const { activeSession } = useGameSession();
 
   const isCombatPage = location.pathname.startsWith('/combat');
+  const isFarmingPage = location.pathname.startsWith('/farming');
 
   const spendableGold = activeSession 
     ? (getSessionPo(activeSession, player?.id) ?? 0) 
@@ -39,10 +40,11 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className={`game-layout ${location.pathname === '/' ? 'in-lobby' : ''}`}>
+    <div className={`game-layout ${location.pathname === '/' ? 'in-lobby' : ''} ${(isCombatPage || isFarmingPage) ? 'no-navbar' : ''}`}>
       {!isCombatPage && <GlobalBackground />}
       
-      <nav className="game-navbar">
+      {!isCombatPage && !isFarmingPage && (
+        <nav className="game-navbar">
         <div className="nav-logo" onClick={() => navigate('/')}>
           ⚔️ Moyenax
         </div>
@@ -70,7 +72,8 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
             🚪
           </button>
         </div>
-      </nav>
+        </nav>
+      )}
       
       <main className="game-content">
         {children}

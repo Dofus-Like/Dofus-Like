@@ -1,6 +1,7 @@
 import { CameraControls, OrthographicCamera } from '@react-three/drei';
 import CameraControlsImpl from 'camera-controls';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
+import * as THREE from 'three';
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UnifiedMapScene } from '../game/UnifiedMap/UnifiedMapScene';
@@ -9,28 +10,29 @@ import { gameSessionApi } from '../api/game-session.api';
 import { useAuthStore } from '../store/auth.store';
 import { useFarmingStore } from '../store/farming.store';
 import { useGameSession } from './GameTunnel';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { inventoryApi } from '../api/inventory.api';
+import { equipmentApi } from '../api/equipment.api';
+import { shopApi } from '../api/shop.api';
+import { craftingApi } from '../api/crafting.api';
 import {
   type PathNode,
   type SeedId,
   findPath,
   findPathToAdjacent,
-  SEED_CONFIGS,
-  TERRAIN_LABELS,
-  TerrainType,
   TERRAIN_PROPERTIES,
+  TerrainType,
 } from '@game/shared-types';
+import { getItemVisualMeta } from '../utils/itemVisual';
+import { getResourceIconPath } from '../utils/resourceIcons';
+import { FarmingSidebar } from '../components/Farming/FarmingSidebar';
+import { FarmingTopBar } from '../components/Farming/FarmingTopBar';
+import { SpellBar, SpellBarItem } from '../components/SpellBar/SpellBar';
+import { PortraitPawn } from '../components/PortraitPawn';
+import { playerApi } from '../api/player.api';
+import { CombatBackgroundShader } from '../game/Combat/CombatBackgroundShader';
+import { CameraEffects } from '../game/Combat/CameraEffects';
 import './ResourceMapPage.css';
-
-const LEGEND_ITEMS = [
-  { key: 'ground', label: 'Sol', className: 'legend-ground' },
-  { key: 'iron', label: 'Fer', className: 'legend-iron' },
-  { key: 'leather', label: 'Cuir', className: 'legend-leather' },
-  { key: 'crystal', label: 'Cristal', className: 'legend-crystal' },
-  { key: 'fabric', label: 'Etoffe', className: 'legend-fabric' },
-  { key: 'wood', label: 'Bois', className: 'legend-wood' },
-  { key: 'herb', label: 'Herbe', className: 'legend-herb' },
-  { key: 'gold', label: 'Or', className: 'legend-gold' },
-] as const;
 
 function findSpawnPosition(grid: TerrainType[][]): PathNode {
   for (let y = 0; y < grid.length; y += 1) {
@@ -40,12 +42,24 @@ function findSpawnPosition(grid: TerrainType[][]): PathNode {
       }
     }
   }
-
   return { x: 0, y: 0 };
+}
+
+function CameraSync({ zoom, x, y }: { zoom: number; x: number; y: number }) {
+  const { camera } = useThree();
+  useEffect(() => {
+    if (camera instanceof THREE.OrthographicCamera) {
+      camera.zoom = zoom;
+      camera.position.set(x, y, 10);
+      camera.updateProjectionMatrix();
+    }
+  }, [camera, zoom, x, y]);
+  return null;
 }
 
 export function FarmingPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const player = useAuthStore((s) => s.player);
   const refreshPlayer = useAuthStore((s) => s.refreshPlayer);
@@ -59,594 +73,476 @@ export function FarmingPage() {
   const [isCameraMoving, setIsCameraMoving] = useState(false);
   const [isReadyToRender, setIsReadyToRender] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isAttackingPortrait, setIsAttackingPortrait] = useState(false);
+  const [portraitZoom, setPortraitZoom] = useState(103);
+  const [portraitX, setPortraitX] = useState(0.02);
+  const [portraitY, setPortraitY] = useState(0.05);
   const isActionInProgressRef = useRef(false);
-  const [queuedAction, setQueuedAction] = useState<{ type: 'gather'; x: number; y: number } | null>(
-    null,
-  );
-
-  React.useEffect(() => {
-    // Reset internal locks on mount to prevent stale states
-    isActionInProgressRef.current = false;
-    void refreshSession({ silent: true });
-
-    // Délai pour laisser le temps au GPU de nettoyer les anciens contextes (ex: CombatPage)
-    const timer = setTimeout(() => setIsReadyToRender(true), 800);
-    return () => clearTimeout(timer);
-  }, []);
-  const [actionMessage, setActionMessage] = useState<{ text: string; type: 'info' | 'error' } | null>(
-    null,
-  );
-  const [controls, setControls] = useState<CameraControlsImpl | null>(null);
-  const [isGathering, setIsGathering] = useState(false);
+  const [queuedAction, setQueuedAction] = useState<{ type: 'gather'; x: number; y: number } | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const map = useFarmingStore((s) => s.map);
   const playerPosition = useFarmingStore((s) => s.playerPosition);
   const movePlayer = useFarmingStore((s) => s.movePlayer);
-  const inventory = useFarmingStore((s) => s.inventory);
-  const fetchState = useFarmingStore((s) => s.fetchState);
   const gatherNode = useFarmingStore((s) => s.gatherNode);
   const round = useFarmingStore((s) => s.round);
   const pips = useFarmingStore((s) => s.pips);
-  const [isTransitioningToCrafting, setIsTransitioningToCrafting] = useState(false);
+  const inventoryCounts = useFarmingStore((s) => s.inventory);
+  const fetchState = useFarmingStore((s) => s.fetchState);
 
-  const showActionMessage = useCallback((text: string, type: 'info' | 'error' = 'error') => {
-    setActionMessage({ text, type });
-  }, []);
+  const [controls, setControls] = useState<CameraControlsImpl | null>(null);
+  const [isGathering, setIsGathering] = useState(false);
+  const [actionMessage, setActionMessage] = useState<{ text: string; type: 'info' | 'error' } | null>(null);
 
-  useEffect(() => {
-    if (!actionMessage) {
-      return;
-    }
+  // -- Data Fetching --
+  const { data: inventoryData } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: () => inventoryApi.getInventory(),
+  });
 
-    const timer = window.setTimeout(() => setActionMessage(null), 2600);
-    return () => window.clearTimeout(timer);
-  }, [actionMessage]);
+  const { data: spellData } = useQuery({
+    queryKey: ['player-spells'],
+    queryFn: () => playerApi.getSpells(),
+  });
 
-  const seedConfig = useMemo(() => {
-    if (!map) {
-      return null;
-    }
+  const { data: equipmentData } = useQuery({
+    queryKey: ['equipment'],
+    queryFn: () => equipmentApi.getEquipment(),
+  });
 
-    return SEED_CONFIGS[map.seedId as SeedId] ?? null;
-  }, [map]);
+  const { data: shopItemsData } = useQuery({
+    queryKey: ['shop-items'],
+    queryFn: () => shopApi.getItems(),
+  });
 
-  const filteredLegend = useMemo(() => {
-    if (!seedConfig) return LEGEND_ITEMS;
-    return LEGEND_ITEMS.filter((item) => {
-      if (item.key === 'ground') return true;
-      const terrainType = item.key.toUpperCase() as TerrainType;
-      return seedConfig.resources.includes(terrainType);
-    });
-  }, [seedConfig]);
-
-  const currentPlayerPos = useMemo(() => {
-    if (playerPosition) {
-      return playerPosition;
-    }
-
-    if (map) {
-      return findSpawnPosition(map.grid);
-    }
-
-    return { x: 0, y: 0 };
-  }, [map, playerPosition]);
-
-  useEffect(() => {
-    void fetchState();
-  }, [fetchState]);
-
-  useEffect(() => {
-    if (!controls) {
-      return;
-    }
-
-    let timeoutId: number | undefined;
-
-    const start = () => {
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-      setIsCameraMoving(true);
-    };
-
-    const end = () => {
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-      timeoutId = window.setTimeout(() => setIsCameraMoving(false), 300);
-    };
-
-    const immediateEnd = () => {
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-      setIsCameraMoving(false);
-    };
-
-    controls.addEventListener('controlstart', start);
-    controls.addEventListener('controlend', end);
-    controls.addEventListener('rest', immediateEnd);
-    controls.mouseButtons.left = CameraControlsImpl.ACTION.NONE;
-    controls.mouseButtons.right = CameraControlsImpl.ACTION.TRUCK;
-
-    return () => {
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-      controls.removeEventListener('controlstart', start);
-      controls.removeEventListener('controlend', end);
-      controls.removeEventListener('rest', immediateEnd);
-    };
-  }, [controls]);
-
-  useEffect(() => {
-    if (map && !playerPosition) {
-      movePlayer(findSpawnPosition(map.grid));
-    }
-  }, [map, movePlayer, playerPosition]);
-
-  const syncSpendableGold = useCallback(async () => {
-    if (activeSession) {
-      await refreshSession({ silent: true });
-      return;
-    }
-
-    await refreshPlayer();
-  }, [activeSession, refreshPlayer, refreshSession]);
-
-  const performGather = useCallback(
-    async (x: number, y: number) => {
-      if (isGathering) return;
-      setIsGathering(true);
-      try {
-        const previousPips = useFarmingStore.getState().pips;
-        const nextState = await gatherNode(x, y);
-        if (activeSession) {
-          await refreshSession({ silent: true });
-          return;
-        }
-        await refreshPlayer();
-
-        if (!nextState || isDebugMode || previousPips <= 0 || nextState.pips !== 0 || isTransitioningToCrafting) {
-          return;
-        }
-
-        setIsTransitioningToCrafting(true);
-        navigate('/crafting');
-      } finally {
-        setIsGathering(false);
-      }
+  const equipMutation = useMutation({
+    mutationFn: ({ slot, id }: { slot: any; id: string }) => equipmentApi.equip(slot, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['equipment'] });
+      queryClient.invalidateQueries({ queryKey: ['player-spells'] });
     },
-    [gatherNode, isDebugMode, isTransitioningToCrafting, navigate, syncSpendableGold, isGathering, activeSession, refreshSession, refreshPlayer],
-  );
+  });
 
-  const previewPath = useMemo(() => {
-    if (!map || !hoverInfo) {
-      return [];
-    }
+  // -- Mappings --
+  const mappedInventory = useMemo(() => {
+    return (inventoryData?.data || []).map((inv: any) => ({
+      ...inv,
+      name: inv.item.name,
+      ...getItemVisualMeta(inv.item),
+    }));
+  }, [inventoryData]);
 
-    const target = { x: hoverInfo.x, y: hoverInfo.y };
-    if (target.x === currentPlayerPos.x && target.y === currentPlayerPos.y) {
-      return [];
-    }
+  const mappedForgeItems = useMemo(() => {
+    return (shopItemsData?.data || [])
+      .filter((item: any) => item.craftCost != null)
+      .map((item: any) => ({
+        ...item,
+        ...getItemVisualMeta(item),
+      }));
+  }, [shopItemsData]);
 
-    if (TERRAIN_PROPERTIES[hoverInfo.terrain].harvestable) {
-      return findPathToAdjacent(map, currentPlayerPos, target) ?? [];
-    }
+  const mappedShopItems = useMemo(() => {
+    return (shopItemsData?.data || [])
+      .filter((item: any) => item.shopPrice != null)
+      .map((item: any) => ({
+        ...item,
+        ...getItemVisualMeta(item),
+      }));
+  }, [shopItemsData]);
 
-    if (!TERRAIN_PROPERTIES[hoverInfo.terrain].traversable) {
-      return [];
-    }
-
-    return findPath(map, currentPlayerPos, target) ?? [];
-  }, [currentPlayerPos, hoverInfo, map]);
-
-  const handleTileClick = useCallback(
-    (x: number, y: number, terrain: TerrainType) => {
-      if (!map) {
-        return;
-      }
-
-      if (x === currentPlayerPos.x && y === currentPlayerPos.y) {
-        return;
-      }
-
-      const props = TERRAIN_PROPERTIES[terrain];
-      const isAdjacent = Math.abs(currentPlayerPos.x - x) + Math.abs(currentPlayerPos.y - y) <= 1;
-
-      if (props.harvestable) {
-        if (isAdjacent) {
-          void performGather(x, y).catch((error) => {
-            console.error(error);
-            showActionMessage('Recolte impossible sur cette case.', 'error');
-          });
-          return;
-        }
-
-        const adjacentTiles = [
-          { x: x + 1, y },
-          { x: x - 1, y },
-          { x, y: y + 1 },
-          { x, y: y - 1 },
-        ].filter(
-          (tile) =>
-            tile.x >= 0 &&
-            tile.x < map.width &&
-            tile.y >= 0 &&
-            tile.y < map.height &&
-            TERRAIN_PROPERTIES[map.grid[tile.y][tile.x]].traversable,
-        );
-
-        if (adjacentTiles.length === 0) {
-          showActionMessage('Aucune case accessible autour de cette ressource.', 'error');
-          return;
-        }
-
-        const closestTile = adjacentTiles.reduce((prev, curr) => {
-          const prevDistance = Math.abs(prev.x - currentPlayerPos.x) + Math.abs(prev.y - currentPlayerPos.y);
-          const currDistance = Math.abs(curr.x - currentPlayerPos.x) + Math.abs(curr.y - currentPlayerPos.y);
-          return currDistance < prevDistance ? curr : prev;
-        }, adjacentTiles[0]);
-
-        const bestPath = findPath(map, currentPlayerPos, closestTile);
-        if (!bestPath || bestPath.length === 0) {
-          showActionMessage('Aucun chemin valide vers cette ressource.', 'error');
-          return;
-        }
-
-        setMovePath(bestPath);
-        setQueuedAction({ type: 'gather', x, y });
-        setIsMoving(true);
-        return;
-      }
-
-      if (!props.traversable) {
-        return;
-      }
-
-      const path = findPath(map, currentPlayerPos, { x, y });
-      if (!path || path.length === 0) {
-        return;
-      }
-
-      setMovePath(path);
-      setQueuedAction(null);
-      setIsMoving(true);
-    },
-    [currentPlayerPos, map, performGather, showActionMessage],
-  );
-
-  const handleTileReached = useCallback((node: PathNode) => {
-    movePlayer(node);
-  }, [movePlayer]);
-
-  const handlePathComplete = useCallback(() => {
-    if (movePath && movePath.length > 0) {
-      const last = movePath[movePath.length - 1];
-      movePlayer({ x: last.x, y: last.y });
-
-      if (queuedAction?.type === 'gather') {
-        void performGather(queuedAction.x, queuedAction.y).catch((error) => {
-          console.error(error);
-          showActionMessage('Recolte impossible apres deplacement.', 'error');
-        });
-      }
-    }
-
-    setMovePath(null);
-    setQueuedAction(null);
-    setIsMoving(false);
-  }, [movePath, movePlayer, performGather, queuedAction, showActionMessage]);
-
-  const handleTileHover = useCallback((info: { x: number; y: number; terrain: TerrainType } | null) => {
-    setHoverInfo(info);
-  }, []);
-
-
-  const handleEndSession = useCallback(async () => {
-    if (!activeSession) {
-      return;
-    }
-
-    const ok = window.confirm(
-      'Etes-vous sur de vouloir abandonner la partie ? Cela mettra fin au match pour tous les joueurs.',
-    );
-
-    if (!ok) {
-      return;
-    }
-
-    // Abandonner should NEVER be blocked by other actions, as it's an emergency escape
-    // if (isActionInProgressRef.current) return; 
-
+  const handleBuy = useCallback(async (item: any) => {
     try {
-      isActionInProgressRef.current = true;
-      setIsTransitioning(true);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
-      
-      await gameSessionApi.endSession(activeSession.id);
-      clearTimeout(timeoutId);
-      
-      await refreshSession({ silent: true });
-      navigate('/');
-    } catch (error) {
-      console.error('Erreur fin de session:', error);
-      showActionMessage("Impossible d'abandonner. Redirection forcée...", 'error');
-      setTimeout(() => navigate('/'), 1500);
-    } finally {
-      setIsTransitioning(false);
-      isActionInProgressRef.current = false;
+      await shopApi.buyItem({ itemId: item.id, quantity: 1 });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      refreshPlayer();
+      setActionMessage({ text: `${item.name} acheté !`, type: 'info' });
+    } catch (e) {
+      setActionMessage({ text: "Pièces insuffisantes", type: 'error' });
     }
-  }, [activeSession, navigate, refreshSession]);
+  }, [queryClient, refreshPlayer]);
+
+  const mappedSpells = useMemo((): SpellBarItem[] => {
+    console.log('FarmingPage: spellData', spellData);
+    return (spellData || []).map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      iconPath: s.iconPath,
+      paCost: s.paCost,
+      family: s.family,
+      sortOrder: s.sortOrder,
+    }));
+  }, [spellData]);
+
+  const mappedEquipment = useMemo(() => {
+    const eq = equipmentData?.data || {};
+    const result: any = {};
+    Object.entries(eq).forEach(([slot, invItem]: [string, any]) => {
+      if (invItem && invItem.item) {
+        result[slot] = {
+          ...invItem.item,
+          id: invItem.id, // The inventory item ID
+          ...getItemVisualMeta(invItem.item),
+        };
+      }
+    });
+    
+    return {
+       head: result.ARMOR_HEAD,
+       amulet: result.ACCESSORY,
+       weaponLeft: result.WEAPON_LEFT,
+       weaponRight: result.WEAPON_RIGHT,
+       chest: result.ARMOR_CHEST,
+       feet: result.ARMOR_LEGS,
+       ring1: result.RING1,
+       ring2: result.RING2
+    };
+  }, [equipmentData]);
+
+  // -- Handlers --
+  const handleEquip = useCallback(async (inv: any) => {
+    if (!inv || !inv.item) return;
+    
+    // Check if already equipped in ANY slot
+    const equippedSlot = Object.entries(equipmentData?.data || {}).find(
+      ([, eqItem]) => (eqItem as any)?.id === inv.id
+    )?.[0];
+
+    if (equippedSlot) {
+      await equipmentApi.unequip(equippedSlot as any);
+    } else {
+      let slot: any = null;
+      const type = inv.item.type;
+      
+      if (type === 'WEAPON') {
+        const hasRight = !!equipmentData?.data?.WEAPON_RIGHT;
+        const hasLeft = !!equipmentData?.data?.WEAPON_LEFT;
+        
+        if (!hasRight) slot = 'WEAPON_RIGHT';
+        else if (!hasLeft) slot = 'WEAPON_LEFT';
+        else {
+          setActionMessage({ text: "Vous avez déjà 2 armes équipées", type: 'error' });
+          return;
+        }
+      } 
+      else if (type === 'ARMOR_HEAD') slot = 'ARMOR_HEAD';
+      else if (type === 'ARMOR_CHEST') slot = 'ARMOR_CHEST';
+      else if (type === 'ARMOR_LEGS') slot = 'ARMOR_LEGS';
+      else if (type === 'ACCESSORY') slot = 'ACCESSORY';
+      
+      if (slot) await equipmentApi.equip(slot, inv.id);
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    queryClient.invalidateQueries({ queryKey: ['equipment'] });
+    queryClient.invalidateQueries({ queryKey: ['player-spells'] });
+    refreshPlayer();
+  }, [equipmentData, queryClient, refreshPlayer]);
+
+  const handleUnequip = useCallback(async (slot: any) => {
+    if (!slot) return;
+    await equipmentApi.unequip(slot);
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    queryClient.invalidateQueries({ queryKey: ['equipment'] });
+    queryClient.invalidateQueries({ queryKey: ['player-spells'] });
+    refreshPlayer();
+  }, [queryClient, refreshPlayer]);
+
+  const handleCraft = useCallback(async (item: any) => {
+    try {
+      await craftingApi.craftItem(item.id);
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      refreshPlayer();
+      setActionMessage({ text: `${item.name} forgé !`, type: 'info' });
+    } catch (e: any) {
+      const errorMsg = e.response?.data?.message || "Ressources insuffisantes";
+      setActionMessage({ text: errorMsg, type: 'error' });
+    }
+  }, [queryClient, refreshPlayer]);
 
   const handleToggleReady = useCallback(async () => {
     if (!activeSession) return;
-    if (isActionInProgressRef.current) {
-      console.log("[FarmingPage] Action already in progress, skipping.");
-      return;
-    }
-
+    if (isActionInProgressRef.current) return;
     try {
       isActionInProgressRef.current = true;
       setIsTransitioning(true);
-      
-      const isReady =
-        activeSession.player1Id === currentPlayerId ? activeSession.player1Ready : activeSession.player2Ready;
-      
-      console.log(`[FarmingPage] Toggling ready to ${!isReady}`);
+      const isReady = activeSession.player1Id === currentPlayerId ? activeSession.player1Ready : activeSession.player2Ready;
       const { data: updated } = await gameSessionApi.toggleReady(!isReady, activeSession.id);
-      
-      // We use a small delay here to let the state settle before checking for navigation
       if (updated.phase === 'FIGHTING' && updated.combats?.[0]) {
         const latestCombat = updated.combats[0];
-        if (latestCombat.status === 'ACTIVE' || latestCombat.status === 'WAITING') {
-          console.log(`[FarmingPage] Combat detected in response, navigating to /combat/${latestCombat.id}`);
-          navigate(`/combat/${latestCombat.id}`);
-          return;
-        }
+        navigate(`/combat/${latestCombat.id}`);
+        return;
       }
-      
       await refreshSession({ silent: true });
-    } catch (error) {
-      console.error("[FarmingPage] Error toggling ready:", error);
-      showActionMessage("Erreur lors du changement d'état prêt", 'error');
     } finally {
       setIsTransitioning(false);
       isActionInProgressRef.current = false;
     }
   }, [activeSession, currentPlayerId, refreshSession, navigate]);
 
-  // -- Phase monitoring --
-  useEffect(() => {
+  const handleEndSession = useCallback(async () => {
     if (!activeSession) return;
-    
-    if (activeSession.phase !== 'FIGHTING') return;
-
-    const latestCombat = activeSession.combats?.[0];
-    if (!latestCombat) return;
-
-    console.log(`[FarmingPage] Monitor: Phase is FIGHTING. Latest combat: ${latestCombat.id}, status: ${latestCombat.status}`);
-    
-    // On redirige seulement si le combat est encore valide et qu'on n'y est pas déjà
-    if ((latestCombat.status === 'ACTIVE' || latestCombat.status === 'WAITING') && 
-        window.location.pathname !== `/combat/${latestCombat.id}`) {
-      navigate(`/combat/${latestCombat.id}`);
+    if (!window.confirm('Abandonner la partie ?')) return;
+    try {
+      await gameSessionApi.endSession(activeSession.id);
+      navigate('/');
+    } catch (e) {
+      console.error(e);
+      navigate('/');
     }
-  }, [activeSession?.phase, activeSession?.combats?.[0]?.id, navigate]);
+  }, [activeSession, navigate]);
 
-  // -- Transition Safety: Always unlock if we are in FARMING phase --
+  const performGather = useCallback(async (x: number, y: number) => {
+    if (isGathering) return;
+    setIsGathering(true);
+    try {
+      await gatherNode(x, y);
+      await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    } finally {
+      setIsGathering(false);
+    }
+  }, [gatherNode, queryClient, isGathering]);
+
+  const handleTileClick = useCallback((x: number, y: number, terrain: TerrainType) => {
+    if (!map || isMoving) return;
+    const isAdjacent = Math.abs(playerPosition!.x - x) + Math.abs(playerPosition!.y - y) <= 1;
+    if (TERRAIN_PROPERTIES[terrain].harvestable) {
+      if (isAdjacent) { performGather(x, y); return; }
+      const path = findPathToAdjacent(map, playerPosition!, { x, y });
+      if (path) { setMovePath(path); setQueuedAction({ type: 'gather', x, y }); setIsMoving(true); }
+    } else if (TERRAIN_PROPERTIES[terrain].traversable) {
+      const path = findPath(map, playerPosition!, { x, y });
+      if (path) { setMovePath(path); setIsMoving(true); }
+    }
+  }, [map, playerPosition, isMoving, performGather]);
+
   useEffect(() => {
-    if (activeSession?.phase === 'FARMING') {
-      if (isActionInProgressRef.current) {
-        console.log("[FarmingPage] Phase changed to FARMING. Unlocking UI.");
-        isActionInProgressRef.current = false;
-        setIsTransitioning(false);
-      }
+    // Force spell sync on mount
+    playerApi.getSpells().then(data => {
+      console.log('Initial Spells Sync:', data);
+      queryClient.invalidateQueries({ queryKey: ['player-spells'] });
+    });
+  }, [queryClient]);
+
+  const handlePathComplete = useCallback(() => {
+    if (movePath && movePath.length > 0) {
+      const last = movePath[movePath.length - 1];
+      movePlayer(last);
+      if (queuedAction?.type === 'gather') performGather(queuedAction.x, queuedAction.y);
     }
-  }, [activeSession?.phase]);
+    setMovePath(null); setQueuedAction(null); setIsMoving(false);
+  }, [movePath, movePlayer, performGather, queuedAction]);
+
+  // -- Lifecycle --
+  useEffect(() => {
+    void fetchState();
+    const timer = setTimeout(() => setIsReadyToRender(true), 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (map && !playerPosition) {
+      movePlayer(findSpawnPosition(map.grid));
+    }
+  }, [map, playerPosition, movePlayer]);
+
+  const handleTileHover = useCallback((info: { x: number; y: number; terrain: TerrainType } | null) => {
+    setHoverInfo(info);
+  }, []);
+
+  const previewPath = useMemo(() => {
+    if (!map || !hoverInfo || isMoving || !playerPosition) return [];
+    if (TERRAIN_PROPERTIES[hoverInfo.terrain].harvestable) {
+      return findPathToAdjacent(map, playerPosition, hoverInfo) || [];
+    }
+    if (TERRAIN_PROPERTIES[hoverInfo.terrain].traversable) {
+      return findPath(map, playerPosition, hoverInfo) || [];
+    }
+    return [];
+  }, [map, hoverInfo, isMoving, playerPosition]);
 
   const p1IsMe = activeSession?.player1Id === currentPlayerId;
   const amIReady = p1IsMe ? activeSession?.player1Ready : activeSession?.player2Ready;
-  const isOpponentReady = p1IsMe ? activeSession?.player2Ready : activeSession?.player1Ready;
-  const harvestProgress = useMemo(() => Array.from({ length: 4 }, (_, index) => index < pips), [pips]);
-
-
-  const totalResources = useMemo(
-    () => Object.values(inventory).reduce((sum, count) => Number(sum) + Number(count), 0),
-    [inventory],
-  );
-
-  const inventoryEntries = useMemo(() => Object.entries(inventory), [inventory]);
-  const primaryRound = activeSession?.currentRound ?? round;
-
-  const roundStatuses = useMemo(() => {
-    const statuses = Array(5).fill('pending');
-    if (!activeSession) return statuses;
-    
-    const sortedCombats = [...(activeSession.combats || [])].sort((a, b) => 
-      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-    
-    sortedCombats.forEach((combat, idx) => {
-      if (idx < 5 && combat.status === 'FINISHED') {
-        if (combat.winnerId === currentPlayerId) statuses[idx] = 'won';
-        else statuses[idx] = 'lost';
-      }
-    });
-    
-    return statuses;
-  }, [activeSession, currentPlayerId]);
 
   return (
-    <div className="resource-map-container">
+    <div className="farming-page-layout">
+      {/* ⚙️ Settings Overlay */}
+      {showSettings && (
+        <div className="settings-overlay" onClick={() => setShowSettings(false)}>
+          <div className="settings-menu" onClick={e => e.stopPropagation()}>
+            <h3>Options</h3>
+            <button className="menu-btn" onClick={() => navigate('/')}>Retour au Lobby</button>
+            <button className="menu-btn danger" onClick={handleEndSession}>Abandonner</button>
+            <button className="menu-btn close" onClick={() => setShowSettings(false)}>Fermer</button>
+          </div>
+        </div>
+      )}
 
-      <div className="resource-map-layout">
-        <aside className="resource-map-sidebar resource-map-sidebar--player">
-          <section className="resource-sidebar-card resource-sidebar-card--inventory">
-            <div className="resource-sidebar-card__header">
-              <span className="resource-sidebar-card__eyebrow">Sacoche</span>
-              <h3>Inventaire ({totalResources})</h3>
-            </div>
-            {inventoryEntries.length === 0 ? (
-              <p className="resource-sidebar-card__copy">Aucune ressource récoltée.</p>
-            ) : (
-              <ul className="resource-inventory-list">
-                {inventoryEntries.map(([resource, count]) => (
-                  <li key={resource}>
-                    <span>{resource}</span>
-                    <strong>{count}</strong>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+      {/* 🏷️ Top Utility Bar */}
+      <div className="top-left-utility">
+        <button className="gear-btn" onClick={() => setShowSettings(true)}>⚙️</button>
+        <div className="round-badge">ROUND {activeSession?.currentRound || round}/5</div>
+      </div>
 
-          <section className="resource-sidebar-card">
-            <div className="resource-sidebar-card__header">
-              <span className="resource-sidebar-card__eyebrow">Progression</span>
-              <h3>Récoltes</h3>
-            </div>
-            <div className="resource-pips" aria-hidden="true">
-              {harvestProgress.map((filled, index) => (
-                <span key={`pip-${index}`} className={`resource-pip ${filled ? 'is-filled' : ''}`} />
-              ))}
-            </div>
-            <p className="resource-sidebar-card__copy">{pips} / 4 récoltes</p>
-          </section>
-        </aside>
-
-        <section className="resource-map-stage">
-          {activeSession && (
-            <div className="round-history-bar">
-              {roundStatuses.map((status, index) => (
-                <div key={`round-${index}`} className={`round-step ${status} ${primaryRound === index + 1 ? 'current' : ''}`}>
-                  {primaryRound === index + 1 && <span className="current-arrow">▼</span>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {hoverInfo && (
-            <div className="floating-tile-tooltip">
-              <div className="tooltip-header">
-                <strong>{TERRAIN_LABELS[hoverInfo.terrain]}</strong>
-                <span className="coords">({hoverInfo.x}, {hoverInfo.y})</span>
-              </div>
-              <div className="tooltip-body">
-                {previewPath.length > 0 && <p className="distance">Distance: {previewPath.length} cases</p>}
-                {TERRAIN_PROPERTIES[hoverInfo.terrain].harvestable && (
-                  <p className="resource">Ressource: <strong>{TERRAIN_PROPERTIES[hoverInfo.terrain].resourceName}</strong></p>
-                )}
-                {!TERRAIN_PROPERTIES[hoverInfo.terrain].traversable && <p className="warning">Inaccessible</p>}
-              </div>
-            </div>
-          )}
-
-          {actionMessage && <div className={`map-action-toast ${actionMessage.type}`}>{actionMessage.text}</div>}
-          {!map && <div className="map-loading">Chargement de la carte...</div>}
-          {map && isReadyToRender && (
-            <div className="resource-map-canvas">
-              <Canvas key={`farming-canvas-${activeSession?.id || 'default'}`}>
-                <CanvasPerfOverlay />
-                <OrthographicCamera
-                  makeDefault
-                  position={[15, 20, 15]}
-                  zoom={30}
-                  near={0.1}
-                  far={100}
+      {/* 📊 Tooltip Overlay */}
+      {hoverInfo && (
+        <div className="floating-tile-tooltip">
+          <div className="tooltip-header">
+            <strong>{hoverInfo.terrain}</strong>
+            <span className="coords">({hoverInfo.x}, {hoverInfo.y})</span>
+          </div>
+          <div className="tooltip-body">
+            {previewPath.length > 0 && <p className="distance">Distance: {previewPath.length} cases</p>}
+            {TERRAIN_PROPERTIES[hoverInfo.terrain].harvestable && (
+              <p className="resource">
+                Ressource: 
+                <img 
+                  src={getResourceIconPath(TERRAIN_PROPERTIES[hoverInfo.terrain].resourceName)} 
+                  alt="" 
+                  className="inline-res-icon" 
                 />
-                <CameraControls
-                  ref={setControls}
-                  makeDefault
-                  minZoom={15}
-                  maxZoom={80}
-                  dollyToCursor
-                  infinityDolly={false}
-                  minPolarAngle={0}
-                  maxPolarAngle={Math.PI / 2}
-                  onStart={() => setIsCameraMoving(true)}
-                />
-                <ambientLight intensity={0.5} />
-                <hemisphereLight args={['#87ceeb', '#654321', 0.6]} />
-                <directionalLight position={[10, 20, 10]} intensity={1.5} castShadow shadow-mapSize={[1024, 1024]} />
-                <color attach="background" args={['#0a0e17']} />
-                <Suspense fallback={null}>
-                  <UnifiedMapScene
-                    mode="farming"
-                    map={map}
-                    playerPosition={playerPosition ?? undefined}
-                    movePath={movePath}
-                    previewPath={previewPath}
-                    onPathComplete={handlePathComplete}
-                    onTileClick={handleTileClick}
-                    onTileHover={handleTileHover}
-                    onTileReached={handleTileReached}
-                    isCameraMoving={isCameraMoving}
-                    isMoving={isMoving}
-                  />
-                </Suspense>
-              </Canvas>
-            </div>
-          )}
-        </section>
-
-        <aside className="resource-map-sidebar resource-map-sidebar--map">
-          <section className="resource-sidebar-card">
-            <div className="resource-sidebar-card__header">
-              <span className="resource-sidebar-card__eyebrow">Ressources</span>
-              <h3>Légende</h3>
-            </div>
-            <ul className="resource-legend-list">
-              {filteredLegend.map((item) => (
-                <li key={item.key} className="resource-legend-item">
-                  <span className={`resource-legend-swatch ${item.className}`} />
-                  <span>{item.label}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {activeSession && activeSession.player2Id && (
-            <section className="resource-sidebar-card status-card">
-              <p className="resource-sidebar-card__copy">
-                {amIReady
-                  ? 'Prêt pour le combat.'
-                  : isOpponentReady
-                    ? 'Adversaire prêt !'
-                    : 'En attente des deux joueurs...'}
+                <strong>{TERRAIN_PROPERTIES[hoverInfo.terrain].resourceName}</strong>
               </p>
-            </section>
-          )}
-        </aside>
+            )}
+            {!TERRAIN_PROPERTIES[hoverInfo.terrain].traversable && <p className="warning">Inaccessible</p>}
+          </div>
+        </div>
+      )}
+
+      <div className="top-center-container">
+        <FarmingTopBar pips={pips} resources={inventoryCounts} />
       </div>
 
-      <div className="resource-map-floating-actions">
-        {activeSession && (
-          <button
-            className="resource-action-btn resource-action-btn--danger"
-            onClick={handleEndSession}
-            title="Quitter la session en cours"
+      {/* 🗺️ Main Viewport */}
+      <main className="farming-viewport">
+        {isReadyToRender && map && (
+          <Canvas
+            shadows
+            gl={{ antialias: true, alpha: true }}
+            dpr={[1, 2]}
+            camera={{ fov: 30 }}
           >
-            Abandonner
-          </button>
-        )}
+            <CanvasPerfOverlay />
+            <CombatBackgroundShader />
+            <OrthographicCamera 
+              makeDefault 
+              position={[20, 20, 20]} 
+              zoom={50} 
+              near={0.1} 
+              far={1000} 
+            />
+            <CameraControls 
+              ref={setControls} 
+              minZoom={15} 
+              maxZoom={80} 
+              dollyToCursor 
+              onRest={() => setIsCameraMoving(false)}
+              onStart={() => setIsCameraMoving(true)}
+            />
+            
+            <CameraEffects controlsRef={{ current: controls } as any} />
 
-        {activeSession && activeSession.player2Id && (
-          <button
-            className={`resource-action-btn resource-action-btn--accent ${amIReady && activeSession.phase === 'FARMING' ? 'is-ready' : ''} ${isTransitioning ? 'loading' : ''}`}
-            onClick={handleToggleReady}
-            disabled={isTransitioning}
-          >
-            {isTransitioning 
-              ? 'Lancement...' 
-              : activeSession.phase === 'FIGHTING' 
-                ? '⚔️ Rejoindre le combat' 
-                : amIReady ? 'Prêt !' : 'Se déclarer prêt'}
-          </button>
+            <ambientLight intensity={1.5} />
+            <directionalLight
+              position={[5, 10, 5]}
+              intensity={2}
+              castShadow
+              shadow-mapSize={[1024, 1024]}
+              shadow-camera-far={50}
+              shadow-camera-left={-10}
+              shadow-camera-right={10}
+              shadow-camera-top={10}
+              shadow-camera-bottom={-10}
+            />
+            
+            <Suspense fallback={null}>
+              <UnifiedMapScene
+                mode="farming"
+                map={map}
+                playerPosition={playerPosition ?? undefined}
+                movePath={movePath}
+                previewPath={previewPath}
+                onPathComplete={handlePathComplete}
+                onTileClick={handleTileClick}
+                onTileHover={handleTileHover}
+                onTileReached={movePlayer}
+                isCameraMoving={isCameraMoving}
+                isMoving={isMoving}
+              />
+            </Suspense>
+          </Canvas>
         )}
+      </main>
+
+      {/* 🎒 Right Sidebar */}
+      <FarmingSidebar 
+        inventory={mappedInventory} 
+        forgeItems={mappedForgeItems}
+        shopItems={mappedShopItems}
+        allItems={shopItemsData?.data || []}
+        equipment={mappedEquipment}
+        resources={inventoryCounts}
+        onEquip={handleEquip}
+        onUnequip={handleUnequip}
+        onCraft={handleCraft}
+        onBuy={handleBuy}
+      />
+
+      {/* 👤 Player Card & Ready Button */}
+      <div className="bottom-left-card">
+        <div className="player-portrait-card">
+          <div className="portrait-circle">
+            <Canvas 
+              orthographic 
+              dpr={1}
+              gl={{ 
+                alpha: true, 
+                antialias: false, 
+                premultipliedAlpha: false,
+                toneMapping: THREE.NoToneMapping
+              }}
+              onCreated={({ gl }) => {
+                gl.setClearColor(0x000000, 0);
+              }}
+            >
+              <CameraSync zoom={portraitZoom} x={portraitX} y={portraitY} />
+              <Suspense fallback={null}>
+                <PortraitPawn 
+                  skinId={player?.skin} 
+                  isAttacking={isAttackingPortrait}
+                  onAttackComplete={() => setIsAttackingPortrait(false)}
+                />
+              </Suspense>
+            </Canvas>
+          </div>
+          <div className="portrait-info">
+            <span className="player-name">{player?.username}</span>
+            <div className="mini-stats">
+               <span>❤️ 200</span>
+               <span>⚔️ 45</span>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* ⚔️ Action Bar */}
+      <div className="bottom-center-actions">
+        <SpellBar 
+          spells={mappedSpells} 
+          onSpellClick={(id) => {
+            console.log('Spell', id);
+            setIsAttackingPortrait(true);
+          }} 
+          onToggleMannequins={() => setShowSettings(true)}
+          onPassTurn={handleToggleReady}
+          passLabel={amIReady ? 'PRÊT ✓' : 'PRÊT !'}
+          isReadyMode={true}
+          canPassTurn={!isTransitioning}
+          disableGrimoire={true}
+        />
+      </div>
+
+      {actionMessage && <div className={`map-action-toast ${actionMessage.type}`}>{actionMessage.text}</div>}
     </div>
   );
 }

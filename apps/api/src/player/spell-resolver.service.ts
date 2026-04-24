@@ -28,6 +28,28 @@ export class SpellResolverService {
       }
     });
 
+    const normalize = (str: string) => 
+      str.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const normalizedItemNames = itemNames.map(normalize);
+
+    // 2.5 Spells par défaut par nom d'item (Fallback si pas en base)
+    const defaultGrants = [
+      { name: 'Épée', spellCode: 'spell-frappe' }, // spell-frappe = "Coup d'épée"
+      { name: 'Bouclier', spellCode: 'spell-endurance' },
+      { name: 'Bâton magique', spellCode: 'spell-boule-de-feu' },
+      { name: 'Grimoire', spellCode: 'spell-soin' },
+      { name: 'Kunaï', spellCode: 'spell-kunai' },
+      { name: 'Bombe ninja', spellCode: 'spell-bombe-repousse' },
+    ];
+
+    for (const grant of defaultGrants) {
+      if (normalizedItemNames.includes(normalize(grant.name))) {
+        const spell = allSpells.find((s) => s.code === grant.spellCode);
+        if (spell) counts[spell.id] = (counts[spell.id] || 0) + 1;
+      }
+    }
+
     // 3. Combos (T4.4.2)
     const comboPairs = [
       { items: ['Épée', 'Bouclier'], spellCode: 'spell-bond' },
@@ -36,7 +58,7 @@ export class SpellResolverService {
     ];
 
     for (const combo of comboPairs) {
-      if (combo.items.every((name) => itemNames.includes(name))) {
+      if (combo.items.every((name) => normalizedItemNames.includes(normalize(name)))) {
         const spell = allSpells.find((s) => s.code === combo.spellCode);
         if (spell) counts[spell.id] = (counts[spell.id] || 0) + 1;
       }
@@ -56,7 +78,7 @@ export class SpellResolverService {
     ];
 
     for (const set of families) {
-      if (set.items.every((name) => itemNames.includes(name))) {
+      if (set.items.every((name) => normalizedItemNames.includes(normalize(name)))) {
         const familySpells = allSpells.filter((s) => s.family === set.family);
         familySpells.forEach((s) => (counts[s.id] = (counts[s.id] || 0) + 1));
       }

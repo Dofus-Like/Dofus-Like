@@ -26,10 +26,8 @@ export class ResourcesService {
 
     const session = await this.gameSession.getActiveSession(playerId);
     if (session) {
-      const existingItem = await (this.prisma as any).sessionItem.findUnique({
-        where: {
-          sessionId_playerId_itemId: { sessionId: session.id, playerId, itemId: resourceId },
-        },
+      const existingItem = await (this.prisma as any).sessionItem.findFirst({
+        where: { sessionId: session.id, playerId, itemId: resourceId },
       });
 
       if (existingItem) {

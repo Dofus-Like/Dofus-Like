@@ -1,0 +1,189 @@
+.farming-hud-anchor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 100;
+  pointer-events: none;
+  margin-bottom: 20px;
+}
+
+.farming-hud-anchor * {
+  pointer-events: auto;
+}
+
+/* Shared glass surface */
+.glass {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.spell-bar.glass {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 14px 14px 10px;
+  position: relative;
+}
+
+.spell-bar-separator {
+  width: 1px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.15);
+  align-self: center;
+  margin: 0 4px;
+}
+
+.spell-card {
+  position: relative;
+  width: 62px;
+  height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.spell-card.has-spell:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.spell-card.empty {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.05);
+  cursor: default;
+}
+
+.spell-card.active {
+  background: rgba(147, 51, 234, 0.18);
+  border-color: #a855f7;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.35);
+}
+
+.spell-index-badge {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.6rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.spell-pa-cost {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  background: linear-gradient(135deg, #c084fc, #7e22ce);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  z-index: 2;
+}
+
+.spell-icon-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.spell-name {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1;
+  max-width: 54px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spell-hover-tag {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.spell-bar-action {
+  align-self: center;
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  color: #fff;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spell-bar-action:hover {
+  transform: translateY(-2px);
+  background: rgba(168, 85, 247, 0.2);
+}
+
+.spell-bar-action.grimoire {
+  width: 44px;
+  height: 44px;
+  font-size: 1.1rem;
+}
+
+.spell-bar-action.pass {
+  padding: 10px 16px;
+  height: 44px;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pass-icon {
+  font-size: 0.9rem;
+}
+
+.spell-bar-action.pass.ready {
+  background: rgba(168, 85, 247, 0.22);
+  border-color: #a855f7;
+  box-shadow: 0 4px 16px rgba(168, 85, 247, 0.35);
+}
