@@ -1,11 +1,15 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCombatStore } from '../../store/combat.store';
-import { useAuthStore } from '../../store/auth.store';
-import { useGameSession } from '../../pages/GameTunnel';
-import { combatApi } from '../../api/combat.api';
+
 import { CombatActionType, SpellFamily } from '@game/shared-types';
+
+import { combatApi } from '../../api/combat.api';
+import { SpellBar, type SpellBarItem } from '../../components/SpellBar/SpellBar';
+import { useGameSession } from '../../pages/GameTunnel';
+import { useAuthStore } from '../../store/auth.store';
+import { useCombatStore } from '../../store/combat.store';
 import { CombatPlayerPanel } from './CombatPlayerPanel';
+
 import './CombatHUD.css';
 
 const SPELL_FAMILY_ORDER: Record<SpellFamily, number> = {
@@ -14,10 +18,6 @@ const SPELL_FAMILY_ORDER: Record<SpellFamily, number> = {
   [SpellFamily.MAGE]: 3,
   [SpellFamily.NINJA]: 4,
 };
-
-function toFamilyClassName(family: SpellFamily | null | undefined) {
-  return `family-${(family ?? SpellFamily.COMMON).toLowerCase()}`;
-}
 
 function getCombatErrorMessage(error: unknown, fallback: string) {
   if (
@@ -48,7 +48,7 @@ export function CombatHUD() {
   const disconnect = useCombatStore((s) => s.disconnect);
   const uiMessage = useCombatStore((s) => s.uiMessage);
   const setUiMessage = useCombatStore((s) => s.setUiMessage);
-  const [hoveredSpellId, setHoveredSpellId] = React.useState<string | null>(null);
+  
   const user = useAuthStore((s) => s.player);
   const navigate = useNavigate();
   const { activeSession } = useGameSession();
@@ -83,6 +83,21 @@ export function CombatHUD() {
     if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
     return a.name.localeCompare(b.name);
   });
+
+  const mappedSpellItems: SpellBarItem[] = sortedSpells.map(s => ({
+    id: s.id,
+    name: s.name,
+    description: s.description,
+    iconPath: s.iconPath,
+    paCost: s.paCost,
+    family: s.family,
+    sortOrder: s.sortOrder,
+    cooldown: currentPlayer.spellCooldowns[s.id],
+    damage: s.damage,
+    effectKind: s.effectKind,
+    minRange: s.minRange,
+    maxRange: s.maxRange,
+  }));
 
   const handleEndTurn = async () => {
     if (!sessionId || !isMyTurn) return;
@@ -151,70 +166,18 @@ export function CombatHUD() {
 
       {/* BOTTOM CENTER: SPELLS */}
       <div className="hud-bottom-anchor">
-        <div className="spell-bar glass">
-          {sortedSpells.map((spell, index) => {
-            const onCooldown = (currentPlayer.spellCooldowns[spell.id] ?? 0) > 0;
-            const notEnoughPa = currentPlayer.remainingPa < spell.paCost;
-            const isActive = selectedSpellId === spell.id;
-            const disabled = !isMyTurn || onCooldown || notEnoughPa;
-            const familyClassName = toFamilyClassName(spell.family);
-            const isHovered = hoveredSpellId === spell.id;
-
-            return (
-              <div
-                key={spell.id}
-                className={`spell-card ${disabled ? 'disabled' : ''} ${isActive ? 'active' : ''} ${familyClassName}`}
-                onMouseEnter={() => setHoveredSpellId(spell.id)}
-                onMouseLeave={() => setHoveredSpellId(null)}
-                onClick={() => !disabled && setSelectedSpell(isActive ? null : spell.id)}
-              >
-                {isHovered && (
-                  <div className="spell-hover-tag">{spell.name}</div>
-                )}
-
-                <span className="spell-index-badge">{index + 1}</span>
-                <span className="spell-pa-cost">{spell.paCost}</span>
-
-                <img
-                  src={spell.iconPath ?? '/assets/pack/spells/epee.png'}
-                  className="spell-icon-img"
-                  alt={spell.name}
-                />
-                <span className="spell-name">{spell.name}</span>
-                {onCooldown && (
-                  <div className="spell-cooldown-overlay">
-                    <span className="spell-cooldown-value">{currentPlayer.spellCooldowns[spell.id]}</span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Separator */}
-          <div className="spell-bar-separator" />
-
-          {/* Grimoire / Equipment toggle */}
-          <button
-            type="button"
-            className={`spell-bar-action grimoire ${showMannequins ? 'active' : ''}`}
-            onClick={() => toggleShowMannequins()}
-            title="Grimoire / Équipement"
-          >
-            📖
-          </button>
-
-          {/* Passer = End turn */}
-          <button
-            type="button"
-            className={`spell-bar-action pass ${isMyTurn ? 'ready' : ''}`}
-            disabled={!isMyTurn}
-            onClick={handleEndTurn}
-            title="Passer le tour"
-          >
-            <span className="pass-icon">⏭</span>
-            <span className="pass-label">Passer</span>
-          </button>
-        </div>
+        <SpellBar 
+          spells={mappedSpellItems}
+          selectedSpellId={selectedSpellId}
+          onSpellClick={(id) => setSelectedSpell(id)}
+          remainingPa={currentPlayer.remainingPa}
+          isMyTurn={isMyTurn}
+          showMannequins={showMannequins}
+          onToggleMannequins={toggleShowMannequins}
+          onPassTurn={handleEndTurn}
+          attackerStats={currentPlayer.stats}
+          targetStats={enemyId ? combatState.players[enemyId]?.stats : undefined}
+        />
 
         {/* Targeting prompt when a spell is selected */}
         {selectedSpellId && (

@@ -75,8 +75,8 @@ export class CraftingService {
         }
       }
 
-      const existing = await tx.inventoryItem.findUnique({
-        where: { playerId_itemId_rank: { playerId, itemId, rank: 1 } },
+      const existing = await tx.inventoryItem.findFirst({
+        where: { playerId, itemId, rank: 1 },
       });
 
       if (existing) {
@@ -115,36 +115,62 @@ export class CraftingService {
       );
 
       for (const entry of costEntries.filter((candidate) => !candidate.usesSpendableGold)) {
-        const row = await (tx as any).sessionItem.findUnique({
-          where: {
-            sessionId_playerId_itemId: { sessionId, playerId, itemId: entry.itemId },
-          },
+        const sessionItem = await (tx as any).sessionItem.findFirst({
+          where: { sessionId, playerId, itemId: entry.itemId },
         });
 
-        if (!row || row.quantity < entry.quantity) {
+        const inventoryItem = await tx.inventoryItem.findFirst({
+          where: { playerId, itemId: entry.itemId, rank: 1 },
+        });
+
+        const totalAvailable = (sessionItem?.quantity || 0) + (inventoryItem?.quantity || 0);
+
+        if (totalAvailable < entry.quantity) {
           throw new BadRequestException(`Ressource insuffisante pour le craft`);
         }
       }
 
+      // Deduct resources: session first, then permanent inventory
       for (const entry of costEntries.filter((candidate) => !candidate.usesSpendableGold)) {
-        const row = await (tx as any).sessionItem.findUnique({
-          where: {
-            sessionId_playerId_itemId: { sessionId, playerId, itemId: entry.itemId },
-          },
+        let remainingToDeduct = entry.quantity;
+
+        const sessionItem = await (tx as any).sessionItem.findFirst({
+          where: { sessionId, playerId, itemId: entry.itemId },
         });
 
-        if (row.quantity === entry.quantity) {
-          await (tx as any).sessionItem.delete({ where: { id: row.id } });
-        } else {
-          await (tx as any).sessionItem.update({
-            where: { id: row.id },
-            data: { quantity: { decrement: entry.quantity } },
+        if (sessionItem) {
+          const amountFromSession = Math.min(sessionItem.quantity, remainingToDeduct);
+          if (amountFromSession === sessionItem.quantity) {
+            await (tx as any).sessionItem.delete({ where: { id: sessionItem.id } });
+          } else {
+            await (tx as any).sessionItem.update({
+              where: { id: sessionItem.id },
+              data: { quantity: { decrement: amountFromSession } },
+            });
+          }
+          remainingToDeduct -= amountFromSession;
+        }
+
+        if (remainingToDeduct > 0) {
+          const inventoryItem = await tx.inventoryItem.findFirst({
+            where: { playerId, itemId: entry.itemId, rank: 1 },
           });
+
+          if (inventoryItem) {
+            if (inventoryItem.quantity === remainingToDeduct) {
+              await tx.inventoryItem.delete({ where: { id: inventoryItem.id } });
+            } else {
+              await tx.inventoryItem.update({
+                where: { id: inventoryItem.id },
+                data: { quantity: { decrement: remainingToDeduct } },
+              });
+            }
+          }
         }
       }
 
-      const existing = await (tx as any).sessionItem.findUnique({
-        where: { sessionId_playerId_itemId: { sessionId, playerId, itemId } },
+      const existing = await (tx as any).sessionItem.findFirst({
+        where: { sessionId, playerId, itemId },
       });
 
       if (existing) {
@@ -174,8 +200,8 @@ export class CraftingService {
       throw new BadRequestException('Rang maximum déjà atteint');
     }
 
-    const inventoryItem = await this.prisma.inventoryItem.findUnique({
-      where: { playerId_itemId_rank: { playerId, itemId, rank: currentRank } },
+    const inventoryItem = await this.prisma.inventoryItem.findFirst({
+      where: { playerId, itemId, rank: currentRank },
     });
 
     if (!inventoryItem || inventoryItem.quantity < 2 || inventoryItem.rank !== currentRank) {
@@ -202,8 +228,8 @@ export class CraftingService {
 
       const nextRank = currentRank + 1;
 
-      const existingHighRank = await tx.inventoryItem.findUnique({
-        where: { playerId_itemId_rank: { playerId, itemId, rank: nextRank } },
+      const existingHighRank = await tx.inventoryItem.findFirst({
+        where: { playerId, itemId, rank: nextRank },
       });
 
       if (existingHighRank) {

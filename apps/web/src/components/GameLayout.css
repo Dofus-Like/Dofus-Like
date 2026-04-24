@@ -2,6 +2,11 @@
   min-height: 100vh;
   padding-top: 80px; /* Space for fixed navbar */
   background: #0f172a;
+  overflow: hidden; /* Prevent global scroll */
+}
+
+.game-layout.no-navbar {
+  padding-top: 0;
 }
 
 .game-navbar {
@@ -26,6 +31,7 @@
   font-weight: 900;
   background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   cursor: pointer;
 }

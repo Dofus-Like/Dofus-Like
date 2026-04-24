@@ -47,18 +47,21 @@ export class PlayerSpellProjectionService {
 
   async buildPlayerSpellAssignments(playerId: string) {
     const projectedSpells = await this.getProjectedSpellRows(playerId);
-
-    // Pour T4.4.4 (Comptage de sources), on va avoir besoin des sources brutes
     const sources = await this.getSpellSources(playerId);
 
-    return projectedSpells.map((spell) => {
+    const assignmentsMap = new Map<string, any>();
+
+    for (const spell of projectedSpells) {
       const level = Math.min(3, sources[spell.id] || 1);
-      return {
+      // Ensure each spellId is unique
+      assignmentsMap.set(spell.id, {
         playerId,
         spellId: spell.id,
         level,
-      };
-    });
+      });
+    }
+
+    return Array.from(assignmentsMap.values());
   }
 
   async syncPlayerSpells(playerId: string) {
@@ -81,22 +84,15 @@ export class PlayerSpellProjectionService {
   }
 
   async getCombatSpellDefinitions(playerId: string): Promise<SpellDefinition[]> {
-    let playerSpells = await this.prisma.playerSpell.findMany({
-      where: { playerId },
-      include: { spell: true },
-    });
+    // Always get fresh data from current equipment instead of relying on the potentially stale playerSpell table
+    const spellRows = await this.getProjectedSpellRows(playerId);
+    
+    // Optionally sync in background to keep the table updated for other systems
+    this.syncPlayerSpells(playerId).catch(err => 
+      console.error('PlayerSpellProjectionService: background sync failed', err)
+    );
 
-    if (playerSpells.length === 0) {
-      await this.syncPlayerSpells(playerId);
-      playerSpells = await this.prisma.playerSpell.findMany({
-        where: { playerId },
-        include: { spell: true },
-      });
-    }
-
-    return playerSpells
-      .map((entry) => entry.spell)
-      .sort((left, right) => this.compareSpellRows(left, right))
+    return spellRows
       .map((spell) => this.toCombatDefinition(spell));
   }
 

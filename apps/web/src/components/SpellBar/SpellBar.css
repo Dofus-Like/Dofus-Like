@@ -1,0 +1,385 @@
+/* Shared glass surface */
+.glass {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px; /* More rounded as in the screenshot */
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SPELL BAR
+   Extracted from CombatHUD.css
+═══════════════════════════════════════════════════════════════ */
+.spell-bar.glass {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  pointer-events: auto;
+  position: relative;
+}
+
+.spell-bar-separator {
+  width: 1px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.15);
+  align-self: center;
+  margin: 0 4px;
+}
+
+/* --- SPELL CARD --- */
+.spell-card {
+  position: relative;
+  width: 76px;
+  height: 92px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  overflow: visible; /* To allow badges to slightly pop out if needed, but let's keep it clean */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.spell-card:hover:not(.disabled) {
+  transform: translateY(-6px);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+}
+
+.spell-card.active {
+  background: rgba(96, 165, 250, 0.2);
+  border-color: #60a5fa;
+  box-shadow: 
+    0 0 25px rgba(96, 165, 250, 0.4),
+    inset 0 0 10px rgba(96, 165, 250, 0.2);
+  transform: translateY(-4px); /* Keep it slightly raised when active */
+}
+
+.spell-card.disabled {
+  opacity: 0.5;
+  filter: grayscale(0.9);
+  cursor: not-allowed;
+}
+
+/* --- ICON (FULL BLEED) --- */
+.spell-icon-img {
+  width: 100%;
+  height: 66px;
+  object-fit: cover;
+  background: #000;
+  display: block;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+}
+
+.spell-name {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #fff;
+  padding: 0 4px;
+  text-align: center;
+  background: rgba(2, 6, 23, 0.9);
+  line-height: 1.1;
+  word-break: break-word;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+}
+
+.spell-card.active .spell-name {
+  background: rgba(37, 99, 235, 0.8);
+  color: #fff;
+}
+
+/* --- BADGES (FLOATING OVER ICON) --- */
+.spell-index-badge {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+
+.spell-pa-cost {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  background: linear-gradient(135deg, #a855f7, #6b21cf);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.spell-card.active .spell-name {
+  color: #ffffff;
+}
+
+/* Cooldown overlay */
+.spell-cooldown-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spell-cooldown-value {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+/* --- Tooltip (Premium Glass) --- */
+.spell-tooltip {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+}
+
+.tooltip-title {
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tooltip-cost {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.tooltip-description {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+}
+
+.tooltip-calc-section {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tooltip-calc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.calc-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+}
+
+.calc-result {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #60a5fa;
+  text-shadow: 0 0 10px rgba(96, 165, 250, 0.3);
+}
+
+.tooltip-formula {
+  font-size: 0.65rem;
+  font-family: 'Courier New', Courier, monospace;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: right;
+}
+
+.tooltip-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 4px;
+}
+
+.tooltip-range {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tooltip-cooldown {
+  color: #f87171;
+}
+
+/* --- Actions (Grimoire & Passer) --- */
+.spell-bar-action {
+  align-self: center;
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  color: #fff;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spell-bar-action:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: rgba(96, 165, 250, 0.2);
+}
+
+.spell-bar-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.spell-bar-action.grimoire {
+  width: 44px;
+  height: 44px;
+  font-size: 1.1rem;
+}
+
+.spell-bar-action.grimoire.active {
+  background: rgba(96, 165, 250, 0.28);
+  border-color: #60a5fa;
+  box-shadow: 0 0 16px rgba(96, 165, 250, 0.35);
+}
+
+.spell-bar-action.pass {
+  padding: 10px 16px;
+  height: 44px;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.spell-bar-action.pass.ready {
+  background: rgba(96, 165, 250, 0.22);
+  border-color: #60a5fa;
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(96, 165, 250, 0.35);
+  animation: passPulse 2s ease-in-out infinite;
+}
+
+@keyframes passPulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(96, 165, 250, 0.3); }
+  50%      { box-shadow: 0 4px 24px rgba(96, 165, 250, 0.55); }
+}
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+  .spell-card {
+    width: 66px;
+    height: 80px;
+  }
+  .spell-icon-img {
+    height: 54px;
+  }
+}
+
+@media (max-width: 768px) {
+  .spell-bar.glass {
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .spell-card {
+    width: 60px;
+    height: 72px;
+    border-radius: 12px;
+  }
+
+  .spell-icon-img {
+    height: 48px;
+  }
+
+  .spell-name {
+    font-size: 0.5rem;
+    height: 20px;
+  }
+
+  .spell-bar-action.grimoire {
+    width: 38px;
+    height: 38px;
+    font-size: 1rem;
+  }
+
+  .spell-bar-action.pass {
+    height: 38px;
+    padding: 6px 10px;
+    font-size: 0.65rem;
+  }
+}
