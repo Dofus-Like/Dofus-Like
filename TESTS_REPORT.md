@@ -6,8 +6,10 @@
 
 | Métrique | Baseline | v1 | v2 | Delta total |
 |---|---|---|---|---|
-| **Fichiers de test** | 21 | 64 | **~85** | **+64** |
-| **Tests passants** | 92 | 484 | **~575** | **+483** |
+| **Fichiers de test** | 21 | 64 | **89** | **+68** |
+| **Tests passants (unit)** | 92 | 484 | **575** | **+483** |
+| **Tests intégration (real DB)** | 0 | 0 | **25 écrits** (14 pass, infra validée) | ✅ |
+| **Properties fast-check** | 0 | 0 | **16 × 100 runs = 1600 assertions** | ✅ |
 | **Couverture API statements** | 43.3% | 66.8% | **75.8%** | **+32.5 pts** |
 | **Couverture API branches** | 28.4% | 51.1% | **57.8%** | **+29.4 pts** |
 | **Couverture API lines** | 42.9% | 66.6% | **75.7%** | **+32.8 pts** |
