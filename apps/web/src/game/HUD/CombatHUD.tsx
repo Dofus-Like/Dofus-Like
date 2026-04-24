@@ -1,12 +1,15 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCombatStore } from '../../store/combat.store';
-import { useAuthStore } from '../../store/auth.store';
-import { useGameSession } from '../../pages/GameTunnel';
-import { combatApi } from '../../api/combat.api';
+
 import { CombatActionType, SpellFamily } from '@game/shared-types';
+
+import { combatApi } from '../../api/combat.api';
+import { SpellBar, type SpellBarItem } from '../../components/SpellBar/SpellBar';
+import { useGameSession } from '../../pages/GameTunnel';
+import { useAuthStore } from '../../store/auth.store';
+import { useCombatStore } from '../../store/combat.store';
 import { CombatPlayerPanel } from './CombatPlayerPanel';
-import { SpellBar, SpellBarItem } from '../../components/SpellBar/SpellBar';
+
 import './CombatHUD.css';
 
 const SPELL_FAMILY_ORDER: Record<SpellFamily, number> = {
@@ -84,11 +87,16 @@ export function CombatHUD() {
   const mappedSpellItems: SpellBarItem[] = sortedSpells.map(s => ({
     id: s.id,
     name: s.name,
+    description: s.description,
     iconPath: s.iconPath,
     paCost: s.paCost,
     family: s.family,
     sortOrder: s.sortOrder,
-    cooldown: currentPlayer.spellCooldowns[s.id]
+    cooldown: currentPlayer.spellCooldowns[s.id],
+    damage: s.damage,
+    effectKind: s.effectKind,
+    minRange: s.minRange,
+    maxRange: s.maxRange,
   }));
 
   const handleEndTurn = async () => {
@@ -167,6 +175,8 @@ export function CombatHUD() {
           showMannequins={showMannequins}
           onToggleMannequins={toggleShowMannequins}
           onPassTurn={handleEndTurn}
+          attackerStats={currentPlayer.stats}
+          targetStats={enemyId ? combatState.players[enemyId]?.stats : undefined}
         />
 
         {/* Targeting prompt when a spell is selected */}

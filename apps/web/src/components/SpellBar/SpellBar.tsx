@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { SpellFamily } from '@game/shared-types';
+import { SpellFamily, SpellEffectKind, PlayerStats } from '@game/shared-types';
 import './SpellBar.css';
 
 const SPELL_FAMILY_ORDER: Record<SpellFamily, number> = {
@@ -17,17 +17,24 @@ function toFamilyClassName(family: SpellFamily | null | undefined) {
 export interface SpellBarItem {
   id: string;
   name: string;
+  description?: string | null;
   iconPath?: string | null;
   paCost: number;
   family: SpellFamily;
   sortOrder: number;
   cooldown?: number;
+  damage?: { min: number; max: number };
+  effectKind?: SpellEffectKind;
+  minRange?: number;
+  maxRange?: number;
 }
 
 interface SpellBarProps {
   spells: SpellBarItem[];
   selectedSpellId?: string | null;
   onSpellClick: (id: string) => void;
+  attackerStats?: PlayerStats;
+  targetStats?: PlayerStats;
   remainingPa?: number;
   isMyTurn?: boolean;
   showMannequins?: boolean;
@@ -40,10 +47,85 @@ interface SpellBarProps {
   disableGrimoire?: boolean;
 }
 
+const SpellTooltip = ({ 
+  spell, 
+  attackerStats, 
+  targetStats 
+}: { 
+  spell: SpellBarItem; 
+  attackerStats?: PlayerStats; 
+  targetStats?: PlayerStats;
+}) => {
+  const isMagical = spell.effectKind === SpellEffectKind.DAMAGE_MAGICAL;
+  const isHeal = spell.effectKind === SpellEffectKind.HEAL;
+  const isDamage = spell.effectKind === SpellEffectKind.DAMAGE_PHYSICAL || isMagical;
+
+  let calculationText = '';
+  let resultText = '';
+  let typeLabel = '';
+
+  if (attackerStats) {
+    if (isDamage && spell.damage) {
+      const power = isMagical ? attackerStats.mag : attackerStats.atk;
+      const defense = isMagical ? (targetStats?.res ?? 0) : (targetStats?.def ?? 0);
+      
+      const minRaw = spell.damage.min + power;
+      const maxRaw = spell.damage.max + power;
+      
+      const minTotal = Math.max(1, minRaw - defense);
+      const maxTotal = Math.max(1, maxRaw - defense);
+
+      calculationText = `(${spell.damage.min}~${spell.damage.max} + ${power}) - ${defense}`;
+      resultText = `${minTotal}~${maxTotal}`;
+      typeLabel = isMagical ? 'Dégâts Magiques' : 'Dégâts Physiques';
+    } else if (isHeal && spell.damage) {
+      const power = Math.floor(attackerStats.mag * 0.5);
+      const minHeal = spell.damage.min + power;
+      const maxHeal = spell.damage.max + power;
+
+      calculationText = `(${spell.damage.min}~${spell.damage.max} + ${power})`;
+      resultText = `${minHeal}~${maxHeal}`;
+      typeLabel = 'Soins';
+    }
+  }
+
+  return (
+    <div className="spell-tooltip glass">
+      <div className="tooltip-header">
+        <div className="tooltip-title">{spell.name}</div>
+        <div className="tooltip-cost">{spell.paCost} PA</div>
+      </div>
+      
+      {spell.description && <div className="tooltip-description">{spell.description}</div>}
+      
+      {resultText && (
+        <div className="tooltip-calc-section">
+          <div className="tooltip-calc-row">
+            <span className="calc-label">{typeLabel}</span>
+            <span className="calc-result">{resultText}</span>
+          </div>
+          <div className="tooltip-formula">{calculationText}</div>
+        </div>
+      )}
+
+      <div className="tooltip-footer">
+        {spell.minRange !== undefined && (
+          <div className="tooltip-range">Portée: {spell.minRange}-{spell.maxRange}</div>
+        )}
+        {spell.cooldown !== undefined && spell.cooldown > 0 && (
+          <div className="tooltip-cooldown">Relance: {spell.cooldown} tr.</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const SpellBar = ({
   spells,
   selectedSpellId,
   onSpellClick,
+  attackerStats,
+  targetStats,
   remainingPa = 999,
   isMyTurn = true,
   showMannequins = false,
@@ -83,7 +165,11 @@ export const SpellBar = ({
             onClick={() => !disabled && onSpellClick(isActive ? '' : spell.id)}
           >
             {isHovered && (
-              <div className="spell-hover-tag">{spell.name}</div>
+              <SpellTooltip 
+                spell={spell} 
+                attackerStats={attackerStats} 
+                targetStats={targetStats} 
+              />
             )}
 
             <span className="spell-index-badge">{index + 1}</span>
