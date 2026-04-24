@@ -114,6 +114,11 @@ export function FarmingPage() {
     queryKey: ['shop-items'],
     queryFn: () => shopApi.getItems(),
   });
+  
+  const { data: statsData } = useQuery({
+    queryKey: ['player-stats'],
+    queryFn: () => playerApi.getStats(),
+  });
 
   const equipMutation = useMutation({
     mutationFn: ({ slot, id }: { slot: any; id: string }) => equipmentApi.equip(slot, id),
@@ -121,6 +126,7 @@ export function FarmingPage() {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['equipment'] });
       queryClient.invalidateQueries({ queryKey: ['player-spells'] });
+      queryClient.invalidateQueries({ queryKey: ['player-stats'] });
     },
   });
 
@@ -166,10 +172,15 @@ export function FarmingPage() {
     return (Array.isArray(spellData) ? spellData : []).map((s: any) => ({
       id: s.id,
       name: s.name,
+      description: s.description,
       iconPath: s.iconPath,
       paCost: s.paCost,
       family: s.family,
       sortOrder: s.sortOrder,
+      damage: s.damage,
+      effectKind: s.effectKind,
+      minRange: s.minRange,
+      maxRange: s.maxRange,
     }));
   }, [spellData]);
 
@@ -538,6 +549,7 @@ export function FarmingPage() {
           isReadyMode={true}
           canPassTurn={!isTransitioning}
           isReady={amIReady}
+          attackerStats={statsData?.data}
           disableGrimoire={true}
         />
       </div>

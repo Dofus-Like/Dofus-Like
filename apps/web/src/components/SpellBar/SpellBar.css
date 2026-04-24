@@ -165,31 +165,119 @@
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
 }
 
-/* Hover tag */
-.spell-hover-tag {
+/* --- Tooltip (Premium Glass) --- */
+.spell-tooltip {
   position: absolute;
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 14px);
   left: 50%;
   transform: translateX(-50%);
-  padding: 4px 10px;
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 700;
-  white-space: nowrap;
+  width: 240px;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+  z-index: 1000;
   pointer-events: none;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
-  animation: fadeInTag 0.18s ease-out;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  z-index: 120;
+  animation: tooltipFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-@keyframes fadeInTag {
-  from { opacity: 0; transform: translate(-50%, 6px); }
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translate(-50%, 10px); }
   to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+}
+
+.tooltip-title {
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tooltip-cost {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.tooltip-description {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+}
+
+.tooltip-calc-section {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tooltip-calc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.calc-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+}
+
+.calc-result {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #60a5fa;
+  text-shadow: 0 0 10px rgba(96, 165, 250, 0.3);
+}
+
+.tooltip-formula {
+  font-size: 0.65rem;
+  font-family: 'Courier New', Courier, monospace;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: right;
+}
+
+.tooltip-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 4px;
+}
+
+.tooltip-range {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tooltip-cooldown {
+  color: #f87171;
 }
 
 /* --- Actions (Grimoire & Passer) --- */
