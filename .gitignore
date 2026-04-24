@@ -7,6 +7,14 @@ out-tsc
 
 # dependencies
 node_modules
+.yarn/install-state.gz
+.yarnrc.yml
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
 
 # IDEs and editors
 /.idea
