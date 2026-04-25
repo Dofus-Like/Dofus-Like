@@ -1,22 +1,33 @@
 import { ForbiddenException } from '@nestjs/common';
+import { RedisContainer } from '@testcontainers/redis';
+import type { StartedRedisContainer } from '@testcontainers/redis';
+import Redis from 'ioredis';
+
+import { RedisTestAdapter } from '../redis/testing/redis-test.adapter';
 
 import { SseTicketService } from './sse-ticket.service';
 
-describe('SseTicketService', () => {
-  const redis = {
-    del: jest.fn(),
-    getJson: jest.fn(),
-    setJson: jest.fn(),
-  };
-
+describe('SseTicketService (integration)', () => {
+  let container: StartedRedisContainer;
+  let client: Redis;
   let service: SseTicketService;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    service = new SseTicketService(redis as any);
+  beforeAll(async () => {
+    container = await new RedisContainer('redis:7-alpine').start();
+    client = new Redis(container.getConnectionUrl());
+  }, 60_000);
+
+  afterAll(async () => {
+    client.disconnect();
+    await container.stop();
   });
 
-  it('issues a redis-backed ticket with a short ttl', async () => {
+  beforeEach(async () => {
+    await client.flushdb();
+    service = new SseTicketService(new RedisTestAdapter(client) as never);
+  });
+
+  it('stores a ticket in Redis with the correct payload and a 60 s TTL', async () => {
     const result = await service.issueTicket({
       userId: 'player-1',
       resourceId: 'session-1',
@@ -25,36 +36,42 @@ describe('SseTicketService', () => {
 
     expect(result.ticket).toBeTruthy();
     expect(result.expiresIn).toBe(60);
-    expect(redis.setJson).toHaveBeenCalledWith(
-      expect.stringMatching(/^sse-ticket:/),
-      {
-        userId: 'player-1',
-        resourceId: 'session-1',
-        resourceType: 'game-session',
-      },
-      60,
+
+    const ttl = await client.ttl(`sse-ticket:${result.ticket}`);
+    expect(ttl).toBeGreaterThan(0);
+    expect(ttl).toBeLessThanOrEqual(60);
+
+    const stored = JSON.parse((await client.get(`sse-ticket:${result.ticket}`))!);
+    expect(stored).toEqual({ userId: 'player-1', resourceId: 'session-1', resourceType: 'game-session' });
+  });
+
+  it('consumes a valid ticket and deletes it from Redis', async () => {
+    const { ticket } = await service.issueTicket({
+      userId: 'player-1',
+      resourceId: 'session-1',
+      resourceType: 'combat',
+    });
+
+    const payload = await service.consumeTicket(ticket, 'combat', 'session-1');
+
+    expect(payload).toEqual({ userId: 'player-1', resourceId: 'session-1', resourceType: 'combat' });
+    expect(await client.exists(`sse-ticket:${ticket}`)).toBe(0);
+  });
+
+  it('rejects consumption of a ticket that does not exist', async () => {
+    await expect(service.consumeTicket('ghost-ticket', 'combat', 'session-1')).rejects.toBeInstanceOf(
+      ForbiddenException,
     );
   });
 
-  it('consumes a valid ticket and deletes it afterwards', async () => {
-    redis.getJson.mockResolvedValue({
+  it('rejects consumption with wrong resource type', async () => {
+    const { ticket } = await service.issueTicket({
       userId: 'player-1',
       resourceId: 'session-1',
-      resourceType: 'combat',
+      resourceType: 'game-session',
     });
 
-    await expect(service.consumeTicket('ticket-1', 'combat', 'session-1')).resolves.toEqual({
-      userId: 'player-1',
-      resourceId: 'session-1',
-      resourceType: 'combat',
-    });
-    expect(redis.del).toHaveBeenCalledWith('sse-ticket:ticket-1');
-  });
-
-  it('rejects an invalid or expired ticket', async () => {
-    redis.getJson.mockResolvedValue(null);
-
-    await expect(service.consumeTicket('ticket-1', 'combat', 'session-1')).rejects.toBeInstanceOf(
+    await expect(service.consumeTicket(ticket, 'combat', 'session-1')).rejects.toBeInstanceOf(
       ForbiddenException,
     );
   });

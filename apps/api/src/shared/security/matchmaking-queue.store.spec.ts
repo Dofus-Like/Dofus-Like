@@ -1,70 +1,98 @@
+import { RedisContainer } from '@testcontainers/redis';
+import type { StartedRedisContainer } from '@testcontainers/redis';
+import Redis from 'ioredis';
+
+import { RedisTestAdapter } from '../redis/testing/redis-test.adapter';
+import { MATCHMAKING_QUEUE_KEY } from './security.constants';
+
 import { MatchmakingQueueStore } from './matchmaking-queue.store';
 
-describe('MatchmakingQueueStore', () => {
-  const redis = {
-    del: jest.fn(),
-    get: jest.fn(),
-    rename: jest.fn(),
-    type: jest.fn(),
-    zAdd: jest.fn(),
-    zAddMany: jest.fn(),
-    zCard: jest.fn(),
-    zRange: jest.fn(),
-    zRem: jest.fn(),
-    zScore: jest.fn(),
-  };
-
+describe('MatchmakingQueueStore (integration)', () => {
+  let container: StartedRedisContainer;
+  let client: Redis;
   let store: MatchmakingQueueStore;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    store = new MatchmakingQueueStore(redis as any);
+  beforeAll(async () => {
+    container = await new RedisContainer('redis:7-alpine').start();
+    client = new Redis(container.getConnectionUrl());
+  }, 60_000);
+
+  afterAll(async () => {
+    client.disconnect();
+    await container.stop();
+  });
+
+  beforeEach(async () => {
+    await client.flushdb();
+    store = new MatchmakingQueueStore(new RedisTestAdapter(client) as never);
   });
 
   it('migrates a legacy JSON queue into a zset while preserving order', async () => {
-    redis.type.mockResolvedValue('string');
-    redis.get.mockResolvedValue(JSON.stringify(['player-1', 'player-2']));
+    await client.set(MATCHMAKING_QUEUE_KEY, JSON.stringify(['player-1', 'player-2']));
 
     await store.ensureQueueCompatible();
 
-    expect(redis.rename).toHaveBeenCalledWith(
-      'matchmaking:queue',
-      expect.stringMatching(/^matchmaking:queue:legacy:/),
-    );
-    expect(redis.zAddMany).toHaveBeenCalledWith('matchmaking:queue', [
-      { score: 1, member: 'player-1' },
-      { score: 2, member: 'player-2' },
-    ]);
-    expect(redis.del).toHaveBeenCalledWith(expect.stringMatching(/^matchmaking:queue:legacy:/));
+    expect(await client.type(MATCHMAKING_QUEUE_KEY)).toBe('zset');
+    const backup = await findBackupKey(client);
+    expect(backup).toBeNull();
+
+    const members = await client.zrange(MATCHMAKING_QUEUE_KEY, 0, -1, 'WITHSCORES');
+    expect(members).toEqual(['player-1', '1', 'player-2', '2']);
   });
 
-  it('keeps a backup and resets the queue when the legacy payload is invalid', async () => {
-    redis.type.mockResolvedValue('string');
-    redis.get.mockResolvedValue('not-json');
+  it('backs up and clears queue when legacy payload is invalid JSON', async () => {
+    await client.set(MATCHMAKING_QUEUE_KEY, 'not-json');
 
     await store.ensureQueueCompatible();
 
-    expect(redis.rename).toHaveBeenCalledTimes(1);
-    expect(redis.zAddMany).not.toHaveBeenCalled();
-    expect(redis.del).not.toHaveBeenCalled();
+    expect(await client.exists(MATCHMAKING_QUEUE_KEY)).toBe(0);
+    const backup = await findBackupKey(client);
+    expect(backup).not.toBeNull();
+    expect(await client.get(backup!)).toBe('not-json');
   });
 
-  it('backs up unsupported Redis types without trying to parse them', async () => {
-    redis.type.mockResolvedValue('list');
+  it('backs up unsupported Redis types without parsing', async () => {
+    await client.rpush(MATCHMAKING_QUEUE_KEY, 'item-1');
 
     await store.ensureQueueCompatible();
 
-    expect(redis.rename).toHaveBeenCalledTimes(1);
-    expect(redis.get).not.toHaveBeenCalled();
-    expect(redis.zAddMany).not.toHaveBeenCalled();
+    expect(await client.exists(MATCHMAKING_QUEUE_KEY)).toBe(0);
+    const backup = await findBackupKey(client);
+    expect(backup).not.toBeNull();
   });
 
   it('leaves an existing zset untouched', async () => {
-    redis.type.mockResolvedValue('zset');
+    await client.zadd(MATCHMAKING_QUEUE_KEY, 1, 'player-1');
 
     await store.ensureQueueCompatible();
 
-    expect(redis.rename).not.toHaveBeenCalled();
-    expect(redis.get).not.toHaveBeenCalled();
+    expect(await client.zrange(MATCHMAKING_QUEUE_KEY, 0, -1)).toEqual(['player-1']);
+  });
+
+  it('round-trips add/remove/size/range correctly', async () => {
+    await store.add('player-1', 1);
+    await store.add('player-2', 2);
+
+    expect(await store.size()).toBe(2);
+    expect(await store.range(0, -1)).toEqual(['player-1', 'player-2']);
+    expect(await store.isQueued('player-1')).toBe(true);
+
+    await store.remove('player-1');
+
+    expect(await store.size()).toBe(1);
+    expect(await store.isQueued('player-1')).toBe(false);
   });
 });
+
+async function findBackupKey(client: Redis): Promise<string | null> {
+  const keys = await client.keys(`${MATCHMAKING_QUEUE_KEY}:legacy:*`);
+  return keys[0] ?? null;
+}
+
+async function findZsetKey(client: Redis): Promise<string | null> {
+  const keys = await client.keys('matchmaking:*');
+  for (const key of keys) {
+    if (await client.type(key) === 'zset') return key;
+  }
+  return null;
+}
