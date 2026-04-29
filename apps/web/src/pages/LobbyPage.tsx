@@ -2,10 +2,14 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { gameSessionApi } from '../api/game-session.api';
+import { Hub3DScene } from '../game/Hub3D/Hub3DScene';
+import { HubBackdrop } from '../game/Hub3D/HubBackdrop';
+import type { PoiId } from '../game/Hub3D/constants';
 import { SKINS } from '../game/constants/skins';
 import { useAuthStore } from '../store/auth.store';
 
 import { useGameSession } from './GameTunnel';
+import { HubPoiModal } from './HubPoiModal';
 import './LobbyPage.css';
 
 interface Room {
@@ -39,6 +43,7 @@ export function LobbyPage() {
   const [rooms, setRooms] = React.useState<Room[]>([]);
   const [loadingRooms, setLoadingRooms] = React.useState(true);
   const [isInQueue, setIsInQueue] = React.useState(false);
+  const [activePoiId, setActivePoiId] = React.useState<PoiId | null>(null);
 
   const fetchLobbyState = React.useCallback(async () => {
     try {
@@ -217,6 +222,54 @@ export function LobbyPage() {
 
   return (
     <div className="lobby-container">
+      <section
+        className="lobby-hub3d"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 50,
+          overflow: 'hidden',
+          background: '#07101f',
+        }}
+      >
+        <HubBackdrop />
+        <Hub3DScene onPoiActivate={setActivePoiId} activePoiId={activePoiId} />
+        <HubPoiModal
+          activePoiId={activePoiId}
+          onClose={() => setActivePoiId(null)}
+          combat={{
+            isInQueue,
+            hasOpenSession,
+            onJoinQueue: () => void handleJoinQueue(),
+            onLeaveQueue: () => void handleLeaveQueue(),
+          }}
+          vsAi={{
+            hasOpenSession,
+            isInQueue,
+            onStart: () => void handleStartVsAiCombat(),
+            onResume: () => navigate('/farming'),
+            onReset: () => void handleResetSession(),
+          }}
+          appearance={{
+            currentSkin: player?.skin,
+            username: player?.username,
+            gold: player?.gold,
+            onSetSkin: (id) => void setSkin(id),
+          }}
+          rooms={{
+            rooms: visibleRooms,
+            loading: loadingRooms,
+            isWaiting: isWaitingPrivateSession,
+            hasOpenSession,
+            isInQueue,
+            playerId: player?.id,
+            onCreateRoom: () => void handleCreateRoom(),
+            onJoinRoom: (id) => void handleJoinRoom(id),
+            onCancelRoom: () => void handleCancelOpenSession(),
+          }}
+        />
+      </section>
+
       <section className="lobby-skins">
         <div className="lobby-section-header">
           <h2>🎭 Choisissez votre apparence</h2>
