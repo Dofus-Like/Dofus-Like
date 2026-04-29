@@ -1,5 +1,5 @@
 import { useThree } from '@react-three/fiber';
-import { useCallback, useEffect, useMemo, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Raycaster, Vector2, type Camera, type Intersection, type Object3D, type Vector3 } from 'three';
 
 import type { PoiId } from './constants';
@@ -9,8 +9,8 @@ const NAV_PLANE_NAME = 'hub-navigation-plane';
 
 interface UseHubInputControllerOptions {
   enabled: boolean;
-  wasDraggingRef: MutableRefObject<boolean>;
-  hubMeshRef: MutableRefObject<Object3D | null>;
+  wasDraggingRef: React.MutableRefObject<boolean>;
+  hubMeshRef: React.MutableRefObject<Object3D | null>;
   onPoiActivate: (id: PoiId) => void;
   onGroundClick: (point: Vector3) => void;
 }
@@ -72,18 +72,7 @@ function logDebug(ctx: DebugContext): void {
   });
 }
 
-function dispatch(resolved: ResolvedHit | null, opts: UseHubInputControllerOptions): void {
-  if (!resolved) return;
-  if (resolved.type === 'poi' && resolved.poiId) {
-    opts.onPoiActivate(resolved.poiId);
-    return;
-  }
-  if (resolved.type === 'ground' && resolved.point) {
-    opts.onGroundClick(resolved.point);
-  }
-}
-
-export function useHubInputController(opts: UseHubInputControllerOptions): void {
+export function useHubInputController({ enabled, wasDraggingRef, hubMeshRef, onPoiActivate, onGroundClick }: UseHubInputControllerOptions): void {
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
   const scene = useThree((state) => state.scene);
@@ -92,22 +81,29 @@ export function useHubInputController(opts: UseHubInputControllerOptions): void 
   const ndc = useMemo(() => new Vector2(), []);
 
   const handleClick = useCallback((event: PointerEvent): void => {
-    if (event.button !== 0 || opts.wasDraggingRef.current) return;
+    if (event.button !== 0 || wasDraggingRef.current) return;
     if (!computeNdc(event, gl.domElement, ndc)) return;
     camera.updateMatrixWorld();
     raycaster.setFromCamera(ndc, camera);
     const hits = raycaster.intersectObject(scene, true);
-    const resolved = resolveFirstHit(hits, opts.hubMeshRef.current);
+    const resolved = resolveFirstHit(hits, hubMeshRef.current);
     if (HUB_INPUT_DEBUG) logDebug({ event, ndc, camera, hits, resolved });
-    dispatch(resolved, opts);
-  }, [camera, gl, ndc, opts, raycaster, scene]);
+    if (!resolved) return;
+    if (resolved.type === 'poi' && resolved.poiId) {
+      onPoiActivate(resolved.poiId);
+      return;
+    }
+    if (resolved.type === 'ground' && resolved.point) {
+      onGroundClick(resolved.point);
+    }
+  }, [camera, gl, ndc, wasDraggingRef, hubMeshRef, onPoiActivate, onGroundClick, raycaster, scene]);
 
   useEffect(() => {
-    if (!opts.enabled) return;
+    if (!enabled) return;
     const canvas = gl.domElement;
     canvas.addEventListener('pointerup', handleClick);
     return (): void => {
       canvas.removeEventListener('pointerup', handleClick);
     };
-  }, [opts.enabled, gl, handleClick]);
+  }, [enabled, gl, handleClick]);
 }

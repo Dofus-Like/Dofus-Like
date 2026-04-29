@@ -176,6 +176,15 @@ export function LobbyPage() {
     }, 'Impossible de changer le skin.');
   };
 
+  const { clearError } = action;
+  React.useEffect(() => {
+    if (activePoiId !== null) return;
+    clearError('combat');
+    clearError('vsAi');
+    clearError('rooms');
+    clearError('appearance');
+  }, [activePoiId, clearError]);
+
   React.useEffect(() => {
     if (!isInQueue) return;
 

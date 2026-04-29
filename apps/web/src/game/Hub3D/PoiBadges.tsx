@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { useId, type ReactElement } from 'react';
 
 import type { PoiId } from './constants';
 
@@ -71,8 +71,9 @@ function getSpec(poiId: PoiId, color: string): BadgeSpec {
 }
 
 export function PoiBadge({ poiId, size = 28, color, ariaHidden = true }: PoiBadgeProps): ReactElement {
+  const uid = useId();
   const { bg, draw } = getSpec(poiId, color);
-  const gradId = `poiBadge-grad-${poiId}`;
+  const gradId = `poiBadge-${uid}`;
   return (
     <svg
       width={size}

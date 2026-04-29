@@ -1,6 +1,6 @@
 import { Html } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
-import { useCallback, useMemo, useState, type CSSProperties, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactElement } from 'react';
 
 import { useHubGround } from './HubGround';
 import { HubPOIAsset } from './HubPOIAsset';
@@ -145,6 +145,12 @@ export function HubPOI({ poi, modalOpen, pulsing = false, statusLabel, stateActi
     () => snapY(poi.position[0], poi.position[2]),
     [snapY, poi.position, ready],
   );
+
+  useEffect(() => {
+    setHovered(false);
+    document.body.style.cursor = '';
+    return (): void => { document.body.style.cursor = ''; };
+  }, [modalOpen]);
 
   const handlePointerOver = useCallback((event: ThreeEvent<PointerEvent>): void => {
     if (modalOpen) return;
