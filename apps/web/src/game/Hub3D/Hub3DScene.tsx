@@ -27,6 +27,8 @@ interface Hub3DSceneProps {
   activePoiId: PoiId | null;
   poiStateLabels?: Partial<Record<PoiId, string>>;
   activePoiIds?: PoiId[];
+  onReady?: () => void;
+  onError?: () => void;
 }
 
 interface Hub3DWorldProps {
@@ -35,11 +37,14 @@ interface Hub3DWorldProps {
   wasDraggingRef: MutableRefObject<boolean>;
   poiStateLabels?: Partial<Record<PoiId, string>>;
   activePoiIds?: PoiId[];
+  onReady?: () => void;
+  onError?: () => void;
 }
 
 interface BoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
+  onError?: () => void;
 }
 
 interface BoundaryState {
@@ -57,6 +62,7 @@ class HubMapBoundary extends Component<BoundaryProps, BoundaryState> {
     if (typeof console !== 'undefined') {
       console.error('[Hub3D] failed to load hub model', error);
     }
+    this.props.onError?.();
   }
 
   render(): ReactNode {
@@ -137,6 +143,16 @@ function PoiList({ modalOpen, pulsingId, stateLabels, activeIds }: PoiListProps)
   );
 }
 
+function useHubReadySignal(ready: boolean, onReady?: () => void): void {
+  const firedRef = useRef(false);
+  useEffect(() => {
+    if (ready && !firedRef.current) {
+      firedRef.current = true;
+      onReady?.();
+    }
+  }, [ready, onReady]);
+}
+
 function useInitialPlayerSnap(playerRef: React.RefObject<Group | null>, snapY: (x: number, z: number) => number, ready: boolean): void {
   useEffect(() => {
     if (!ready) return;
@@ -197,11 +213,12 @@ function useDelayedActivation(onPoiActivate: (id: PoiId) => void): {
   return { pendingPoiId, setPendingPoiId, handleArrive, cancelPending };
 }
 
-function HubWorld({ onPoiActivate, activePoiId, wasDraggingRef, poiStateLabels, activePoiIds }: Hub3DWorldProps): ReactElement {
+function HubWorld({ onPoiActivate, activePoiId, wasDraggingRef, poiStateLabels, activePoiIds, onReady, onError }: Hub3DWorldProps): ReactElement {
   const modalOpen = activePoiId !== null;
   const playerRef = useRef<Group>(null);
   const { snapY, ready, hubMeshRef } = useHubGround();
   const ripple = useRippleTrigger();
+  useHubReadySignal(ready, onReady);
   const { pendingPoiId, setPendingPoiId, handleArrive, cancelPending } = useDelayedActivation(onPoiActivate);
 
   useInitialPlayerSnap(playerRef, snapY, ready);
@@ -236,7 +253,7 @@ function HubWorld({ onPoiActivate, activePoiId, wasDraggingRef, poiStateLabels, 
   return (
     <>
       <HubLights />
-      <HubMapBoundary fallback={<NavigationFallbackFloor />}>
+      <HubMapBoundary fallback={<NavigationFallbackFloor />} onError={onError}>
         <Suspense fallback={null}><HubMap /></Suspense>
       </HubMapBoundary>
       <PoiList modalOpen={modalOpen} pulsingId={pendingPoiId} stateLabels={poiStateLabels} activeIds={activePoiIds} />
@@ -248,7 +265,7 @@ function HubWorld({ onPoiActivate, activePoiId, wasDraggingRef, poiStateLabels, 
   );
 }
 
-export function Hub3DScene({ onPoiActivate, activePoiId, poiStateLabels, activePoiIds }: Hub3DSceneProps): ReactElement {
+export function Hub3DScene({ onPoiActivate, activePoiId, poiStateLabels, activePoiIds, onReady, onError }: Hub3DSceneProps): ReactElement {
   const wasDraggingRef = useRef(false);
   return (
     <Canvas
@@ -266,6 +283,8 @@ export function Hub3DScene({ onPoiActivate, activePoiId, poiStateLabels, activeP
           wasDraggingRef={wasDraggingRef}
           poiStateLabels={poiStateLabels}
           activePoiIds={activePoiIds}
+          onReady={onReady}
+          onError={onError}
         />
       </HubGroundProvider>
     </Canvas>

@@ -2,6 +2,10 @@ import type { CSSProperties, ReactElement } from 'react';
 
 const SKY_URL = '/backgrounds/hub-sky.png';
 
+// Kick off browser image preload at module load, same pattern as useGLTF.preload
+const _preloadSky = new Image();
+_preloadSky.src = SKY_URL;
+
 const WRAPPER_STYLE: CSSProperties = {
   position: 'absolute',
   inset: 0,

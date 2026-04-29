@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { gameSessionApi } from '../api/game-session.api';
+import { Hub3DLoader, type Hub3DLoaderState } from '../game/Hub3D/Hub3DLoader';
 import { Hub3DScene } from '../game/Hub3D/Hub3DScene';
 import { HubBackdrop } from '../game/Hub3D/HubBackdrop';
 import type { PoiId } from '../game/Hub3D/constants';
@@ -35,7 +36,23 @@ export function LobbyPage() {
   const [loadingRooms, setLoadingRooms] = React.useState(true);
   const [isInQueue, setIsInQueue] = React.useState(false);
   const [activePoiId, setActivePoiId] = React.useState<PoiId | null>(null);
+  const [loaderState, setLoaderState] = React.useState<Hub3DLoaderState>('loading');
   const action = useHubActionState();
+
+  const handleHubReady = React.useCallback((): void => {
+    window.setTimeout(() => setLoaderState('done'), 350);
+  }, []);
+
+  const handleHubError = React.useCallback((): void => {
+    setLoaderState('error');
+  }, []);
+
+  React.useEffect(() => {
+    const t = window.setTimeout(() => {
+      setLoaderState((prev) => (prev === 'loading' ? 'slow' : prev));
+    }, 6000);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const fetchLobbyState = React.useCallback(async () => {
     try {
@@ -228,7 +245,10 @@ export function LobbyPage() {
           activePoiId={activePoiId}
           poiStateLabels={poiStateLabels}
           activePoiIds={activePoi}
+          onReady={handleHubReady}
+          onError={handleHubError}
         />
+        <Hub3DLoader state={loaderState} />
         <HubPoiModal
           activePoiId={activePoiId}
           onClose={() => setActivePoiId(null)}
