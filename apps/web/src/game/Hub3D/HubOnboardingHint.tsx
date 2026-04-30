@@ -61,6 +61,20 @@ const HINT_STYLES = `
   outline: 2px solid rgba(99,102,241,0.75);
   outline-offset: 3px;
 }
+@media (max-width: 480px) {
+  .hub-onboarding-outer {
+    left: 12px !important;
+    bottom: 16px !important;
+    max-width: calc(100% - 24px) !important;
+  }
+  .hub-onboarding-card {
+    width: 100% !important;
+    max-width: 320px !important;
+    padding: 14px 16px 16px !important;
+  }
+  .hub-onboarding-btn-primary { padding: 10px 16px !important; font-size: 0.84rem !important; }
+  .hub-onboarding-btn-secondary { padding: 9px 16px !important; font-size: 0.78rem !important; }
+}
 `;
 
 function ensureStyles(): void {
@@ -132,7 +146,7 @@ export function HubOnboardingHint({ visible, onDismiss, onGoVsAi }: HubOnboardin
   if (!visible) return null;
 
   return (
-    <div style={OUTER}>
+    <div className="hub-onboarding-outer" style={OUTER}>
       <div className="hub-onboarding-card" style={CARD} role="region" aria-label="Guide de démarrage">
         <div style={GUIDE_LABEL}>
           <OnboardingBadgeGuideIcon size={10} style={{ color: 'rgba(103,210,255,0.82)' }} />

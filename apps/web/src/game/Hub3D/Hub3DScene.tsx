@@ -266,7 +266,8 @@ export function Hub3DScene({ onPoiActivate, activePoiId, poiStateLabels, activeP
       shadows
       dpr={[1, 1.5]}
       gl={{ antialias: true, alpha: true }}
-      style={{ position: 'absolute', inset: 0, zIndex: 1 }}
+      style={{ position: 'absolute', inset: 0, zIndex: 1, touchAction: 'none' }}
+      className="hub-canvas-root"
       onContextMenu={(event) => event.preventDefault()}
     >
       <HubGroundProvider>

@@ -143,7 +143,9 @@ const ANIM_STYLES = `
   .hub-modal-scroll[role="dialog"] { padding: 22px 24px 24px !important; }
 }
 @media (max-width: 480px) {
-  .hub-modal-scroll[role="dialog"] { padding: 22px 22px 24px !important; }
+  .hub-modal-scroll[role="dialog"] { padding: 18px 16px 20px !important; border-radius: 16px !important; }
+  .hub-modal-cta { font-size: 0.86rem !important; padding: 11px 16px !important; }
+  .hub-modal-secondary { font-size: 0.8rem !important; padding: 10px 16px !important; }
 }
 `;
 
@@ -249,8 +251,7 @@ function darken(color: string, factor: number): string {
 function buildModalWrapStyle(): CSSProperties {
   return {
     position: 'relative',
-    width: '90%',
-    minWidth: '340px',
+    width: 'min(520px, calc(100vw - 24px))',
     maxWidth: '520px',
   };
 }
@@ -278,8 +279,9 @@ function buildModalStyle(color: string): CSSProperties {
     padding: '28px 32px 30px',
     color: 'white',
     fontFamily: 'system-ui, sans-serif',
-    maxHeight: '80vh',
+    maxHeight: 'min(80vh, calc(100dvh - 32px))',
     overflowY: 'auto',
+    overscrollBehavior: 'contain',
     zIndex: 1,
   };
 }
