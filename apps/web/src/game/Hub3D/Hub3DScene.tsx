@@ -19,6 +19,7 @@ import {
   SPAWN_POSITION,
   type PoiId,
 } from './constants';
+import { computePoiStopPoint } from './movement';
 import { useClickToMove } from './useClickToMove';
 import { useHubInputController } from './useHubInputController';
 
@@ -108,17 +109,6 @@ function NavigationFallbackFloor(): ReactElement {
       <meshStandardMaterial color="#2b3344" roughness={1} />
     </mesh>
   );
-}
-
-function computePoiStopPoint(playerPos: Vector3, poiPos: Vector3, stopDistance: number): Vector3 {
-  const dx = poiPos.x - playerPos.x;
-  const dz = poiPos.z - playerPos.z;
-  const dist = Math.hypot(dx, dz);
-  if (dist <= stopDistance) {
-    return playerPos.clone();
-  }
-  const factor = (dist - stopDistance) / dist;
-  return new Vector3(playerPos.x + dx * factor, 0, playerPos.z + dz * factor);
 }
 
 interface PoiListProps {

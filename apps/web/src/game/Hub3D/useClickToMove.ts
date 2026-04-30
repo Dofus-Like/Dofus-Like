@@ -29,7 +29,7 @@ const UP_AXIS = new Vector3(0, 1, 0);
 const SHARED_DIR = new Vector3();
 const SHARED_QUAT = new Quaternion();
 
-function clampToNavigation(point: Vector3): Vector3 {
+export function clampToNavigation(point: Vector3): Vector3 {
   const distance = Math.hypot(point.x, point.z);
   if (distance > NAVIGATION_RADIUS && distance > 0) {
     const factor = NAVIGATION_RADIUS / distance;
@@ -45,7 +45,7 @@ interface StepCallbacks<TMeta> {
   snapY?: (x: number, z: number) => number;
 }
 
-function stepTowardTarget<TMeta>(
+export function stepTowardTarget<TMeta>(
   player: Group,
   target: InternalTarget<TMeta>,
   delta: number,

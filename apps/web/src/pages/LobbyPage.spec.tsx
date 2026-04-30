@@ -253,4 +253,63 @@ describe('LobbyPage', () => {
       expect(mocks.gameSessionApi.startVsAi).toHaveBeenCalled();
     });
   });
+
+  it('navigates immediately when joinQueue returns matched', async () => {
+    mocks.gameSessionApi.joinQueue.mockResolvedValue({ data: { status: 'matched' } });
+
+    render(
+      <MemoryRouter>
+        <LobbyPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Lancer une recherche' }));
+    await waitFor(() => {
+      expect(mocks.navigate).toHaveBeenCalledWith('/farming');
+    });
+  });
+
+  it('rejects ownership-protected join attempts on a private room', async () => {
+    mocks.gameSessionApi.getWaitingSessions.mockResolvedValue({
+      data: [
+        {
+          id: 'room-1',
+          player1Id: 'player-1',
+          player2Id: null,
+          status: 'WAITING',
+          createdAt: new Date().toISOString(),
+          p1: { username: 'roketag' },
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <LobbyPage />
+      </MemoryRouter>,
+    );
+
+    const joinBtn = await screen.findByRole('button', { name: 'Votre room' });
+    expect(joinBtn).toBeDisabled();
+  });
+
+  it('does not poll the queue while the player is not queued', async () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <MemoryRouter>
+          <LobbyPage />
+        </MemoryRouter>,
+      );
+
+      await vi.runOnlyPendingTimersAsync();
+      mocks.gameSessionApi.getActiveSession.mockClear();
+      mocks.gameSessionApi.getQueueStatus.mockClear();
+
+      await vi.advanceTimersByTimeAsync(2100);
+      expect(mocks.gameSessionApi.getActiveSession).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

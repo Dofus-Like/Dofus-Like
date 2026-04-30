@@ -6,7 +6,9 @@ import { Hub3DLoader, type Hub3DLoaderState } from '../game/Hub3D/Hub3DLoader';
 import { Hub3DScene } from '../game/Hub3D/Hub3DScene';
 import { HubBackdrop } from '../game/Hub3D/HubBackdrop';
 import { HubOnboardingHint } from '../game/Hub3D/HubOnboardingHint';
-import { HUB_ONBOARDING_KEY, type PoiId } from '../game/Hub3D/constants';
+import { type PoiId } from '../game/Hub3D/constants';
+import { readOnboardingDismissed, writeOnboardingDismissed } from '../game/Hub3D/onboarding';
+import { deriveActivePoiList, derivePoiStateLabels } from '../game/Hub3D/poiState';
 import { SKINS } from '../game/constants/skins';
 import { useAuthStore } from '../store/auth.store';
 
@@ -29,11 +31,6 @@ interface Room {
 const LOBBY_POLL_MS = 5000;
 const QUEUE_POLL_MS = 2000;
 
-function readOnboardingDismissed(): boolean {
-  try { return localStorage.getItem(HUB_ONBOARDING_KEY) === 'true'; }
-  catch { return false; }
-}
-
 export function LobbyPage() {
   const { player, initialize, setSkin } = useAuthStore();
   const { activeSession, refreshSession } = useGameSession();
@@ -47,7 +44,7 @@ export function LobbyPage() {
   const action = useHubActionState();
 
   const handleDismissOnboarding = React.useCallback((): void => {
-    try { localStorage.setItem(HUB_ONBOARDING_KEY, 'true'); } catch { /* localStorage indisponible */ }
+    writeOnboardingDismissed();
     setOnboardingDismissed(true);
   }, []);
 
@@ -238,20 +235,15 @@ export function LobbyPage() {
     [rooms],
   );
 
-  const poiStateLabels = React.useMemo<Partial<Record<PoiId, string>>>(() => {
-    const labels: Partial<Record<PoiId, string>> = {};
-    if (isInQueue) labels.combat = 'Recherche…';
-    if (isWaitingPrivateSession) labels.rooms = 'En attente…';
-    if (hasOpenSession && !isWaitingPrivateSession) labels['vs-ai'] = 'Reprendre';
-    return labels;
-  }, [isInQueue, isWaitingPrivateSession, hasOpenSession]);
+  const poiStateLabels = React.useMemo<Partial<Record<PoiId, string>>>(
+    () => derivePoiStateLabels({ isInQueue, isWaitingPrivateSession, hasOpenSession }),
+    [isInQueue, isWaitingPrivateSession, hasOpenSession],
+  );
 
-  const activePoi = React.useMemo<PoiId[]>(() => {
-    const list: PoiId[] = [];
-    if (isInQueue) list.push('combat');
-    if (isWaitingPrivateSession) list.push('rooms');
-    return list;
-  }, [isInQueue, isWaitingPrivateSession]);
+  const activePoi = React.useMemo<PoiId[]>(
+    () => deriveActivePoiList({ isInQueue, isWaitingPrivateSession }),
+    [isInQueue, isWaitingPrivateSession],
+  );
 
   return (
     <div className="lobby-container">

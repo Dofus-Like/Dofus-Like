@@ -45,12 +45,22 @@ function resolveFirstHit(hits: Intersection[], hub: Object3D | null): ResolvedHi
   return null;
 }
 
-function computeNdc(event: PointerEvent, canvas: HTMLCanvasElement, out: Vector2): boolean {
-  const rect = canvas.getBoundingClientRect();
+interface NdcRect { left: number; top: number; width: number; height: number; }
+interface NdcPointer { clientX: number; clientY: number; }
+
+export function computeNdcFromRect(
+  pointer: NdcPointer,
+  rect: NdcRect,
+  out: Vector2,
+): boolean {
   if (rect.width === 0 || rect.height === 0) return false;
-  out.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  out.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  out.x = ((pointer.clientX - rect.left) / rect.width) * 2 - 1;
+  out.y = -((pointer.clientY - rect.top) / rect.height) * 2 + 1;
   return true;
+}
+
+function computeNdc(event: PointerEvent, canvas: HTMLCanvasElement, out: Vector2): boolean {
+  return computeNdcFromRect(event, canvas.getBoundingClientRect(), out);
 }
 
 interface DebugContext { event: PointerEvent; ndc: Vector2; camera: Camera; hits: Intersection[]; resolved: ResolvedHit | null; }
