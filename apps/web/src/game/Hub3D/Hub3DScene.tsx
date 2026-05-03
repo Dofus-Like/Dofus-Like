@@ -3,6 +3,8 @@ import type { MutableRefObject, ReactElement, ReactNode } from 'react';
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Vector3, type Group } from 'three';
 
+import { useHubStore } from '../../store/hub.store';
+
 import { HubAmbientParticles } from './HubAmbientParticles';
 import { HubCamera } from './HubCamera';
 import { HubClickRipple } from './HubClickRipple';
@@ -11,6 +13,7 @@ import { HubGroundCollider } from './HubGroundCollider';
 import { HubMap } from './HubMap';
 import { HubPOI } from './HubPOI';
 import { HubPlayer } from './HubPlayer';
+import { HubRemotes } from './HubRemotes';
 import {
   HUB_POIS,
   NAVIGATION_PLANE_SIZE,
@@ -216,22 +219,34 @@ function HubWorld({ onPoiActivate, activePoiId, wasDraggingRef, poiStateLabels, 
 
   const { setTarget } = useClickToMove<PoiId>({ playerRef, snapY, onArrive: handleArrive });
 
+  const reportMove = useCallback((target: Vector3): void => {
+    const player = playerRef.current;
+    if (!player) return;
+    void useHubStore.getState().reportMove(
+      { x: player.position.x, z: player.position.z },
+      { x: target.x, z: target.z },
+    );
+  }, []);
+
   const handlePoiActivate = useCallback((id: PoiId): void => {
     const poi = Object.values(HUB_POIS).find((entry) => entry.id === id);
     const player = playerRef.current;
     if (!poi || !player) return;
     const playerPos = new Vector3(player.position.x, 0, player.position.z);
     const poiPos = new Vector3(poi.position[0], 0, poi.position[2]);
+    const stopPoint = computePoiStopPoint(playerPos, poiPos, POI_STOP_DISTANCE);
     setPendingPoiId(id);
-    setTarget(computePoiStopPoint(playerPos, poiPos, POI_STOP_DISTANCE), id);
-  }, [setTarget, setPendingPoiId]);
+    setTarget(stopPoint, id);
+    reportMove(stopPoint);
+  }, [setTarget, setPendingPoiId, reportMove]);
 
   const handleGroundClick = useCallback((point: Vector3): void => {
     cancelPending();
     setPendingPoiId(null);
     setTarget(point, null);
     ripple.triggerAt(point);
-  }, [setTarget, setPendingPoiId, ripple, cancelPending]);
+    reportMove(point);
+  }, [setTarget, setPendingPoiId, ripple, cancelPending, reportMove]);
 
   useHubInputController({
     enabled: !modalOpen,
@@ -251,6 +266,7 @@ function HubWorld({ onPoiActivate, activePoiId, wasDraggingRef, poiStateLabels, 
       <NavigationPlane />
       <HubGroundCollider />
       <HubPlayer ref={playerRef} position={playerSpawnPos} />
+      <HubRemotes />
       <HubAmbientParticles />
       <HubClickRipple point={ripple.point} stamp={ripple.stamp} />
     </>

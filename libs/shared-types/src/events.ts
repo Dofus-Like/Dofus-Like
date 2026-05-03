@@ -13,3 +13,14 @@ export const GAME_EVENTS = {
 
 export type GameEventKey = keyof typeof GAME_EVENTS;
 export type GameEventValue = (typeof GAME_EVENTS)[GameEventKey];
+
+export const HUB_EVENTS = {
+  INIT: 'hub.init',
+  PLAYER_JOIN: 'hub.player.join',
+  PLAYER_LEAVE: 'hub.player.leave',
+  PLAYER_MOVE: 'hub.player.move',
+  CHAT_MESSAGE: 'hub.chat.message',
+} as const;
+
+export type HubEventKey = keyof typeof HUB_EVENTS;
+export type HubEventValue = (typeof HUB_EVENTS)[HubEventKey];

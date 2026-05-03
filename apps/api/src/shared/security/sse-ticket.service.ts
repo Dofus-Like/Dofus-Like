@@ -6,7 +6,7 @@ import { RedisService } from '../redis/redis.service';
 
 import { SSE_TICKET_PREFIX, SSE_TICKET_TTL_SECONDS } from './security.constants';
 
-export type SseResourceType = 'game-session' | 'combat';
+export type SseResourceType = 'game-session' | 'combat' | 'hub';
 
 export interface SseTicketPayload {
   userId: string;

@@ -9,6 +9,7 @@ import { CombatModule } from '../combat/combat.module';
 import { EconomyModule } from '../economy/economy.module';
 import { GameSessionModule } from '../game-session/game-session.module';
 import { HealthModule } from '../health/health.module';
+import { HubModule } from '../hub/hub.module';
 import { PlayerModule } from '../player/player.module';
 import { PerfModule } from '../shared/perf/perf.module';
 import { RequestContextMiddleware } from '../shared/perf/request-context.middleware';
@@ -43,6 +44,7 @@ import { WorldModule } from '../world/world.module';
     EconomyModule,
     CombatModule,
     GameSessionModule,
+    HubModule,
     HealthModule,
     VersionModule,
   ],
