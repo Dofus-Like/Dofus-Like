@@ -5,8 +5,8 @@ import type { SeedId } from '@game/shared-types';
 import { SEED_CONFIGS } from '@game/shared-types';
 
 import { shopApi } from '../api/shop.api';
-import { useAuthStore } from '../store/auth.store';
-import { useFarmingStore } from '../store/farming.store';
+import { useAuthStore, type AuthState } from '../store/auth.store';
+import { useFarmingStore, type FarmingStoreState } from '../store/farming.store';
 import { useTranslation } from '../store/language.store';
 import { getItemVisualMeta } from '../utils/itemVisual';
 import { getSessionPo } from '../utils/sessionPo';
@@ -29,10 +29,10 @@ interface ShopItem {
 export function ShopPage(): React.ReactNode {
   const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
   const queryClient = useQueryClient();
-  const { player, refreshPlayer } = useAuthStore();
+  const { player, refreshPlayer } = useAuthStore((s: AuthState) => s);
   const { activeSession, refreshSession } = useGameSession();
   const { t } = useTranslation();
-  const fetchState = useFarmingStore((s: any) => s.fetchState);
+  const fetchState = useFarmingStore((s: FarmingStoreState) => s.fetchState);
 
   const items = useQuery({
     queryKey: ['shop-items'],

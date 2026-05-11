@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { craftingApi } from '../api/crafting.api';
 import { inventoryApi } from '../api/inventory.api';
 import { itemsApi } from '../api/items.api';
-import { useAuthStore } from '../store/auth.store';
+import { useAuthStore, type AuthState } from '../store/auth.store';
 import { useTranslation } from '../store/language.store';
 import { getItemVisualMeta } from '../utils/itemVisual';
 import { getSessionPo } from '../utils/sessionPo';
@@ -116,8 +116,8 @@ function FusionSlot({
 export function CraftingPage(): React.ReactNode {
   const { activeSession, refreshSession } = useGameSession();
   const { t } = useTranslation();
-  const player = useAuthStore((s: any) => s.player);
-  const refreshPlayer = useAuthStore((s: any) => s.refreshPlayer);
+  const player = useAuthStore((s: AuthState) => s.player);
+  const refreshPlayer = useAuthStore((s: AuthState) => s.refreshPlayer);
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<'craft' | 'fusion'>('craft');
@@ -222,12 +222,12 @@ export function CraftingPage(): React.ReactNode {
   
   // Compute boosted stats for preview (+30% per rank)
   const boostedStats = resultStats && resultRank
-    ? Object.fromEntries(
-        Object.entries(resultStats).map(([k, v]) => [
-          k,
-          Math.round(v * Math.pow(1.3, resultRank - 1)),
-        ])
-      )
+      ? Object.fromEntries(
+          Object.entries(resultStats).map(([k, v]) => [
+            k,
+            Math.round((v as number) * Math.pow(1.3, resultRank - 1)),
+          ])
+        )
     : null;
 
   // All items for slot selection — individual item instances for drag (qty≥1)
