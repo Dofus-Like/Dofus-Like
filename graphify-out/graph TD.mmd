@@ -1,0 +1,33 @@
+graph TD
+    %% Core Services (God Nodes)
+    Redis["⚡ RedisService<br/>(Pont central)"]
+    GS["🎮 GameSessionService"]
+    Auth["🔐 AuthService"]
+    MM["🎲 MatchmakingService"]
+
+    %% Functional Groups
+    subgraph World ["🌍 World & Farming"]
+        Map["🗺️ MapGenerator"]
+        Resources["🌲 ResourcesService"]
+        Farming["🌾 FarmingService"]
+    end
+
+    subgraph Economy ["💰 Economy & Inventory"]
+        Inv["🎒 InventoryService"]
+        Shop["🛒 ShopService"]
+        Craft["🛠️ CraftingService"]
+    end
+
+    subgraph Combat ["⚔️ Combat Logic"]
+        Turns["⏳ TurnService"]
+        Spells["🔥 SpellsService"]
+    end
+
+    %% Key Connections found by Graphify
+    Redis --- Combat
+    Redis --- GS
+    GS --- Combat
+    GS --- World
+    Auth --- Economy
+    Inv --- Craft
+    Resources --- Inv

@@ -23,12 +23,14 @@ describe('ShopService', () => {
   const txMock = {
     inventoryItem: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn().mockResolvedValue({ id: 'new-inv', quantity: 1 }),
       update: jest.fn().mockResolvedValue({ id: 'upd-inv' }),
       delete: jest.fn(),
     },
     sessionItem: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn().mockResolvedValue({ id: 'new-si' }),
       update: jest.fn().mockResolvedValue({ id: 'upd-si' }),
       delete: jest.fn(),
@@ -66,9 +68,7 @@ describe('ShopService', () => {
       prisma.item.findMany.mockResolvedValue([{ id: 'a' }]);
       const r = await service.getAvailableItems();
       expect(r).toEqual([{ id: 'a' }]);
-      expect(prisma.item.findMany).toHaveBeenCalledWith({
-        where: { shopPrice: { not: null } },
-      });
+      expect(prisma.item.findMany).toHaveBeenCalledWith();
     });
   });
 
@@ -85,7 +85,7 @@ describe('ShopService', () => {
 
     it('débite correctement totalCost = price * quantity', async () => {
       prisma.item.findUnique.mockResolvedValue({ id: 'i', shopPrice: 50 });
-      txMock.inventoryItem.findUnique.mockResolvedValue(null);
+      txMock.inventoryItem.findFirst.mockResolvedValue(null);
       await service.buy('p1', 'i', 3);
       expect(spendable.debitOrThrowInTransaction).toHaveBeenCalledWith(
         expect.anything(),
@@ -99,7 +99,7 @@ describe('ShopService', () => {
     it('achat hors session: crée un inventoryItem rank=1 si inexistant', async () => {
       prisma.item.findUnique.mockResolvedValue({ id: 'i', shopPrice: 50 });
       gameSession.getActiveSession.mockResolvedValue(null);
-      txMock.inventoryItem.findUnique.mockResolvedValue(null);
+      txMock.inventoryItem.findFirst.mockResolvedValue(null);
       await service.buy('p1', 'i', 2);
       expect(txMock.inventoryItem.create).toHaveBeenCalledWith({
         data: { playerId: 'p1', itemId: 'i', quantity: 2, rank: 1 },
@@ -110,7 +110,7 @@ describe('ShopService', () => {
     it('achat hors session: increment si inventoryItem existant', async () => {
       prisma.item.findUnique.mockResolvedValue({ id: 'i', shopPrice: 50 });
       gameSession.getActiveSession.mockResolvedValue(null);
-      txMock.inventoryItem.findUnique.mockResolvedValue({ id: 'existing-1' });
+      txMock.inventoryItem.findFirst.mockResolvedValue({ id: 'existing-1' });
       await service.buy('p1', 'i', 2);
       expect(txMock.inventoryItem.update).toHaveBeenCalledWith({
         where: { id: 'existing-1' },
@@ -122,7 +122,7 @@ describe('ShopService', () => {
     it('achat en session: utilise sessionItem', async () => {
       prisma.item.findUnique.mockResolvedValue({ id: 'i', shopPrice: 50 });
       gameSession.getActiveSession.mockResolvedValue({ id: 'gs-1' });
-      txMock.sessionItem.findUnique.mockResolvedValue(null);
+      txMock.sessionItem.findFirst.mockResolvedValue(null);
       await service.buy('p1', 'i', 1);
       expect(txMock.sessionItem.create).toHaveBeenCalled();
     });

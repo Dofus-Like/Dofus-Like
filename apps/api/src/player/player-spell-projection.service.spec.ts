@@ -180,11 +180,7 @@ describe('PlayerSpellProjectionService', () => {
     ]);
   });
 
-  it('triggers syncPlayerSpells and retries findMany when playerSpells is empty', async () => {
-    prisma.playerSpell.findMany
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ spell: defaultSpell }]);
-
+  it('builds combat spell definitions from projected equipment/default spell sources', async () => {
     prisma.equipmentSlot.findMany.mockResolvedValue([]);
     prisma.spell.findMany.mockResolvedValue([defaultSpell]);
     prisma.itemGrantedSpell.findMany.mockResolvedValue([]);
@@ -193,7 +189,7 @@ describe('PlayerSpellProjectionService', () => {
 
     const result = await service.getCombatSpellDefinitions('player-1');
 
-    expect(prisma.playerSpell.findMany).toHaveBeenCalledTimes(2);
+    expect(prisma.playerSpell.findMany).not.toHaveBeenCalled();
     expect(result).toHaveLength(1);
     expect(result[0].code).toBe('spell-claque');
   });
@@ -239,9 +235,10 @@ describe('PlayerSpellProjectionService', () => {
   });
 
   it('toCombatDefinition maps null effectConfig to null', async () => {
-    prisma.playerSpell.findMany.mockResolvedValue([
-      { spell: { ...defaultSpell, effectConfig: null } },
-    ]);
+    prisma.equipmentSlot.findMany.mockResolvedValue([]);
+    prisma.spell.findMany.mockResolvedValue([{ ...defaultSpell, effectConfig: null }]);
+    prisma.itemGrantedSpell.findMany.mockResolvedValue([]);
+    spellResolver.resolveSpells.mockReturnValue({ 'spell-claque-id': 1 });
 
     const result = await service.getCombatSpellDefinitions('player-1');
 

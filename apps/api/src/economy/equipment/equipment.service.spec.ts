@@ -15,11 +15,12 @@ describe('EquipmentService', () => {
     equipmentSlot: {
       findMany: jest.Mock;
       findFirst: jest.Mock;
+      findUnique: jest.Mock;
       upsert: jest.Mock;
       update: jest.Mock;
     };
-    inventoryItem: { findFirst: jest.Mock };
-    sessionItem: { findFirst: jest.Mock };
+    inventoryItem: { findFirst: jest.Mock; findUnique: jest.Mock; update: jest.Mock; create: jest.Mock; delete: jest.Mock };
+    sessionItem: { findFirst: jest.Mock; update: jest.Mock; create: jest.Mock; delete: jest.Mock };
     playerStats: { update: jest.Mock };
     playerSpell: { deleteMany: jest.Mock; createMany: jest.Mock };
     $transaction: jest.Mock;
@@ -34,14 +35,26 @@ describe('EquipmentService', () => {
       equipmentSlot: {
         findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockResolvedValue({ inventoryItemId: 'inv-1', sessionItemId: null }),
         upsert: jest.fn().mockResolvedValue({}),
         update: jest.fn().mockResolvedValue({}),
       },
-      inventoryItem: { findFirst: jest.fn() },
-      sessionItem: { findFirst: jest.fn() },
+      inventoryItem: {
+        findFirst: jest.fn(),
+        findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({}),
+        create: jest.fn().mockResolvedValue({ id: 'split-inv-1' }),
+        delete: jest.fn().mockResolvedValue({}),
+      },
+      sessionItem: {
+        findFirst: jest.fn(),
+        update: jest.fn().mockResolvedValue({}),
+        create: jest.fn().mockResolvedValue({ id: 'split-si-1' }),
+        delete: jest.fn().mockResolvedValue({}),
+      },
       playerStats: { update: jest.fn() },
       playerSpell: { deleteMany: jest.fn(), createMany: jest.fn() },
-      $transaction: jest.fn().mockResolvedValue([]),
+      $transaction: jest.fn(async (callback) => callback(prisma)),
     };
     statsCalc = { computeEffectiveStats: jest.fn().mockResolvedValue({ vit: 100 }) };
     spells = { buildPlayerSpellAssignments: jest.fn().mockResolvedValue([]) };
