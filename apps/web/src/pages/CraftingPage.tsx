@@ -5,9 +5,9 @@ import { craftingApi } from '../api/crafting.api';
 import { inventoryApi } from '../api/inventory.api';
 import { itemsApi } from '../api/items.api';
 import { useAuthStore } from '../store/auth.store';
+import { useTranslation } from '../store/language.store';
 import { getItemVisualMeta } from '../utils/itemVisual';
 import { getSessionPo } from '../utils/sessionPo';
-import { useTranslation } from '../store/language.store';
 import { useGameSession } from './GameTunnel';
 import './CraftingPage.css';
 
@@ -62,17 +62,17 @@ function FusionSlot({
   label: string;
   onDrop: (inv: InventoryItem) => void;
   onRemove: () => void;
-}) {
+}): React.ReactNode {
   const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
   const visual = item ? getItemVisualMeta(item.item) : null;
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragOver(true);
   };
-  const handleDragLeave = () => setIsDragOver(false);
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDragLeave = (): void => setIsDragOver(false);
+  const handleDrop = (e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragOver(false);
     const raw = e.dataTransfer.getData('application/json');
@@ -113,11 +113,11 @@ function FusionSlot({
 }
 
 // ── Main Component ──────────────────────────────────────────────────────────
-export function CraftingPage() {
+export function CraftingPage(): React.ReactNode {
   const { activeSession, refreshSession } = useGameSession();
   const { t } = useTranslation();
-  const player = useAuthStore((s) => s.player);
-  const refreshPlayer = useAuthStore((s) => s.refreshPlayer);
+  const player = useAuthStore((s: any) => s.player);
+  const refreshPlayer = useAuthStore((s: any) => s.refreshPlayer);
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<'craft' | 'fusion'>('craft');
@@ -159,21 +159,23 @@ export function CraftingPage() {
     }
   }, [activeSession, refreshPlayer, refreshSession]);
 
-  const spendableGold = activeSession ? (getSessionPo(activeSession, player?.id) ?? 0) : (player?.gold ?? 0);
+  const spendableGold = activeSession 
+    ? (getSessionPo(activeSession, player?.id) ?? 0) 
+    : (player?.gold ?? 0);
 
-  const getAvailableQuantity = useCallback((resourceItemId: string) => {
+  const getAvailableQuantity = useCallback((resourceItemId: string): number => {
     const resource = allItems.find((i) => i.id === resourceItemId);
     if (resource?.name === 'Or') return spendableGold;
     return inventory.find((i) => i.itemId === resourceItemId)?.quantity || 0;
   }, [allItems, inventory, spendableGold]);
 
-  const isRecipeCraftable = useCallback((recipe: Recipe) => {
+  const isRecipeCraftable = useCallback((recipe: Recipe): boolean => {
     return Object.entries(recipe.craftCost).every(([resId, qty]) => 
       getAvailableQuantity(resId) >= qty
     );
   }, [getAvailableQuantity]);
 
-  const handleCraft = async (itemId: string) => {
+  const handleCraft = async (itemId: string): Promise<void> => {
     try {
       await craftingApi.craftItem(itemId);
       if (activeSession) await refreshSession({ silent: true });
@@ -186,7 +188,7 @@ export function CraftingPage() {
     }
   };
 
-  const handleMerge = async (itemId: string, rank: number) => {
+  const handleMerge = async (itemId: string, rank: number): Promise<void> => {
     setIsMerging(true);
     try {
       await craftingApi.mergeItem(itemId, rank);
@@ -291,11 +293,11 @@ export function CraftingPage() {
       </div>
 
       <div className="crafting-content">
-        {loading ? (
-          <div className="loading">{t('loading')}</div>
-        ) : activeTab === 'craft' ? (
-          /* ───────────────────── FORGE TAB ─────────────────────── */
-          <div className="recipes-container">
+        {(() => {
+          if (loading) return <div className="loading">{t('loading')}</div>;
+          if (activeTab === 'craft') {
+            return (
+              <div className="recipes-container">
             {filteredCategories.map(type => {
               const categoryRecipes = recipes.filter(r => 
                 (r as Recipe & { type?: string }).type === type &&
@@ -361,10 +363,11 @@ export function CraftingPage() {
                 </div>
               );
             })}
-          </div>
-        ) : (
-          /* ───────────────────── FUSION TAB ─────────────────────── */
-          <div className="fusion-workshop">
+            </div>
+          );
+        }
+        return (
+            <div className="fusion-workshop">
 
             {/* Left panel: draggable inventory list */}
             <aside className="fusion-inventory-panel">
@@ -491,18 +494,18 @@ export function CraftingPage() {
                     }
                   }}
                 >
-                  {isMerging
-                    ? `⏳ ${t('merging')}`
-                    : fusionValid
-                      ? `✨ ${t('merge')}`
-                      : t('selectTwoIdenticalItems')
-                  }
+                  {(() => {
+                    if (isMerging) return `⏳ ${t('merging')}`;
+                    if (fusionValid) return `✨ ${t('merge')}`;
+                    return t('selectTwoIdenticalItems');
+                  })()}
                 </button>
 
               </div>
             </main>
           </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

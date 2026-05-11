@@ -16,10 +16,11 @@ import './InventoryPage.css';
 
 type FilterType = 'ALL' | 'WEAPON' | 'ARMOR' | 'OTHER';
 
-export function InventoryPage() {
+export function InventoryPage(): React.ReactNode {
   const [activeFilter, setActiveFilter] = React.useState<FilterType>('ALL');
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { activeSession } = useGameSession();
   const [selectedItem, setSelectedItem] = React.useState<InventoryItem | null>(null);
 

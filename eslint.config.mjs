@@ -95,6 +95,7 @@ export default [
       'max-lines-per-function': 'off',
       complexity: 'off',
       'max-depth': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
     },
   },
 ];

@@ -31,7 +31,7 @@ interface Room {
 const LOBBY_POLL_MS = 5000;
 const QUEUE_POLL_MS = 2000;
 
-export function LobbyPage() {
+export function LobbyPage(): React.ReactNode {
   const { player, initialize, setSkin } = useAuthStore();
   const { activeSession, refreshSession } = useGameSession();
   const navigate = useNavigate();
@@ -409,12 +409,10 @@ export function LobbyPage() {
         </div>
 
         <div className="rooms-grid">
-          {loadingRooms ? (
-            <div className="no-rooms">{t('loadingRooms')}</div>
-          ) : visibleRooms.length === 0 ? (
-            <div className="no-rooms">{t('noRooms')}</div>
-          ) : (
-            visibleRooms.map((room) => (
+          {(() => {
+            if (loadingRooms) return <div className="no-rooms">{t('loadingRooms')}</div>;
+            if (visibleRooms.length === 0) return <div className="no-rooms">{t('noRooms')}</div>;
+            return visibleRooms.map((room) => (
               <div key={room.id} className="room-card">
                 <div className="room-info">
                   <span className="room-host">{room.p1.username}</span>
@@ -429,8 +427,8 @@ export function LobbyPage() {
                   {room.player1Id === player?.id ? t('yourRoom') : t('join')}
                 </button>
               </div>
-            ))
-          )}
+            ));
+          })()}
         </div>
 
         <div className="vs-ai-card">
