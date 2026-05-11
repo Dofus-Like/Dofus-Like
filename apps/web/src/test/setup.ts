@@ -34,7 +34,10 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
   });
 }
 
-if (typeof globalThis.localStorage?.removeItem !== 'function') {
+// Always install a Map-backed stub so localStorage.clear() is available in all
+// environments (jsdom may expose a broken implementation when --localstorage-file
+// is set without a valid path).
+{
   const store = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => (store.has(k) ? (store.get(k) ?? null) : null),

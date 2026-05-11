@@ -202,7 +202,10 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
             setPathIndex(0);
         }
       }
-    }, [path, gridPosition.x, gridPosition.y, gridSize]);
+    // gridPosition intentionally omitted: it's only a fallback when groupRef is null (pre-mount),
+    // and including it caused the animation to restart on every movePlayer() call mid-path.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [path, gridSize]);
 
     useFrame((state, delta) => {
       // 1. Animation stable
