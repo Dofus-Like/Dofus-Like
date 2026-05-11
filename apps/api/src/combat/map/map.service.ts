@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { CombatPosition, TerrainType, Tile } from '@game/shared-types';
 import { canMoveTo } from '@game/game-engine';
+import { CombatPosition, TerrainType, Tile } from '@game/shared-types';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class MapService {
@@ -10,7 +10,7 @@ export class MapService {
    */
   generateCombatMap(width = 10, height = 10): Tile[] {
     const tiles: Tile[] = [];
-    
+
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         let type = TerrainType.GROUND;
@@ -43,7 +43,7 @@ export class MapService {
     currentPosition: CombatPosition,
     remainingPm: number,
     tiles: Tile[],
-    occupiedPositions: CombatPosition[]
+    occupiedPositions: CombatPosition[],
   ): CombatPosition[] {
     const reachable: CombatPosition[] = [];
 

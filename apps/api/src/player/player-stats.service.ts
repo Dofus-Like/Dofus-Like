@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../shared/prisma/prisma.service';
 import type { PlayerStats } from '@game/shared-types';
 import { ItemType } from '@game/shared-types';
+import { Injectable } from '@nestjs/common';
+
+import { PrismaService } from '../shared/prisma/prisma.service';
+
 import { StatsCalculatorService } from './stats-calculator.service';
 
 type EquippedSlotWithItem = any;
@@ -76,10 +78,7 @@ export class PlayerStatsService {
     const typedSlots = slots as EquippedSlotWithItem[];
     return {
       items: this.mapEquippedItems(typedSlots),
-      stats: this.statsCalculator.computeEffectiveStatsFromSnapshot(
-        baseStats,
-        typedSlots,
-      ),
+      stats: this.statsCalculator.computeEffectiveStatsFromSnapshot(baseStats, typedSlots),
     };
   }
 

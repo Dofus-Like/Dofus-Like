@@ -1,7 +1,9 @@
+import { useFBX, useTexture } from '@react-three/drei';
 import React, { useRef, useLayoutEffect, useMemo } from 'react';
 import * as THREE from 'three';
-import { useFBX, useTexture } from '@react-three/drei';
-import { GameMap, TerrainType, TERRAIN_PROPERTIES, CombatTerrainType } from '@game/shared-types';
+
+import type { GameMap} from '@game/shared-types';
+import { TerrainType, TERRAIN_PROPERTIES, CombatTerrainType } from '@game/shared-types';
 
 const BUSH_URL = '/assets/models/Bush_03.fbx';
 const TREE_URLS = [
@@ -37,15 +39,17 @@ interface Asset {
 export const InstancedFoliage = React.memo(({ map }: { map: GameMap }) => {
   const texture = useTexture(TEXTURE_PATH);
   const bushFbx = useFBX(BUSH_URL);
-  const treeFbxs = [
-    useFBX(TREE_URLS[0]),
-    useFBX(TREE_URLS[1]),
-    useFBX(TREE_URLS[2]),
-    useFBX(TREE_URLS[3]),
-    useFBX(TREE_URLS[4]),
-  ];
+  const tree0 = useFBX(TREE_URLS[0]);
+  const tree1 = useFBX(TREE_URLS[1]);
+  const tree2 = useFBX(TREE_URLS[2]);
+  const tree3 = useFBX(TREE_URLS[3]);
+  const tree4 = useFBX(TREE_URLS[4]);
+  const treeFbxs = useMemo(
+    () => [tree0, tree1, tree2, tree3, tree4],
+    [tree0, tree1, tree2, tree3, tree4],
+  );
 
-  const extractAndPrepareMesh = (group: THREE.Group): Asset | null => {
+  const extractAndPrepareMesh = React.useCallback((group: THREE.Group): Asset | null => {
     let bestMesh: THREE.Mesh | null = null;
     let maxVertexCount = -1;
 
@@ -83,16 +87,16 @@ export const InstancedFoliage = React.memo(({ map }: { map: GameMap }) => {
     material.needsUpdate = true;
 
     return { geometry, material };
-  };
+  }, [texture]);
 
   const foliageAssets = useMemo(() => {
     const assets: (Asset | null)[] = [];
     assets[0] = extractAndPrepareMesh(bushFbx);
-    treeFbxs.forEach((fbx, i) => {
+    for (const [i, fbx] of treeFbxs.entries()) {
       assets[i + 1] = extractAndPrepareMesh(fbx);
-    });
+    }
     return assets;
-  }, [bushFbx, treeFbxs, texture]);
+  }, [bushFbx, treeFbxs, extractAndPrepareMesh]);
 
   const foliageList = useMemo(() => {
     const list: FoliageData[] = [];
@@ -112,28 +116,30 @@ export const InstancedFoliage = React.memo(({ map }: { map: GameMap }) => {
   }, [map]);
 
   const bushMeshRef = useRef<THREE.InstancedMesh>(null);
-  const treeMeshRefs = [
-    useRef<THREE.InstancedMesh>(null),
-    useRef<THREE.InstancedMesh>(null),
-    useRef<THREE.InstancedMesh>(null),
-    useRef<THREE.InstancedMesh>(null),
-    useRef<THREE.InstancedMesh>(null),
-  ];
+  const treeMeshRef0 = useRef<THREE.InstancedMesh>(null);
+  const treeMeshRef1 = useRef<THREE.InstancedMesh>(null);
+  const treeMeshRef2 = useRef<THREE.InstancedMesh>(null);
+  const treeMeshRef3 = useRef<THREE.InstancedMesh>(null);
+  const treeMeshRef4 = useRef<THREE.InstancedMesh>(null);
+  const treeMeshRefs = useMemo(
+    () => [treeMeshRef0, treeMeshRef1, treeMeshRef2, treeMeshRef3, treeMeshRef4],
+    [],
+  );
 
   useLayoutEffect(() => {
     const allRefs = [bushMeshRef, ...treeMeshRefs];
     const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
 
-    allRefs.forEach(ref => {
+    for (const ref of allRefs) {
       if (ref.current) {
         for (let i = 0; i < ref.current.count; i++) {
           ref.current.setMatrixAt(i, zeroMatrix);
         }
       }
-    });
+    }
 
     if (foliageList.length === 0) {
-      allRefs.forEach(ref => { if (ref.current) ref.current.instanceMatrix.needsUpdate = true; });
+      for (const ref of allRefs) { if (ref.current) ref.current.instanceMatrix.needsUpdate = true; }
       return;
     }
 
@@ -144,10 +150,10 @@ export const InstancedFoliage = React.memo(({ map }: { map: GameMap }) => {
     const euler = new THREE.Euler();
     const counts = new Array(6).fill(0);
 
-    foliageList.forEach((item) => {
+    for (const item of foliageList) {
       const idx = item.type === 'bush' ? 0 : item.variant + 1;
       const ref = allRefs[idx];
-      if (!ref.current) return;
+      if (!ref.current) continue;
 
       const worldX = item.x - map.width / 2 + 0.5;
       const worldZ = item.y - map.height / 2 + 0.5;
@@ -162,12 +168,12 @@ export const InstancedFoliage = React.memo(({ map }: { map: GameMap }) => {
       matrix.compose(position, rotation, scale);
       ref.current.setMatrixAt(counts[idx], matrix);
       counts[idx]++;
-    });
+    }
 
-    allRefs.forEach(ref => {
+    for (const ref of allRefs) {
       if (ref.current) ref.current.instanceMatrix.needsUpdate = true;
-    });
-  }, [foliageList, map]);
+    }
+  }, [foliageList, map, treeMeshRefs]);
 
   return (
     <group>
@@ -199,5 +205,5 @@ export const InstancedFoliage = React.memo(({ map }: { map: GameMap }) => {
 });
 
 useFBX.preload(BUSH_URL);
-TREE_URLS.forEach(url => useFBX.preload(url));
+for (const url of TREE_URLS) useFBX.preload(url);
 useTexture.preload(TEXTURE_PATH);

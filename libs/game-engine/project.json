@@ -3,6 +3,15 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/game-engine/src",
   "projectType": "library",
-  "tags": [],
-  "implicitDependencies": ["shared-types"]
+  "tags": ["scope:shared", "type:feature"],
+  "implicitDependencies": ["shared-types"],
+  "targets": {
+    "mutation-test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx stryker run",
+        "cwd": "libs/game-engine"
+      }
+    }
+  }
 }

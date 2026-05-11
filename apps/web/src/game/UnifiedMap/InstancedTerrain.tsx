@@ -1,16 +1,23 @@
+import { extend } from '@react-three/fiber';
 import React, { useRef, useLayoutEffect } from 'react';
 import * as THREE from 'three';
-import { GameMap, TerrainType, TERRAIN_PROPERTIES, CombatTerrainType } from '@game/shared-types';
 import { RoundedBoxGeometry } from 'three-stdlib';
-import { extend } from '@react-three/fiber';
+
+import type { GameMap} from '@game/shared-types';
+import { TerrainType, TERRAIN_PROPERTIES, CombatTerrainType } from '@game/shared-types';
+
 
 extend({ RoundedBoxGeometry });
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      roundedBoxGeometry: any;
-    }
+interface RoundedBoxGeometryProps {
+  args?: [width?: number, height?: number, depth?: number];
+  radius?: number;
+  smoothness?: number;
+}
+
+declare module '@react-three/fiber' {
+  interface ThreeElements {
+    roundedBoxGeometry: RoundedBoxGeometryProps;
   }
 }
 
@@ -45,11 +52,11 @@ export const InstancedTerrain = React.memo(({
   const meshRefA = useRef<THREE.InstancedMesh>(null);
   const meshRefB = useRef<THREE.InstancedMesh>(null);
 
-  const getPos = (x: number, y: number): [number, number, number] => [
+  const getPos = React.useCallback((x: number, y: number): [number, number, number] => [
     x - map.width / 2 + 0.5,
     0,
-    y - map.height / 2 + 0.5
-  ];
+    y - map.height / 2 + 0.5,
+  ], [map.width, map.height]);
 
   useLayoutEffect(() => {
     if (!meshRefA.current || !meshRefB.current) return;
@@ -67,7 +74,7 @@ export const InstancedTerrain = React.memo(({
           continue; 
         }
         
-        const [wx, wy, wz] = getPos(x, y);
+        const [wx, , wz] = getPos(x, y);
 
         // Sides (Box)
         matrix.makeTranslation(wx, -0.2, wz);
@@ -98,20 +105,20 @@ export const InstancedTerrain = React.memo(({
     
     meshRefB.current.instanceMatrix.needsUpdate = true;
     if (meshRefB.current.instanceColor) meshRefB.current.instanceColor.needsUpdate = true;
-  }, [map, checkerColorA, checkerColorB, sideColor]);
+  }, [map, checkerColorA, checkerColorB, sideColor, getPos]);
 
   const count = map.width * map.height;
 
   return (
     <group>
       {/* Sides of tiles */}
-      <instancedMesh ref={meshRefA} args={[null as any, null as any, count]} raycast={() => null}>
+      <instancedMesh ref={meshRefA} args={[undefined, undefined, count]} raycast={() => null}>
         <roundedBoxGeometry args={[tileSize, 0.4, tileSize]} radius={tileRadius} smoothness={4} />
         <meshStandardMaterial />
       </instancedMesh>
       
       {/* Top surface of tiles */}
-      <instancedMesh ref={meshRefB} args={[null as any, null as any, count]} raycast={() => null}>
+      <instancedMesh ref={meshRefB} args={[undefined, undefined, count]} raycast={() => null}>
         <planeGeometry args={[tileSize - 0.02, tileSize - 0.02]} />
         <meshStandardMaterial />
       </instancedMesh>

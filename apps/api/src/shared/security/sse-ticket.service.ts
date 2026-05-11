@@ -1,6 +1,9 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+
+import { ForbiddenException, Injectable } from '@nestjs/common';
+
 import { RedisService } from '../redis/redis.service';
+
 import { SSE_TICKET_PREFIX, SSE_TICKET_TTL_SECONDS } from './security.constants';
 
 export type SseResourceType = 'game-session' | 'combat';
@@ -17,11 +20,7 @@ export class SseTicketService {
 
   async issueTicket(payload: SseTicketPayload) {
     const ticket = randomUUID();
-    await this.redis.setJson(
-      `${SSE_TICKET_PREFIX}:${ticket}`,
-      payload,
-      SSE_TICKET_TTL_SECONDS,
-    );
+    await this.redis.setJson(`${SSE_TICKET_PREFIX}:${ticket}`, payload, SSE_TICKET_TTL_SECONDS);
 
     return {
       ticket,

@@ -6,5 +6,17 @@ module.exports = {
     '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
+  // Unit tests: src/ uniquement. Les intégration (test/integration/**/*.int.spec.ts)
+  // sont lancés via `yarn nx test:integration api`.
+  testMatch: ['<rootDir>/src/**/*.spec.ts', '<rootDir>/src/**/*.test.ts'],
   coverageDirectory: '../../coverage/apps/api',
+  coverageProvider: 'v8',
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.spec.ts',
+    '!src/**/*.module.ts',
+    '!src/main.ts',
+    '!src/**/*.d.ts',
+  ],
+  coverageReporters: ['text', 'html', 'lcov', 'json-summary'],
 };

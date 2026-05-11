@@ -65,7 +65,13 @@
       "options": {
         "command": "jest --config apps/api/jest.config.cts --runInBand"
       }
+    },
+    "test:integration": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "jest --config apps/api/jest.integration.config.cts --runInBand"
+      }
     }
   },
-  "tags": []
+  "tags": ["scope:backend", "type:app"]
 }

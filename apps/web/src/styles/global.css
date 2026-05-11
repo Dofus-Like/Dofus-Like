@@ -5,21 +5,34 @@
 }
 
 :root {
-  --color-bg: #3f3f46;
-  --color-bg-secondary: #52525b;
-  --color-bg-card: #52525b;
+  --color-bg: #0f172a;
+  --color-bg-secondary: #1e293b;
+  --color-bg-card: #1e293b;
   --color-primary: #6366f1;
   --color-primary-hover: #818cf8;
   --color-accent: #f59e0b;
-  --color-text: #e2e8f0;
+  --color-text: #f8fafc;
   --color-text-secondary: #94a3b8;
-  --color-border: #2d3748;
+  --color-border: rgba(255, 255, 255, 0.1);
   --color-success: #10b981;
   --color-danger: #ef4444;
   --color-heal: #34d399;
   --font-main: 'Inter', system-ui, -apple-system, sans-serif;
-  --radius: 8px;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --radius: 12px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+
+  /* GLASS — DA3 tokens */
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-bg-strong: rgba(15, 23, 42, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-radius: 14px;
+  --glass-blur: blur(20px);
+  --glass-accent: #60a5fa;
+  --glass-accent-rgb: 96, 165, 250;
+
+  /* TRANSITIONS */
+  --trans-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --trans-med: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body {
@@ -85,38 +98,9 @@ input, select {
   to { transform: rotate(360deg); }
 }
 
-@keyframes fallDown {
-  0% { transform: translateY(-50px); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
-}
-
-*, *::before, *::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-:root {
-  --color-bg: #3f3f46;
-  --color-bg-secondary: #52525b;
-  --color-bg-card: #52525b;
-  --color-primary: #6366f1;
-  --color-primary-hover: #818cf8;
-  --color-accent: #f59e0b;
-  --color-text: #e2e8f0;
-  --color-text-secondary: #94a3b8;
-  --color-border: #2d3748;
-  --color-success: #10b981;
-  --color-danger: #ef4444;
-  --color-heal: #34d399;
-  --font-main: 'Inter', system-ui, -apple-system, sans-serif;
-  --radius: 8px;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-}
-
 body {
   font-family: var(--font-main);
-  background-color: var(--color-bg);
+  background-color: transparent;
   color: var(--color-text);
   line-height: 1.6;
   min-height: 100vh;

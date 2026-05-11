@@ -1,6 +1,8 @@
 import { Controller, Get, UseGuards, Request } from '@nestjs/common';
-import { PlayerStatsService } from './player-stats.service';
+
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
+import { PlayerStatsService } from './player-stats.service';
 
 @Controller('player')
 @UseGuards(JwtAuthGuard)
@@ -9,7 +11,6 @@ export class PlayerController {
 
   @Get('stats')
   async getStats(@Request() req: any) {
-
     return this.playerStatsService.getEffectiveStats(req.user.id);
   }
 }

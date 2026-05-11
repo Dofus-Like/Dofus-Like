@@ -1,27 +1,42 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
 import { performance } from 'node:perf_hooks';
+
+import { canMoveTo, canJumpTo, isInRange, hasLineOfSight } from '@game/game-engine';
+import type { CombatState, CombatAction } from '@game/shared-types';
+import { CombatActionType } from '@game/shared-types';
+import { GAME_EVENTS } from '@game/shared-types';
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { PerfLoggerService } from '../../shared/perf/perf-logger.service';
+import { PerfStatsService } from '../../shared/perf/perf-stats.service';
+import { RuntimePerfService } from '../../shared/perf/runtime-perf.service';
+import {
+  DistributedLockService,
+  LockNotAcquiredError,
+} from '../../shared/security/distributed-lock.service';
 import { RedisService } from '../../shared/redis/redis.service';
 import { SseService } from '../../shared/sse/sse.service';
-import type { CombatState, CombatAction, CombatPosition } from '@game/shared-types';
-import { CombatActionType } from '@game/shared-types';
-import { canMoveTo, canJumpTo, isInRange, hasLineOfSight } from '@game/game-engine';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { GAME_EVENTS } from '@game/shared-types';
-import { PerfLoggerService } from '../../shared/perf/perf-logger.service';
-import { RuntimePerfService } from '../../shared/perf/runtime-perf.service';
 import { SpellsService } from '../spells/spells.service';
+
+/**
+ * TTL du lock par action. Choisi pour être > pire cas de latence d'une action,
+ * mais < timeout front. Si une action dépasse, le lock expire et un autre peut
+ * passer (mais Redis.setJson() final est quand même cohérent car le state est
+ * toujours relu avant modification).
+ */
+const TURN_LOCK_TTL_SECONDS = 10;
 
 @Injectable()
 export class TurnService {
-  private readonly sessionLocks = new Set<string>();
-
   constructor(
     private readonly redis: RedisService,
     private readonly sse: SseService,
     private readonly spells: SpellsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly perfLogger: PerfLoggerService,
+    private readonly perfStats: PerfStatsService,
     private readonly runtimePerf: RuntimePerfService,
+    private readonly distributedLock: DistributedLockService,
   ) {}
 
   async playAction(
@@ -29,15 +44,34 @@ export class TurnService {
     playerId: string,
     action: CombatAction,
   ): Promise<CombatState> {
-    if (this.sessionLocks.has(sessionId)) {
-      this.perfLogger.logEvent('combat', 'turn.session.locked', {
-        session_id: sessionId,
-        player_id: playerId,
-        action_type: action.type,
-      }, { level: 'warn' });
-      throw new BadRequestException('Une action est déjà en cours de traitement');
+    const lockKey = `combat:lock:${sessionId}`;
+    try {
+      return await this.distributedLock.withLock(lockKey, TURN_LOCK_TTL_SECONDS, () =>
+        this.runAction(sessionId, playerId, action),
+      );
+    } catch (error) {
+      if (error instanceof LockNotAcquiredError) {
+        this.perfLogger.logEvent(
+          'combat',
+          'turn.session.locked',
+          {
+            session_id: sessionId,
+            player_id: playerId,
+            action_type: action.type,
+          },
+          { level: 'warn' },
+        );
+        throw new BadRequestException('Une action est déjà en cours de traitement');
+      }
+      throw error;
     }
-    this.sessionLocks.add(sessionId);
+  }
+
+  private async runAction(
+    sessionId: string,
+    playerId: string,
+    action: CombatAction,
+  ): Promise<CombatState> {
     const startedAt = performance.now();
     const sseEventsBefore = this.runtimePerf.getTotalSseEvents();
 
@@ -45,31 +79,48 @@ export class TurnService {
       const state = await this.redis.getJson<CombatState>(`combat:${sessionId}`);
 
       if (!state) {
-        this.perfLogger.logEvent('combat', 'turn.session.miss', {
-          session_id: sessionId,
-          action_type: action.type,
-        }, { level: 'warn' });
+        this.perfLogger.logEvent(
+          'combat',
+          'turn.session.miss',
+          {
+            session_id: sessionId,
+            action_type: action.type,
+          },
+          { level: 'warn' },
+        );
         throw new BadRequestException('Session de combat introuvable');
       }
 
       // On autorise l'abandon (SURRENDER) même si ce n'est pas notre tour
       if (action.type !== CombatActionType.SURRENDER && state.currentTurnPlayerId !== playerId) {
-        this.perfLogger.logEvent('combat', 'turn.player.mismatch', {
-          session_id: sessionId,
-          player_id: playerId,
-          current_turn_player_id: state.currentTurnPlayerId,
-          action_type: action.type,
-        }, { level: 'warn' });
-        throw new BadRequestException(`Ce n'est pas votre tour. Actuel: ${state.currentTurnPlayerId}, Vous: ${playerId}`);
+        this.perfLogger.logEvent(
+          'combat',
+          'turn.player.mismatch',
+          {
+            session_id: sessionId,
+            player_id: playerId,
+            current_turn_player_id: state.currentTurnPlayerId,
+            action_type: action.type,
+          },
+          { level: 'warn' },
+        );
+        throw new BadRequestException(
+          `Ce n'est pas votre tour. Actuel: ${state.currentTurnPlayerId}, Vous: ${playerId}`,
+        );
       }
 
       const player = state.players[playerId];
       if (!player) {
-        this.perfLogger.logEvent('combat', 'turn.player.missing', {
-          session_id: sessionId,
-          player_id: playerId,
-          action_type: action.type,
-        }, { level: 'warn' });
+        this.perfLogger.logEvent(
+          'combat',
+          'turn.player.missing',
+          {
+            session_id: sessionId,
+            player_id: playerId,
+            action_type: action.type,
+          },
+          { level: 'warn' },
+        );
         throw new BadRequestException(`Joueur introuvable dans la session. ID: ${playerId}`);
       }
 
@@ -103,11 +154,16 @@ export class TurnService {
       // Vérification de victoire / mort
       await this.checkVictory(newState);
 
+      // Timestamp pour le watchdog (bug #8: détecte les sessions bloquées)
+      (newState as CombatState & { lastActionAt?: number }).lastActionAt = Date.now();
+
       await this.redis.setJson(`combat:${sessionId}`, newState, 3600);
       this.sse.emit(sessionId, 'STATE_UPDATED', newState);
       const sseEventsEmitted = this.runtimePerf.getTotalSseEvents() - sseEventsBefore;
 
-      this.perfLogger.logDuration('combat', 'turn.play_action', performance.now() - startedAt, {
+      const durationMs = performance.now() - startedAt;
+      this.perfStats.recordGameMetric('game.turn', `action.${action.type}`, durationMs);
+      this.perfLogger.logDuration('combat', 'turn.play_action', durationMs, {
         session_id: sessionId,
         player_id: playerId,
         action_type: action.type,
@@ -127,15 +183,18 @@ export class TurnService {
 
       return newState;
     } catch (error) {
-      this.perfLogger.logEvent('combat', 'turn.play_action.error', {
-        session_id: sessionId,
-        player_id: playerId,
-        action_type: action.type,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }, { level: 'warn' });
+      this.perfLogger.logEvent(
+        'combat',
+        'turn.play_action.error',
+        {
+          session_id: sessionId,
+          player_id: playerId,
+          action_type: action.type,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+        { level: 'warn' },
+      );
       throw error;
-    } finally {
-      this.sessionLocks.delete(sessionId);
     }
   }
 
@@ -147,13 +206,16 @@ export class TurnService {
     const player = state.players[playerId];
     const target = { x: action.targetX ?? 0, y: action.targetY ?? 0 };
 
-    const occupiedPositions = Object.values(state.players).map(p => p.position);
+    const occupiedPositions = Object.values(state.players).map((p) => p.position);
 
-    if (!canMoveTo(target, player.remainingPm, player.position, state.map.tiles, occupiedPositions)) {
+    if (
+      !canMoveTo(target, player.remainingPm, player.position, state.map.tiles, occupiedPositions)
+    ) {
       throw new BadRequestException('Déplacement impossible ou hors de portée');
     }
 
-    const distance = Math.abs(target.x - player.position.x) + Math.abs(target.y - player.position.y);
+    const distance =
+      Math.abs(target.x - player.position.x) + Math.abs(target.y - player.position.y);
     player.position = target;
     player.remainingPm -= distance;
 
@@ -168,10 +230,14 @@ export class TurnService {
     const player = state.players[playerId];
     const target = { x: action.targetX ?? 0, y: action.targetY ?? 0 };
 
-    const occupiedPositions = Object.values(state.players).map(p => p.position);
+    const occupiedPositions = Object.values(state.players).map((p) => p.position);
 
-    if (!canJumpTo(target, player.remainingPm, player.position, state.map.tiles, occupiedPositions)) {
-      throw new BadRequestException('Saut impossible (distance 2 requise, obstacle/eau obligatoire entre les deux)');
+    if (
+      !canJumpTo(target, player.remainingPm, player.position, state.map.tiles, occupiedPositions)
+    ) {
+      throw new BadRequestException(
+        'Saut impossible (distance 2 requise, obstacle/eau obligatoire entre les deux)',
+      );
     }
 
     const from = { ...player.position };
@@ -179,9 +245,9 @@ export class TurnService {
     player.remainingPm -= 1;
 
     this.sse.emit(state.sessionId, 'PLAYER_JUMPED', {
-        playerId: player.playerId,
-        from,
-        to: target
+      playerId: player.playerId,
+      from,
+      to: target,
     });
 
     return state;
@@ -210,34 +276,38 @@ export class TurnService {
     const targetPos = { x: action.targetX ?? 0, y: action.targetY ?? 0 };
 
     if (!isInRange(player.position, targetPos, spell.minRange, spell.maxRange)) {
-        throw new BadRequestException('Cible hors de portée');
+      throw new BadRequestException('Cible hors de portée');
     }
 
     if (spell.requiresLineOfSight && !hasLineOfSight(player.position, targetPos, state.map.tiles)) {
-        throw new BadRequestException('Ligne de vue bloquée');
+      throw new BadRequestException('Ligne de vue bloquée');
     }
 
-    if (spell.requiresLinearTargeting && player.position.x !== targetPos.x && player.position.y !== targetPos.y) {
-        throw new BadRequestException('Lancer en ligne uniquement');
+    if (
+      spell.requiresLinearTargeting &&
+      player.position.x !== targetPos.x &&
+      player.position.y !== targetPos.y
+    ) {
+      throw new BadRequestException('Lancer en ligne uniquement');
     }
 
     const executionResult = this.spells.executeEffect(state, spell, player, targetPos);
-    executionResult.events.forEach((event) => {
+    for (const event of executionResult.events) {
       this.sse.emit(state.sessionId, event.type, event.payload);
-    });
+    }
 
     player.remainingPa -= spell.paCost;
     if (spell.cooldown > 0) {
-        player.spellCooldowns[spell.id] = spell.cooldown;
+      player.spellCooldowns[spell.id] = spell.cooldown;
     }
 
     // Émettre l'événement de sort pour l'animation
     this.sse.emit(state.sessionId, 'SPELL_CAST', {
-        casterId: playerId,
-        spellId: spell.id,
-        visualType: spell.visualType, // On passe l'info visuelle !
-        targetX: action.targetX,
-        targetY: action.targetY
+      casterId: playerId,
+      spellId: spell.id,
+      visualType: spell.visualType, // On passe l'info visuelle !
+      targetX: action.targetX,
+      targetY: action.targetY,
     });
 
     return state;
@@ -252,64 +322,75 @@ export class TurnService {
   }
 
   private async checkVictory(state: CombatState) {
-      const players = Object.values(state.players).filter(p => p.type === 'PLAYER');
-      for (const player of players) {
-          if (player.currentVit <= 0) {
-              const loserId = player.playerId;
-              const winner = players.find(p => p.playerId !== loserId);
-              const winnerId = winner?.playerId;
+    const players = Object.values(state.players).filter((p) => p.type === 'PLAYER');
+    for (const player of players) {
+      if (player.currentVit <= 0) {
+        const loserId = player.playerId;
+        const winner = players.find((p) => p.playerId !== loserId);
+        const winnerId = winner?.playerId;
 
-              state.winnerId = winnerId; // Marquer l'état comme fini pour le front
-              console.log(`[TurnService] Combat ended! Winner: ${winnerId}, Loser: ${loserId}, Session: ${state.sessionId}`);
+        state.winnerId = winnerId; // Marquer l'état comme fini pour le front
 
-              this.sse.emit(state.sessionId, 'COMBAT_ENDED', { winnerId, loserId });
-              
-              this.eventEmitter.emit(GAME_EVENTS.COMBAT_PLAYER_DIED, {
-                  sessionId: state.sessionId,
-                  playerId: loserId,
-              });
-              
-              // Notifier l'équipe A (Prisma, etc.)
-              this.eventEmitter.emit(GAME_EVENTS.COMBAT_ENDED, {
-                  sessionId: state.sessionId,
-                  winnerId,
-                  loserId
-              });
+        this.sse.emit(state.sessionId, 'COMBAT_ENDED', { winnerId, loserId });
 
-              // On NE SUPPRIME PLUS du redis immédiatement pour laisser le front lire le winnerId
-              // Le TTL de 3600s fera le nettoyage tout seul
-              return true;
-          }
+        this.eventEmitter.emit(GAME_EVENTS.COMBAT_PLAYER_DIED, {
+          sessionId: state.sessionId,
+          playerId: loserId,
+        });
+
+        // Notifier l'équipe A (Prisma, etc.)
+        this.eventEmitter.emit(GAME_EVENTS.COMBAT_ENDED, {
+          sessionId: state.sessionId,
+          winnerId,
+          loserId,
+        });
+
+        // On NE SUPPRIME PLUS du redis immédiatement pour laisser le front lire le winnerId
+        // Le TTL de 3600s fera le nettoyage tout seul
+        return true;
       }
-      return false;
+    }
+    return false;
   }
 
-  private async handleEndTurn(
-    state: CombatState,
-    playerId: string,
-  ): Promise<CombatState> {
+  private async handleEndTurn(state: CombatState, playerId: string): Promise<CombatState> {
     const playerIds = Object.values(state.players)
-        .filter(p => p.type === 'PLAYER')
-        .map(p => p.playerId);
+      .filter((p) => p.type === 'PLAYER')
+      .map((p) => p.playerId);
 
     const currentIndex = playerIds.indexOf(playerId);
     const nextIndex = (currentIndex + 1) % playerIds.length;
     const nextPlayerId = playerIds[nextIndex];
 
     const currentPlayer = state.players[playerId];
-    
+
     // Décrémenter les buffs du joueur qui finit son tour
-    currentPlayer.buffs.forEach(b => b.remainingTurns--);
-    currentPlayer.buffs = currentPlayer.buffs.filter(b => b.remainingTurns > 0);
+    for (const b of currentPlayer.buffs) b.remainingTurns--;
+
+    // Nettoyage à l'expiration: certains buffs mutent stats permanentes (VIT_MAX).
+    // On doit inverser ces mutations avant de filtrer les buffs expirés, sinon le
+    // bonus reste appliqué après expiration (cf. bug d'exploit VIT).
+    const expired = currentPlayer.buffs.filter((b) => b.remainingTurns <= 0);
+    for (const buff of expired) {
+      if (buff.type === 'VIT_MAX') {
+        currentPlayer.stats.vit -= buff.value;
+        currentPlayer.currentVit = Math.min(currentPlayer.currentVit, currentPlayer.stats.vit);
+      }
+    }
+    currentPlayer.buffs = currentPlayer.buffs.filter((b) => b.remainingTurns > 0);
 
     state.currentTurnPlayerId = nextPlayerId;
     state.turnNumber += 1;
 
     const nextPlayer = state.players[nextPlayerId];
-    
+
     // Calculer les bonus de buffs pour le début du tour
-    const paBonus = nextPlayer.buffs.filter(b => b.type === 'PA').reduce((sum, b) => sum + b.value, 0);
-    const pmBonus = nextPlayer.buffs.filter(b => b.type === 'PM').reduce((sum, b) => sum + b.value, 0);
+    const paBonus = nextPlayer.buffs
+      .filter((b) => b.type === 'PA')
+      .reduce((sum, b) => sum + b.value, 0);
+    const pmBonus = nextPlayer.buffs
+      .filter((b) => b.type === 'PM')
+      .reduce((sum, b) => sum + b.value, 0);
 
     // Réinitialiser PA/PM + Bonus
     nextPlayer.remainingPa = nextPlayer.stats.pa + paBonus;
@@ -321,7 +402,10 @@ export class TurnService {
     }
 
     this.sse.emit(state.sessionId, 'TURN_STARTED', { playerId: nextPlayerId });
-    this.eventEmitter.emit(GAME_EVENTS.TURN_STARTED, { sessionId: state.sessionId, playerId: nextPlayerId });
+    this.eventEmitter.emit(GAME_EVENTS.TURN_STARTED, {
+      sessionId: state.sessionId,
+      playerId: nextPlayerId,
+    });
 
     return state;
   }
@@ -340,7 +424,7 @@ export class TurnService {
     if (!state) throw new BadRequestException('Session introuvable');
 
     if (state.currentTurnPlayerId !== asPlayerId) {
-      throw new BadRequestException('Ce n\'est pas le tour de ce joueur');
+      throw new BadRequestException("Ce n'est pas le tour de ce joueur");
     }
 
     const player = state.players[asPlayerId];
@@ -348,11 +432,20 @@ export class TurnService {
 
     let newState: CombatState;
     switch (action.type) {
-      case CombatActionType.MOVE: newState = await this.handleMove(state, asPlayerId, action); break;
-      case CombatActionType.JUMP: newState = await this.handleJump(state, asPlayerId, action); break;
-      case CombatActionType.CAST_SPELL: newState = await this.handleCastSpell(state, asPlayerId, action); break;
-      case CombatActionType.END_TURN: newState = await this.handleEndTurn(state, asPlayerId); break;
-      default: throw new BadRequestException('Action invalide');
+      case CombatActionType.MOVE:
+        newState = await this.handleMove(state, asPlayerId, action);
+        break;
+      case CombatActionType.JUMP:
+        newState = await this.handleJump(state, asPlayerId, action);
+        break;
+      case CombatActionType.CAST_SPELL:
+        newState = await this.handleCastSpell(state, asPlayerId, action);
+        break;
+      case CombatActionType.END_TURN:
+        newState = await this.handleEndTurn(state, asPlayerId);
+        break;
+      default:
+        throw new BadRequestException('Action invalide');
     }
 
     await this.checkVictory(newState);

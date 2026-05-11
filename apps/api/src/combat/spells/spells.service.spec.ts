@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
 import {
   SpellEffectKind,
   SpellFamily,
@@ -9,6 +8,8 @@ import {
   type CombatState,
   type SpellDefinition,
 } from '@game/shared-types';
+import { BadRequestException } from '@nestjs/common';
+
 import { SpellsService } from './spells.service';
 
 function createSpell(overrides: Partial<SpellDefinition>): SpellDefinition {
@@ -94,7 +95,8 @@ describe('SpellsService', () => {
   let service: SpellsService;
 
   beforeEach(() => {
-    service = new SpellsService();
+    const perfStats = { recordGameMetric: jest.fn() } as never;
+    service = new SpellsService(perfStats);
   });
 
   it('applies physical damage to the target on the tile', () => {

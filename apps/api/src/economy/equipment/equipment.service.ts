@@ -1,14 +1,16 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { performance } from 'node:perf_hooks';
-import { PrismaService } from '../../shared/prisma/prisma.service';
+
 
 import { EquipmentSlotType } from '@game/shared-types';
+import { GAME_EVENTS } from '@game/shared-types';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+
+import { GameSessionService } from '../../game-session/game-session.service';
 import { PlayerSpellProjectionService } from '../../player/player-spell-projection.service';
 import { StatsCalculatorService } from '../../player/stats-calculator.service';
 import { PerfLoggerService } from '../../shared/perf/perf-logger.service';
-import { GameSessionService } from '../../game-session/game-session.service';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { GAME_EVENTS } from '@game/shared-types';
+import { PrismaService } from '../../shared/prisma/prisma.service';
 
 @Injectable()
 export class EquipmentService {
@@ -209,7 +211,9 @@ export class EquipmentService {
     };
 
     if (!validSlots[itemType]?.includes(slot)) {
-      throw new BadRequestException(`L'item de type ${itemType} ne peut pas être équipé dans le slot ${slot}`);
+      throw new BadRequestException(
+        `L'item de type ${itemType} ne peut pas être équipé dans le slot ${slot}`,
+      );
     }
   }
 }

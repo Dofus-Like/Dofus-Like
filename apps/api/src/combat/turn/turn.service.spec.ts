@@ -1,14 +1,19 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { TurnService } from './turn.service';
+import * as gameEngine from '@game/game-engine';
+import type { CombatState} from '@game/shared-types';
+import { CombatActionType } from '@game/shared-types';
+import { BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+
+import { PerfLoggerService } from '../../shared/perf/perf-logger.service';
+import { PerfStatsService } from '../../shared/perf/perf-stats.service';
+import { RuntimePerfService } from '../../shared/perf/runtime-perf.service';
 import { RedisService } from '../../shared/redis/redis.service';
 import { SseService } from '../../shared/sse/sse.service';
 import { SpellsService } from '../spells/spells.service';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PerfLoggerService } from '../../shared/perf/perf-logger.service';
-import { RuntimePerfService } from '../../shared/perf/runtime-perf.service';
-import { BadRequestException } from '@nestjs/common';
-import { CombatActionType, CombatState, TerrainType } from '@game/shared-types';
-import * as gameEngine from '@game/game-engine';
+import { TurnService } from './turn.service';
+
 
 jest.mock('@game/game-engine', () => ({
   canMoveTo: jest.fn(),
@@ -21,10 +26,6 @@ describe('TurnService', () => {
   let service: TurnService;
   let redisService: jest.Mocked<RedisService>;
   let sseService: jest.Mocked<SseService>;
-  let spellsService: jest.Mocked<SpellsService>;
-  let eventEmitter: jest.Mocked<EventEmitter2>;
-  let perfLogger: jest.Mocked<PerfLoggerService>;
-  let runtimePerf: jest.Mocked<RuntimePerfService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -69,16 +70,25 @@ describe('TurnService', () => {
             getTotalSseEvents: jest.fn().mockReturnValue(0),
           },
         },
+        {
+          provide: PerfStatsService,
+          useValue: { recordGameMetric: jest.fn() },
+        },
+        {
+          provide: (await import('../../shared/security/distributed-lock.service')).DistributedLockService,
+          useValue: {
+            withLock: jest.fn(async (_k, _ttl, fn) => fn()),
+            tryWithLock: jest.fn(async (_k, _ttl, fn) => fn()),
+            acquire: jest.fn().mockResolvedValue('test-fingerprint'),
+            release: jest.fn().mockResolvedValue(true),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<TurnService>(TurnService);
     redisService = module.get(RedisService);
     sseService = module.get(SseService);
-    spellsService = module.get(SpellsService);
-    eventEmitter = module.get(EventEmitter2);
-    perfLogger = module.get(PerfLoggerService);
-    runtimePerf = module.get(RuntimePerfService);
   });
 
   afterEach(() => {
@@ -93,7 +103,7 @@ describe('TurnService', () => {
       redisService.getJson.mockResolvedValue(null);
 
       await expect(
-        service.playAction(sessionId, playerId, { type: CombatActionType.END_TURN })
+        service.playAction(sessionId, playerId, { type: CombatActionType.END_TURN }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -103,7 +113,7 @@ describe('TurnService', () => {
       } as unknown as CombatState);
 
       await expect(
-        service.playAction(sessionId, playerId, { type: CombatActionType.END_TURN })
+        service.playAction(sessionId, playerId, { type: CombatActionType.END_TURN }),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -132,9 +142,13 @@ describe('TurnService', () => {
       expect(newState.players[playerId].position).toEqual({ x: 2, y: 1 });
       expect(newState.players[playerId].remainingPm).toBe(2);
       expect(sseService.emit).toHaveBeenCalledWith(sessionId, 'STATE_UPDATED', expect.any(Object));
-      expect(redisService.setJson).toHaveBeenCalledWith(`combat:${sessionId}`, expect.any(Object), 3600);
+      expect(redisService.setJson).toHaveBeenCalledWith(
+        `combat:${sessionId}`,
+        expect.any(Object),
+        3600,
+      );
     });
-    
+
     it('should allow JUMP action when valid', async () => {
       const mockState = {
         sessionId,
@@ -197,7 +211,9 @@ describe('TurnService', () => {
       expect(newState.players['player-2'].remainingPa).toBe(6);
       expect(newState.players['player-2'].remainingPm).toBe(3);
       expect(newState.players['player-2'].spellCooldowns['spell1']).toBe(0);
-      expect(sseService.emit).toHaveBeenCalledWith(sessionId, 'TURN_STARTED', { playerId: 'player-2' });
+      expect(sseService.emit).toHaveBeenCalledWith(sessionId, 'TURN_STARTED', {
+        playerId: 'player-2',
+      });
     });
   });
 });

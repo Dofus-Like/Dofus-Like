@@ -1,16 +1,49 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Leva } from 'leva';
+import React, { Profiler, Suspense, lazy, useEffect, useState, type ProfilerOnRenderCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { LoginPage } from './pages/LoginPage';
-import { LobbyPage } from './pages/LobbyPage';
-import { ShopPage } from './pages/ShopPage';
-import { InventoryPage } from './pages/InventoryPage';
-import { DebugPage } from './pages/DebugPage';
-import { useAuthStore } from './store/auth.store';
-import { GameSessionProvider, GameTunnelGuard } from './pages/GameTunnel';
+
 import { GameLayout } from './components/GameLayout';
+import { DebugPage } from './pages/DebugPage';
+import { GameSessionProvider, GameTunnelGuard } from './pages/GameTunnel';
+import { InventoryPage } from './pages/InventoryPage';
+import { LobbyPage } from './pages/LobbyPage';
+import { LoginPage } from './pages/LoginPage';
+import { ShopPage } from './pages/ShopPage';
+import { useAuthStore } from './store/auth.store';
 import './styles/global.css';
+
+const SHOW_DEBUG = ['1', 'true', 'on', 'yes'].includes(
+  String(import.meta.env.VITE_SHOW_DEBUG ?? '').toLowerCase().trim(),
+);
+
+const PerfHud = SHOW_DEBUG
+  ? lazy(() => import('./perf').then((mod) => ({ default: mod.PerfHud })))
+  : null;
+
+let recordRenderRef: ((id: string, phase: 'mount' | 'update' | 'nested-update', duration: number) => void) | null = null;
+
+if (SHOW_DEBUG) {
+  void import('./perf').then((mod) => {
+    mod.initPerfHud();
+    recordRenderRef = (id, phase, duration) =>
+      mod.usePerfHudStore.getState().recordRender(id, phase, duration);
+  });
+}
+
+const onAppRender: ProfilerOnRenderCallback = (id, phase, actualDuration) => {
+  recordRenderRef?.(id, phase as 'mount' | 'update' | 'nested-update', actualDuration);
+};
+
+function AppProfiler({ children }: { children: React.ReactNode }) {
+  if (!SHOW_DEBUG) return <>{children}</>;
+  return (
+    <Profiler id="app" onRender={onAppRender}>
+      {children}
+    </Profiler>
+  );
+}
 
 const queryClient = new QueryClient();
 const FarmingPage = lazy(() => import('./pages/FarmingPage').then((module) => ({ default: module.FarmingPage })));
@@ -53,6 +86,7 @@ root.render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <GameSessionProvider>
+          <AppProfiler>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route
@@ -141,8 +175,15 @@ root.render(
             />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
+          </AppProfiler>
         </GameSessionProvider>
       </BrowserRouter>
+      {PerfHud && (
+        <Suspense fallback={null}>
+          <PerfHud />
+        </Suspense>
+      )}
+      <Leva hidden />
     </QueryClientProvider>
   </React.StrictMode>,
 );

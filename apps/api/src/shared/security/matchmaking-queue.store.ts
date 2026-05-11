@@ -1,5 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+
 import { RedisService } from '../redis/redis.service';
+
 import { MATCHMAKING_QUEUE_KEY } from './security.constants';
 
 const REDIS_TYPE_NONE = 'none';
@@ -117,7 +119,10 @@ export class MatchmakingQueueStore implements OnModuleInit {
   private parseLegacyQueue(rawQueue: string): string[] | null {
     try {
       const parsed = JSON.parse(rawQueue);
-      if (!Array.isArray(parsed) || !parsed.every((entry) => typeof entry === 'string' && entry.length > 0)) {
+      if (
+        !Array.isArray(parsed) ||
+        !parsed.every((entry) => typeof entry === 'string' && entry.length > 0)
+      ) {
         return null;
       }
 

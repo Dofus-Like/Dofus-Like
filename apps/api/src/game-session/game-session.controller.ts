@@ -9,13 +9,15 @@ import {
   Sse,
   UseGuards,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
 import { Throttle, seconds } from '@nestjs/throttler';
+import { Observable } from 'rxjs';
+
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SessionService } from '../combat/session/session.service';
-import { SseTicketGuard } from '../shared/security/sse-ticket.guard';
 import { SseTicketResource } from '../shared/security/sse-ticket.decorator';
+import { SseTicketGuard } from '../shared/security/sse-ticket.guard';
 import { SseService } from '../shared/sse/sse.service';
+
 import { GameSessionService } from './game-session.service';
 import { MatchmakingService } from './matchmaking.service';
 
@@ -118,19 +120,13 @@ export class GameSessionController {
   @UseGuards(JwtAuthGuard)
   @Throttle({ default: { limit: 10, ttl: seconds(60) } })
   @Post('end/:id')
-  async endSession(
-    @Param('id') id: string,
-    @Request() req: { user: { id: string } },
-  ) {
+  async endSession(@Param('id') id: string, @Request() req: { user: { id: string } }) {
     return this.gameSessionService.endSession(id, req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('session/:id/stream-ticket')
-  async issueStreamTicket(
-    @Param('id') id: string,
-    @Request() req: { user: { id: string } },
-  ) {
+  async issueStreamTicket(@Param('id') id: string, @Request() req: { user: { id: string } }) {
     return this.gameSessionService.issueStreamTicket(id, req.user.id);
   }
 

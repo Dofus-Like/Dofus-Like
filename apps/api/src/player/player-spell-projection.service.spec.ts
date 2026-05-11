@@ -1,9 +1,5 @@
-import {
-  SpellEffectKind,
-  SpellFamily,
-  SpellType,
-  SpellVisualType,
-} from '@game/shared-types';
+import { SpellEffectKind, SpellFamily, SpellType, SpellVisualType } from '@game/shared-types';
+
 import { PlayerSpellProjectionService } from './player-spell-projection.service';
 
 const defaultSpell = {
@@ -95,7 +91,7 @@ describe('PlayerSpellProjectionService', () => {
       createMany: jest.fn(),
     },
     itemGrantedSpell: {
-        findMany: jest.fn(),
+      findMany: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -116,9 +112,9 @@ describe('PlayerSpellProjectionService', () => {
     prisma.equipmentSlot.findMany.mockResolvedValue([]);
     prisma.spell.findMany.mockResolvedValue([defaultSpell]);
     prisma.itemGrantedSpell.findMany.mockResolvedValue([]);
-    
+
     spellResolver.resolveSpells.mockReturnValue({
-        'spell-claque-id': 1
+      'spell-claque-id': 1,
     });
 
     await expect(service.buildPlayerSpellAssignments('player-1')).resolves.toEqual([
@@ -174,5 +170,87 @@ describe('PlayerSpellProjectionService', () => {
         effectConfig: {},
       },
     ]);
+  });
+
+  it('triggers syncPlayerSpells and retries findMany when playerSpells is empty', async () => {
+    prisma.playerSpell.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ spell: defaultSpell }]);
+
+    prisma.equipmentSlot.findMany.mockResolvedValue([]);
+    prisma.spell.findMany.mockResolvedValue([defaultSpell]);
+    prisma.itemGrantedSpell.findMany.mockResolvedValue([]);
+    spellResolver.resolveSpells.mockReturnValue({ 'spell-claque-id': 1 });
+    prisma.$transaction.mockImplementation(async (ops: any[]) => Promise.all(ops));
+
+    const result = await service.getCombatSpellDefinitions('player-1');
+
+    expect(prisma.playerSpell.findMany).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(1);
+    expect(result[0].code).toBe('spell-claque');
+  });
+
+  it('syncPlayerSpells deletes all then inserts computed assignments', async () => {
+    prisma.equipmentSlot.findMany.mockResolvedValue([]);
+    prisma.spell.findMany.mockResolvedValue([defaultSpell]);
+    prisma.itemGrantedSpell.findMany.mockResolvedValue([]);
+    spellResolver.resolveSpells.mockReturnValue({ 'spell-claque-id': 1 });
+    prisma.$transaction.mockImplementation(async (ops: any[]) => Promise.all(ops));
+
+    const assignments = await service.syncPlayerSpells('player-1');
+
+    expect(prisma.playerSpell.deleteMany).toHaveBeenCalledWith({ where: { playerId: 'player-1' } });
+    expect(prisma.playerSpell.createMany).toHaveBeenCalledWith({
+      data: [{ playerId: 'player-1', spellId: 'spell-claque-id', level: 1 }],
+    });
+    expect(assignments).toEqual([{ playerId: 'player-1', spellId: 'spell-claque-id', level: 1 }]);
+  });
+
+  it('syncPlayerSpells skips createMany when no spells are resolved', async () => {
+    prisma.equipmentSlot.findMany.mockResolvedValue([]);
+    prisma.spell.findMany.mockResolvedValue([]);
+    prisma.itemGrantedSpell.findMany.mockResolvedValue([]);
+    spellResolver.resolveSpells.mockReturnValue({});
+    prisma.$transaction.mockImplementation(async (ops: any[]) => Promise.all(ops));
+
+    const assignments = await service.syncPlayerSpells('player-1');
+
+    expect(prisma.playerSpell.createMany).not.toHaveBeenCalled();
+    expect(assignments).toEqual([]);
+  });
+
+  it('caps spell level at 3 even if the source count is higher', async () => {
+    prisma.equipmentSlot.findMany.mockResolvedValue([]);
+    prisma.spell.findMany.mockResolvedValue([defaultSpell]);
+    prisma.itemGrantedSpell.findMany.mockResolvedValue([]);
+    spellResolver.resolveSpells.mockReturnValue({ 'spell-claque-id': 10 });
+
+    const assignments = await service.buildPlayerSpellAssignments('player-1');
+
+    expect(assignments[0].level).toBe(3);
+  });
+
+  it('toCombatDefinition maps null effectConfig to null', async () => {
+    prisma.playerSpell.findMany.mockResolvedValue([
+      { spell: { ...defaultSpell, effectConfig: null } },
+    ]);
+
+    const result = await service.getCombatSpellDefinitions('player-1');
+
+    expect(result[0].effectConfig).toBeNull();
+  });
+
+  it('returns empty array when no spells are assigned after sync', async () => {
+    prisma.playerSpell.findMany.mockResolvedValue([]);
+
+    prisma.equipmentSlot.findMany.mockResolvedValue([]);
+    prisma.spell.findMany.mockResolvedValue([]);
+    prisma.itemGrantedSpell.findMany.mockResolvedValue([]);
+    spellResolver.resolveSpells.mockReturnValue({});
+    prisma.$transaction.mockImplementation(async (ops: any[]) => Promise.all(ops));
+
+    const result = await service.getCombatSpellDefinitions('player-1');
+
+    expect(result).toEqual([]);
   });
 });

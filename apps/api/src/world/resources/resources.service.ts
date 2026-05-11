@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../shared/prisma/prisma.service';
+
 import { GameSessionService } from '../../game-session/game-session.service';
+import { PrismaService } from '../../shared/prisma/prisma.service';
 
 @Injectable()
 export class ResourcesService {
@@ -27,7 +28,9 @@ export class ResourcesService {
     const session = await this.gameSession.getActiveSession(playerId);
     if (session) {
       const existingItem = await (this.prisma as any).sessionItem.findUnique({
-        where: { sessionId_playerId_itemId: { sessionId: session.id, playerId, itemId: resourceId } },
+        where: {
+          sessionId_playerId_itemId: { sessionId: session.id, playerId, itemId: resourceId },
+        },
       });
 
       if (existingItem) {

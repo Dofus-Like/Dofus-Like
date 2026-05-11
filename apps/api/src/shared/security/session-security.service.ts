@@ -5,9 +5,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+
 import { PrismaService } from '../prisma/prisma.service';
-import { OPEN_SESSION_STATUSES } from './security.constants';
+
 import { MatchmakingQueueStore } from './matchmaking-queue.store';
+import { OPEN_SESSION_STATUSES } from './security.constants';
 
 @Injectable()
 export class SessionSecurityService {
@@ -164,10 +166,12 @@ export class SessionSecurityService {
     }
 
     const isBot =
-      (await this.prisma.player.findUnique({
-        where: { id: userId },
-        select: { username: true },
-      }))?.username === 'Bot';
+      (
+        await this.prisma.player.findUnique({
+          where: { id: userId },
+          select: { username: true },
+        })
+      )?.username === 'Bot';
 
     if (!isBot) {
       await this.assertPlayerAvailableForPublicRoom(userId, {

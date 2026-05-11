@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request } from '@nestjs/common';
-import { FarmingService } from './farming.service';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SeedId } from '@game/shared-types';
+import { Controller, Get, Post, Body, Query, UseGuards, Request } from '@nestjs/common';
+
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+
 import { GatherResourceDto } from './dto/gather-resource.dto';
+import { FarmingService } from './farming.service';
 
 @Controller('farming')
 @UseGuards(JwtAuthGuard)
@@ -16,7 +18,13 @@ export class FarmingController {
 
   @Post('gather')
   async gather(@Request() req: { user: { id: string } }, @Body() body: GatherResourceDto) {
-    return this.farmingService.gatherResource(req.user.id, body.targetX, body.targetY, body.playerX, body.playerY);
+    return this.farmingService.gatherResource(
+      req.user.id,
+      body.targetX,
+      body.targetY,
+      body.playerX,
+      body.playerY,
+    );
   }
 
   @Post('end-farming-phase')

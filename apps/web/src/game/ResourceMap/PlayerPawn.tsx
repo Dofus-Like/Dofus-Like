@@ -1,8 +1,10 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Billboard, Text, RoundedBox } from '@react-three/drei';
+import { useFrame, useLoader, useThree } from '@react-three/fiber';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import * as THREE from 'three';
-import { PathNode, CombatPlayer } from '@game/shared-types';
+
+import type { PathNode, CombatPlayer } from '@game/shared-types';
+
 import { getSkinById } from '../../game/constants/skins';
 import { useAuthStore } from '../../store/auth.store';
 import { useCombatStore } from '../../store/combat.store';
@@ -105,7 +107,7 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
       tAttack.needsUpdate = true;
       
       return { textureIdle: tIdle, textureWalk: tWalk, textureAttack: tAttack };
-    }, [texIdle, texWalk, texAttack]);
+    }, [texIdle, texWalk, texAttack, skipSprites]);
 
     // Uniforms pour le shader de couleur
     const uniforms = useMemo(() => ({
@@ -122,7 +124,7 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
             precision: 'highp',
         });
         
-        mat.onBeforeCompile = (shader: any) => {
+        mat.onBeforeCompile = (shader: THREE.WebGLProgramParametersWithUniforms) => {
             shader.uniforms.uHue = uniforms.uHue;
             shader.uniforms.uSat = uniforms.uSat;
 
@@ -200,7 +202,7 @@ export const PlayerPawn = React.forwardRef<PlayerPawnHandle, PlayerPawnProps>(
             setPathIndex(0);
         }
       }
-    }, [path]);
+    }, [path, gridPosition.x, gridPosition.y, gridSize]);
 
     useFrame((state, delta) => {
       // 1. Animation stable

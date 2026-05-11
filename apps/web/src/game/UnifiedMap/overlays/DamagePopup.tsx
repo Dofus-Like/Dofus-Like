@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
 import { Text, Billboard } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
+import React, { useState, useRef } from 'react';
+
 import { COMBAT_COLORS } from '../../constants/colors';
 
 interface DamagePopupProps {
@@ -12,7 +12,7 @@ interface DamagePopupProps {
 
 export function DamagePopup({ position, value, onComplete }: DamagePopupProps) {
   const [progress, setProgress] = useState(0);
-  const textRef = useRef<any>(null);
+  const textRef = useRef<{ position: { y: number }; material: { opacity: number } } | null>(null);
 
   useFrame((_, delta) => {
     if (progress >= 1) {

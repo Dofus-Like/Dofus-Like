@@ -1,10 +1,12 @@
 import { Controller, Get, Param, Post, Request, Sse, UseGuards } from '@nestjs/common';
-import { Observable } from 'rxjs';
 import { Throttle, seconds } from '@nestjs/throttler';
+import { Observable } from 'rxjs';
+
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { SseTicketGuard } from '../../shared/security/sse-ticket.guard';
 import { SseTicketResource } from '../../shared/security/sse-ticket.decorator';
+import { SseTicketGuard } from '../../shared/security/sse-ticket.guard';
 import { SseService } from '../../shared/sse/sse.service';
+
 import { SessionService } from './session.service';
 
 @Controller('combat')
@@ -37,20 +39,14 @@ export class SessionController {
   @UseGuards(JwtAuthGuard)
   @Throttle({ default: { limit: 10, ttl: seconds(60) } })
   @Post('challenge/:targetId')
-  async challenge(
-    @Param('targetId') targetId: string,
-    @Request() req: { user: { id: string } },
-  ) {
+  async challenge(@Param('targetId') targetId: string, @Request() req: { user: { id: string } }) {
     return this.sessionService.challenge(req.user.id, targetId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Throttle({ default: { limit: 10, ttl: seconds(60) } })
   @Post('accept/:sessionId')
-  async accept(
-    @Param('sessionId') sessionId: string,
-    @Request() req: { user: { id: string } },
-  ) {
+  async accept(@Param('sessionId') sessionId: string, @Request() req: { user: { id: string } }) {
     return this.sessionService.accept(sessionId, req.user.id);
   }
 
@@ -62,10 +58,7 @@ export class SessionController {
 
   @UseGuards(JwtAuthGuard)
   @Post('session/:id/stream-ticket')
-  async issueStreamTicket(
-    @Param('id') id: string,
-    @Request() req: { user: { id: string } },
-  ) {
+  async issueStreamTicket(@Param('id') id: string, @Request() req: { user: { id: string } }) {
     return this.sessionService.issueStreamTicket(id, req.user.id);
   }
 

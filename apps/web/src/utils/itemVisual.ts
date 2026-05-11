@@ -1,8 +1,3 @@
-type ShopVisualableItem = {
-  type?: string | null;
-  family?: string | null;
-};
-
 const ITEM_TYPE_ICONS: Record<string, string> = {
   WEAPON: '⚔️',
   ARMOR_HEAD: '⛑️',
@@ -20,7 +15,13 @@ const FAMILY_ICONS: Record<string, string> = {
   SPECIAL: '👑',
 };
 
-export function getItemVisualMeta(item: any): { icon: string; iconPath?: string; toneClass: string } {
+interface ItemVisualInput {
+  family?: string;
+  type?: string;
+  iconPath?: string;
+}
+
+export function getItemVisualMeta(item: ItemVisualInput): { icon: string; iconPath?: string; toneClass: string } {
   const family = item.family?.toUpperCase() ?? '';
   const type = item.type?.toUpperCase() ?? '';
 

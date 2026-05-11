@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
 import { useFBX, useTexture } from '@react-three/drei';
+import React, { useMemo } from 'react';
 import * as THREE from 'three';
 
 export interface TreeProps {
@@ -46,16 +46,16 @@ function TreeModel({ url, rotationY, texture }: { url: string; rotationY: number
 
         if (mesh.material) {
           const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-          mats.forEach(m => {
-            // Appliquer la texture PNG
-            if ('map' in m) {
-              (m as any).map = texture;
-              (m as any).map.colorSpace = THREE.SRGBColorSpace;
-              (m as any).color.setHex(0xffffff); // Blanc pour ne pas teinter la texture
+          for (const m of mats) {
+            const mat = m as THREE.MeshStandardMaterial & { shininess?: number };
+            if ('map' in mat) {
+              mat.map = texture;
+              if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+              mat.color.setHex(0xffffff);
             }
-            if ('shininess' in m) (m as any).shininess = 0;
+            if ('shininess' in mat) mat.shininess = 0;
             m.needsUpdate = true;
-          });
+          }
         }
       }
     });
@@ -88,5 +88,5 @@ export function Tree({ position, scale = 0.35, seed = 0 }: TreeProps) {
 }
 
 // Pré-chargement
-TREE_URLS.forEach(url => useFBX.preload(url));
+for (const url of TREE_URLS) useFBX.preload(url);
 useTexture.preload(TEXTURE_PATH);

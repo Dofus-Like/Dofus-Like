@@ -1,4 +1,5 @@
-import { TerrainType, TERRAIN_PROPERTIES, GameMap, CombatTerrainType } from './map.types';
+import type { TerrainType, GameMap} from './map.types';
+import { TERRAIN_PROPERTIES, CombatTerrainType } from './map.types';
 
 export interface PathNode {
   x: number;
@@ -45,10 +46,12 @@ export function findPath(
   occupiedPositionSet?: Set<string>,
 ): PathNode[] | null {
   if (
-    end.x < 0 || end.x >= map.width ||
-    end.y < 0 || end.y >= map.height ||
+    end.x < 0 ||
+    end.x >= map.width ||
+    end.y < 0 ||
+    end.y >= map.height ||
     !isWalkable(map.grid[end.y][end.x]) ||
-    (occupiedPositionSet?.has(`${end.x},${end.y}`))
+    occupiedPositionSet?.has(`${end.x},${end.y}`)
   ) {
     return null;
   }
@@ -98,7 +101,7 @@ export function findPath(
 
       const g = current.g + 1;
       let h = heuristic({ x: nx, y: ny }, end);
-      
+
       const dx1 = nx - end.x;
       const dy1 = ny - end.y;
       const cross = Math.abs(dx1 * dy2 - dx2 * dy1);
@@ -179,7 +182,7 @@ export function findPathToAdjacent(
 
       const g = current.g + 1;
       let h = heuristic({ x: nx, y: ny }, target);
-      
+
       const dx1 = nx - target.x;
       const dy1 = ny - target.y;
       const cross = Math.abs(dx1 * dy2 - dx2 * dy1);

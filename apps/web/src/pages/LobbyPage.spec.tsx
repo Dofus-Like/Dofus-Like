@@ -1,9 +1,26 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+type ActiveSessionFixture = {
+  id: string;
+  status: string;
+  phase: string;
+  currentRound: number;
+  player1Wins: number;
+  player2Wins: number;
+  player1Ready: boolean;
+  player2Ready: boolean;
+  player1Id: string;
+  player2Id: string | null;
+  gold: number;
+  player1Po: number;
+  player2Po: number;
+  combats: unknown[];
+} | null;
+
 const mocks = vi.hoisted(() => ({
-  activeSession: null as any,
+  activeSession: null as ActiveSessionFixture,
   gameSessionApi: {
     createPrivateSession: vi.fn(),
     endSession: vi.fn(),
@@ -23,7 +40,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  const actual = await vi.importActual<Record<string, unknown>>('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mocks.navigate,
@@ -131,5 +148,185 @@ describe('LobbyPage', () => {
 
     const header = container.querySelector('.lobby-header') || container.querySelector('.lobby-section-header');
     expect(header?.textContent).not.toContain('VS AI');
+  });
+
+  it('navigates to /farming when an active session transitions to ACTIVE status', async () => {
+    mocks.activeSession = {
+      id: 'session-2',
+      status: 'ACTIVE',
+      phase: 'FARMING',
+      currentRound: 1,
+      player1Wins: 0,
+      player2Wins: 0,
+      player1Ready: false,
+      player2Ready: false,
+      player1Id: 'player-1',
+      player2Id: 'player-2',
+      gold: 0,
+      player1Po: 0,
+      player2Po: 0,
+      combats: [],
+    };
+
+    render(
+      <MemoryRouter>
+        <LobbyPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(mocks.navigate).toHaveBeenCalledWith('/farming');
+    });
+  });
+
+  it('joins the random queue and shows the searching state', async () => {
+    mocks.gameSessionApi.joinQueue.mockResolvedValue({ data: {} });
+
+    render(
+      <MemoryRouter>
+        <LobbyPage />
+      </MemoryRouter>,
+    );
+
+    const joinBtn = await screen.findByRole('button', { name: 'Lancer une recherche' });
+    fireEvent.click(joinBtn);
+
+    await waitFor(() => {
+      expect(mocks.gameSessionApi.joinQueue).toHaveBeenCalledWith();
+    });
+  });
+
+  it('creates a private room and shows the cancel button', async () => {
+    mocks.gameSessionApi.createPrivateSession.mockResolvedValue({ data: { id: 'new-session' } });
+    mocks.refreshSession.mockImplementation(async () => {
+      mocks.activeSession = {
+        id: 'new-session',
+        status: 'WAITING',
+        phase: 'FARMING',
+        currentRound: 1,
+        player1Wins: 0,
+        player2Wins: 0,
+        player1Ready: false,
+        player2Ready: false,
+        player1Id: 'player-1',
+        player2Id: null,
+        gold: 0,
+        player1Po: 0,
+        player2Po: 0,
+        combats: [],
+      };
+    });
+
+    render(
+      <MemoryRouter>
+        <LobbyPage />
+      </MemoryRouter>,
+    );
+
+    const createBtn = await screen.findByRole('button', { name: 'Créer une room' });
+    fireEvent.click(createBtn);
+
+    await waitFor(() => {
+      expect(mocks.gameSessionApi.createPrivateSession).toHaveBeenCalled();
+    });
+  });
+
+  it('shows waiting rooms returned by the API', async () => {
+    mocks.gameSessionApi.getWaitingSessions.mockResolvedValue({
+      data: [
+        {
+          id: 'room-1',
+          player1Id: 'other-player',
+          player2Id: null,
+          status: 'WAITING',
+          createdAt: new Date().toISOString(),
+          p1: { username: 'Alice' },
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <LobbyPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Alice')).toBeInTheDocument();
+  });
+
+  it('starts a VS AI game when the button is clicked', async () => {
+    mocks.gameSessionApi.startVsAi.mockResolvedValue({ data: { id: 'ai-session' } });
+
+    render(
+      <MemoryRouter>
+        <LobbyPage />
+      </MemoryRouter>,
+    );
+
+    const vsAiBtn = await screen.findByRole('button', { name: 'Lancer VS AI' });
+    fireEvent.click(vsAiBtn);
+
+    await waitFor(() => {
+      expect(mocks.gameSessionApi.startVsAi).toHaveBeenCalled();
+    });
+  });
+
+  it('navigates immediately when joinQueue returns matched', async () => {
+    mocks.gameSessionApi.joinQueue.mockResolvedValue({ data: { status: 'matched' } });
+
+    render(
+      <MemoryRouter>
+        <LobbyPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Lancer une recherche' }));
+    await waitFor(() => {
+      expect(mocks.navigate).toHaveBeenCalledWith('/farming');
+    });
+  });
+
+  it('rejects ownership-protected join attempts on a private room', async () => {
+    mocks.gameSessionApi.getWaitingSessions.mockResolvedValue({
+      data: [
+        {
+          id: 'room-1',
+          player1Id: 'player-1',
+          player2Id: null,
+          status: 'WAITING',
+          createdAt: new Date().toISOString(),
+          p1: { username: 'roketag' },
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <LobbyPage />
+      </MemoryRouter>,
+    );
+
+    const joinBtn = await screen.findByRole('button', { name: 'Votre room' });
+    expect(joinBtn).toBeDisabled();
+  });
+
+  it('does not poll the queue while the player is not queued', async () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <MemoryRouter>
+          <LobbyPage />
+        </MemoryRouter>,
+      );
+
+      await vi.runOnlyPendingTimersAsync();
+      mocks.gameSessionApi.getActiveSession.mockClear();
+      mocks.gameSessionApi.getQueueStatus.mockClear();
+
+      await vi.advanceTimersByTimeAsync(2100);
+      expect(mocks.gameSessionApi.getActiveSession).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
