@@ -70,7 +70,7 @@
   min-width: 260px;
   max-width: 520px;
   padding: 12px 18px;
-  border-radius: 999px;
+  border-radius: 7px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgb(var(--glass-bg-strong-rgb) / 0.85);
   backdrop-filter: blur(20px);
@@ -124,7 +124,7 @@
   align-items: center;
   gap: 8px;
   padding: 4px 6px;
-  border-radius: 10px;
+  border-radius: 5px;
   border: 1px solid transparent;
   transition: background 0.2s ease, border-color 0.2s ease;
 }

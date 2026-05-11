@@ -1,4 +1,4 @@
-import { CameraControls, OrthographicCamera } from '@react-three/drei';
+import { CameraControls, OrthographicCamera, useProgress } from '@react-three/drei';
 import CameraControlsImpl from 'camera-controls';
 import { Canvas, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -103,6 +103,8 @@ const TILE_TOOLTIP_UI_SELECTOR = [
   '.map-action-toast',
 ].join(',');
 
+type TileTooltipPoint = { x: number; y: number };
+
 function isPointerOverFarmingUi(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest(TILE_TOOLTIP_UI_SELECTOR));
 }
@@ -117,6 +119,42 @@ function getViewportOverflowArea(rect: DOMRect, viewportWidth: number, viewportH
   const overflowX = Math.max(0, -rect.left) + Math.max(0, rect.right - viewportWidth);
   const overflowY = Math.max(0, -rect.top) + Math.max(0, rect.bottom - viewportHeight);
   return overflowX * rect.height + overflowY * rect.width;
+}
+
+function getTileTooltipPlacement(
+  pointer: TileTooltipPoint,
+  tooltipWidth: number,
+  tooltipHeight: number,
+  viewportWidth: number,
+  viewportHeight: number,
+  blockers: DOMRect[],
+) {
+  const rawCandidates = [
+    { left: pointer.x + TILE_TOOLTIP_OFFSET, top: pointer.y + TILE_TOOLTIP_OFFSET },
+    { left: pointer.x - tooltipWidth - TILE_TOOLTIP_OFFSET, top: pointer.y + TILE_TOOLTIP_OFFSET },
+    { left: pointer.x + TILE_TOOLTIP_OFFSET, top: pointer.y - tooltipHeight - TILE_TOOLTIP_OFFSET },
+    { left: pointer.x - tooltipWidth - TILE_TOOLTIP_OFFSET, top: pointer.y - tooltipHeight - TILE_TOOLTIP_OFFSET },
+  ];
+
+  const candidates = rawCandidates.map((candidate, priority) => {
+    const left = Math.min(
+      Math.max(TILE_TOOLTIP_VIEWPORT_MARGIN, candidate.left),
+      viewportWidth - tooltipWidth - TILE_TOOLTIP_VIEWPORT_MARGIN,
+    );
+    const top = Math.min(
+      Math.max(TILE_TOOLTIP_VIEWPORT_MARGIN, candidate.top),
+      viewportHeight - tooltipHeight - TILE_TOOLTIP_VIEWPORT_MARGIN,
+    );
+    const rect = new DOMRect(left, top, tooltipWidth, tooltipHeight);
+    const uiOverlap = blockers.reduce((total, blocker) => total + getOverlapArea(rect, blocker), 0);
+    const overflow = getViewportOverflowArea(rect, viewportWidth, viewportHeight);
+
+    return { left, top, score: uiOverlap + overflow * 100 + priority * 0.01 };
+  });
+
+  return candidates.reduce((bestCandidate, candidate) =>
+    candidate.score < bestCandidate.score ? candidate : bestCandidate,
+  );
 }
 
 export function FarmingPage() {
@@ -134,7 +172,7 @@ export function FarmingPage() {
   const [movePath, setMovePath] = useState<PathNode[] | null>(null);
   const [isMoving, setIsMoving] = useState(false);
   const [isCameraMoving, setIsCameraMoving] = useState(false);
-  const [isReadyToRender, setIsReadyToRender] = useState(false);
+  const [isMapSceneReady, setIsMapSceneReady] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isAttackingPortrait, setIsAttackingPortrait] = useState(false);
   const [portraitZoom, setPortraitZoom] = useState(103);
@@ -143,10 +181,10 @@ export function FarmingPage() {
   const isActionInProgressRef = useRef(false);
   const tileTooltipRef = useRef<HTMLDivElement | null>(null);
   const tileTooltipRafRef = useRef<number | null>(null);
+  const tileTooltipPointerRef = useRef<TileTooltipPoint | null>(null);
+  const isPointerPressedRef = useRef(false);
   const [queuedAction, setQueuedAction] = useState<{ type: 'gather'; x: number; y: number } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [tileTooltipPosition, setTileTooltipPosition] = useState({ x: 24, y: 100 });
-  const [isTileTooltipBlocked, setIsTileTooltipBlocked] = useState(false);
   const didSpawnOnPageLoadRef = useRef(false);
 
   const map = useFarmingStore((s) => s.map);
@@ -162,6 +200,8 @@ export function FarmingPage() {
   const [controls, setControls] = useState<CameraControlsImpl | null>(null);
   const [isGathering, setIsGathering] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: 'info' | 'error' } | null>(null);
+  const { active: isAssetLoading, progress: assetLoadProgress } = useProgress();
+  const isFarmingLoaded = Boolean(map && isMapSceneReady && !isAssetLoading);
 
   // -- Data Fetching --
   const { data: inventoryData } = useQuery({
@@ -229,13 +269,17 @@ export function FarmingPage() {
   const handleBuy = useCallback(async (item: any) => {
     try {
       await shopApi.buyItem({ itemId: item.id, quantity: 1 });
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      refreshPlayer();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
+        fetchState(),
+        refreshPlayer(),
+        refreshSession({ silent: true }),
+      ]);
       setActionMessage({ text: t('bought', { name: item.name }), type: 'info' });
     } catch (e) {
       setActionMessage({ text: t('notEnoughCoins'), type: 'error' });
     }
-  }, [queryClient, refreshPlayer, t]);
+  }, [fetchState, queryClient, refreshPlayer, refreshSession, t]);
 
   const mappedSpells = useMemo((): SpellBarItem[] => {
     return (Array.isArray(spellData) ? spellData : []).map((s: any) => ({
@@ -416,9 +460,11 @@ export function FarmingPage() {
   // -- Lifecycle --
   useEffect(() => {
     void fetchState();
-    const timer = setTimeout(() => setIsReadyToRender(true), 800);
-    return () => clearTimeout(timer);
-  }, []);
+  }, [fetchState]);
+
+  useEffect(() => {
+    setIsMapSceneReady(false);
+  }, [map]);
 
   useEffect(() => {
     if (map && !didSpawnOnPageLoadRef.current) {
@@ -433,34 +479,106 @@ export function FarmingPage() {
     return () => window.clearTimeout(timeout);
   }, [actionMessage]);
 
+  const updateTileTooltipPosition = useCallback((pointer: TileTooltipPoint) => {
+    const tooltip = tileTooltipRef.current;
+    if (!tooltip) return;
+
+    if (isPointerPressedRef.current) {
+      tooltip.style.visibility = 'hidden';
+      return;
+    }
+
+    const target = document.elementFromPoint(pointer.x, pointer.y);
+    if (isPointerOverFarmingUi(target)) {
+      tooltip.style.visibility = 'hidden';
+      return;
+    }
+
+    const tooltipWidth = tooltip.offsetWidth || TILE_TOOLTIP_DEFAULT_SIZE.width;
+    const tooltipHeight = tooltip.offsetHeight || TILE_TOOLTIP_DEFAULT_SIZE.height;
+    const blockers = Array.from(document.querySelectorAll(TILE_TOOLTIP_UI_SELECTOR)).map((element) =>
+      element.getBoundingClientRect(),
+    );
+    const placement = getTileTooltipPlacement(
+      pointer,
+      tooltipWidth,
+      tooltipHeight,
+      window.innerWidth,
+      window.innerHeight,
+      blockers,
+    );
+
+    tooltip.style.visibility = 'visible';
+    tooltip.style.transform = `translate3d(${placement.left}px, ${placement.top}px, 0)`;
+  }, []);
+
   useEffect(() => {
     if (!hoverInfo) return;
 
-    const handlePointerMove = (event: PointerEvent) => {
+    const queueTooltipPosition = (pointer: TileTooltipPoint) => {
+      tileTooltipPointerRef.current = pointer;
       if (tileTooltipRafRef.current !== null) return;
 
       tileTooltipRafRef.current = window.requestAnimationFrame(() => {
         tileTooltipRafRef.current = null;
-        const target = document.elementFromPoint(event.clientX, event.clientY);
-
-        setIsTileTooltipBlocked(isPointerOverFarmingUi(target));
-        setTileTooltipPosition({ x: event.clientX, y: event.clientY });
+        const latestPointer = tileTooltipPointerRef.current;
+        if (latestPointer) {
+          updateTileTooltipPosition(latestPointer);
+        }
       });
     };
 
-    window.addEventListener('pointermove', handlePointerMove);
+    const handlePointerMove = (event: PointerEvent) => {
+      queueTooltipPosition({ x: event.clientX, y: event.clientY });
+    };
+
+    const handlePointerDown = () => {
+      isPointerPressedRef.current = true;
+      if (tileTooltipRef.current) {
+        tileTooltipRef.current.style.visibility = 'hidden';
+      }
+    };
+
+    const handlePointerUp = () => {
+      isPointerPressedRef.current = false;
+      if (tileTooltipPointerRef.current) {
+        queueTooltipPosition(tileTooltipPointerRef.current);
+      }
+    };
+
+    const handlePointerCancel = () => {
+      isPointerPressedRef.current = false;
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('pointerdown', handlePointerDown, { passive: true });
+    window.addEventListener('pointerup', handlePointerUp, { passive: true });
+    window.addEventListener('pointercancel', handlePointerCancel, { passive: true });
+
+    if (tileTooltipPointerRef.current) {
+      queueTooltipPosition(tileTooltipPointerRef.current);
+    }
+
     return () => {
       window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
       if (tileTooltipRafRef.current !== null) {
         window.cancelAnimationFrame(tileTooltipRafRef.current);
         tileTooltipRafRef.current = null;
       }
-      setIsTileTooltipBlocked(false);
     };
-  }, [hoverInfo]);
+  }, [hoverInfo, updateTileTooltipPosition]);
 
   const handleTileHover = useCallback((info: { x: number; y: number; terrain: TerrainType } | null) => {
-    setHoverInfo(info);
+    setHoverInfo((previous) => {
+      if (!info || !previous) return info;
+      if (previous.x === info.x && previous.y === info.y && previous.terrain === info.terrain) {
+        return previous;
+      }
+      return info;
+    });
   }, []);
 
   const previewPath = useMemo(() => {
@@ -474,50 +592,19 @@ export function FarmingPage() {
     return [];
   }, [map, hoverInfo, isMoving, playerPosition]);
 
-  const tileTooltipStyle = useMemo<React.CSSProperties>(() => {
-    const tooltipWidth = tileTooltipRef.current?.offsetWidth ?? TILE_TOOLTIP_DEFAULT_SIZE.width;
-    const tooltipHeight = tileTooltipRef.current?.offsetHeight ?? TILE_TOOLTIP_DEFAULT_SIZE.height;
-    const viewportWidth = typeof window === 'undefined' ? Number.POSITIVE_INFINITY : window.innerWidth;
-    const viewportHeight = typeof window === 'undefined' ? Number.POSITIVE_INFINITY : window.innerHeight;
-    const blockers = typeof document === 'undefined'
-      ? []
-      : Array.from(document.querySelectorAll(TILE_TOOLTIP_UI_SELECTOR)).map((element) => element.getBoundingClientRect());
-
-    const rawCandidates = [
-      { left: tileTooltipPosition.x + TILE_TOOLTIP_OFFSET, top: tileTooltipPosition.y + TILE_TOOLTIP_OFFSET },
-      { left: tileTooltipPosition.x - tooltipWidth - TILE_TOOLTIP_OFFSET, top: tileTooltipPosition.y + TILE_TOOLTIP_OFFSET },
-      { left: tileTooltipPosition.x + TILE_TOOLTIP_OFFSET, top: tileTooltipPosition.y - tooltipHeight - TILE_TOOLTIP_OFFSET },
-      { left: tileTooltipPosition.x - tooltipWidth - TILE_TOOLTIP_OFFSET, top: tileTooltipPosition.y - tooltipHeight - TILE_TOOLTIP_OFFSET },
-    ];
-
-    const candidates = rawCandidates.map((candidate, priority) => {
-      const left = Math.min(
-        Math.max(TILE_TOOLTIP_VIEWPORT_MARGIN, candidate.left),
-        viewportWidth - tooltipWidth - TILE_TOOLTIP_VIEWPORT_MARGIN,
-      );
-      const top = Math.min(
-        Math.max(TILE_TOOLTIP_VIEWPORT_MARGIN, candidate.top),
-        viewportHeight - tooltipHeight - TILE_TOOLTIP_VIEWPORT_MARGIN,
-      );
-      const rect = new DOMRect(left, top, tooltipWidth, tooltipHeight);
-      const uiOverlap = blockers.reduce((total, blocker) => total + getOverlapArea(rect, blocker), 0);
-      const overflow = getViewportOverflowArea(rect, viewportWidth, viewportHeight);
-
-      return { left, top, score: uiOverlap + overflow * 100 + priority * 0.01 };
-    });
-
-    const best = candidates.reduce((bestCandidate, candidate) =>
-      candidate.score < bestCandidate.score ? candidate : bestCandidate,
-    );
-
-    return { left: best.left, top: best.top };
-  }, [tileTooltipPosition]);
-
   const p1IsMe = activeSession?.player1Id === currentPlayerId;
   const amIReady = p1IsMe ? activeSession?.player1Ready : activeSession?.player2Ready;
+  const loadingProgress = Math.max(0, Math.min(100, Math.round(assetLoadProgress || 0)));
 
   return (
     <div className="farming-page-layout">
+      {!isFarmingLoaded && (
+        <div className="loading-screen farming-loading-screen" role="status" aria-live="polite">
+          <span>⚔️ {t('loading')}</span>
+          {isAssetLoading && <small>{loadingProgress}%</small>}
+        </div>
+      )}
+
       {/* ⚙️ Settings Overlay */}
       {showSettings && (
         <div className="settings-overlay" onClick={() => setShowSettings(false)}>
@@ -554,8 +641,8 @@ export function FarmingPage() {
       </div>
 
       {/* 📊 Tooltip Overlay */}
-      {hoverInfo && !isTileTooltipBlocked && (
-        <div ref={tileTooltipRef} className="floating-tile-tooltip" style={tileTooltipStyle}>
+      {hoverInfo && (
+        <div ref={tileTooltipRef} className="floating-tile-tooltip">
           <div className="tooltip-header">
             <strong>{hoverInfo.terrain}</strong>
             <span className="coords">({hoverInfo.x}, {hoverInfo.y})</span>
@@ -584,7 +671,7 @@ export function FarmingPage() {
 
       {/* 🗺️ Main Viewport */}
       <main className="farming-viewport">
-        {isReadyToRender && map && (
+        {map && (
           <Canvas
             shadows
             gl={{ antialias: true, alpha: true }}
@@ -634,9 +721,9 @@ export function FarmingPage() {
                 onPathComplete={handlePathComplete}
                 onTileClick={handleTileClick}
                 onTileHover={handleTileHover}
-                onTileReached={movePlayer}
                 isCameraMoving={isCameraMoving}
                 isMoving={isMoving}
+                onSceneReady={() => setIsMapSceneReady(true)}
               />
             </Suspense>
           </Canvas>

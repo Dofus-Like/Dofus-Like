@@ -101,7 +101,7 @@
   padding: 6px 14px;
   background: rgb(var(--glass-accent-rgb) / 0.12);
   border: 1px solid rgb(var(--glass-accent-rgb) / 0.3);
-  border-radius: 999px;
+  border-radius: 6px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }

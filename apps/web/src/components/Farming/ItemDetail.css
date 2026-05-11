@@ -5,7 +5,7 @@
   padding: 16px;
   background: rgba(15, 23, 42, 0.4);
   backdrop-filter: blur(12px);
-  border-radius: 20px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   height: 100%;
   animation: slideUp 0.3s ease-out;
@@ -34,7 +34,7 @@
   padding: 4px 8px;
   background: var(--rm-accent);
   color: #000;
-  border-radius: 6px;
+  border-radius: 4px;
   text-transform: uppercase;
 }
 
@@ -44,7 +44,7 @@
   align-items: center;
   justify-content: center;
   background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
-  border-radius: 12px;
+  border-radius: 6px;
 }
 
 .detail-icon {
@@ -74,7 +74,7 @@
   margin-top: 8px;
   padding: 10px;
   background: rgba(0, 0, 0, 0.2);
-  border-radius: 10px;
+  border-radius: 5px;
 }
 
 .recipe-title {

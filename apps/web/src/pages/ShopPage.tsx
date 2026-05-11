@@ -41,11 +41,14 @@ export function ShopPage() {
   const buyMutation = useMutation({
     mutationFn: ({ itemId, quantity }: { itemId: string; quantity: number }) =>
       shopApi.buyItem({ itemId, quantity }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      queryClient.invalidateQueries({ queryKey: ['shop-items'] });
-      void refreshPlayer();
-      void refreshSession({ silent: true });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['shop-items'] }),
+        fetchState(),
+        refreshPlayer(),
+        refreshSession({ silent: true }),
+      ]);
     },
   });
 

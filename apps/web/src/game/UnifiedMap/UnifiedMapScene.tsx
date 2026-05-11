@@ -1,5 +1,5 @@
 import type { ThreeEvent} from '@react-three/fiber';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useControls, button, folder } from 'leva';
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -48,6 +48,7 @@ interface UnifiedMapSceneProps {
   isCameraMoving?: boolean;
   isMoving?: boolean;
   onTileReached?: (node: PathNode) => void;
+  onSceneReady?: () => void;
 }
 
 function getProjectileType(spellId: string) {
@@ -69,8 +70,10 @@ export const UnifiedMapScene = React.memo(
     onPathComplete,
     onTileClick,
     onTileHover,
+    isCameraMoving = false,
     isMoving = false,
     onTileReached,
+    onSceneReady,
   }: UnifiedMapSceneProps) => {
     const combatState = useCombatStore((state) => state.combatState);
     const selectedSpellId = useCombatStore((state) => state.selectedSpellId);
@@ -92,16 +95,19 @@ export const UnifiedMapScene = React.memo(
     const [hoveredTile, setHoveredTile] = useState<{ x: number; y: number } | null>(null);
     const deferredHoveredTile = React.useDeferredValue(hoveredTile);
     const [hoveredPlayerId, setHoveredPlayerId] = useState<string | null>(null);
-    const [mapRotation, setMapRotation] = useState(0);
 
     const visualPositionsRef = useRef<Record<string, PathNode>>({});
     const targetPositionsRef = useRef<Record<string, PathNode>>({});
     const mapGroupRef = useRef<THREE.Group>(null);
+    const hoveredTileRef = useRef<{ x: number; y: number } | null>(null);
+    const lastFarmingHoverUvRef = useRef<{ x: number; y: number } | null>(null);
+    const hasReportedSceneReadyRef = useRef(false);
     const pawnRefs = useRef(new Map<string, PlayerPawnHandle>());
     const rightClickStartTimeRef = useRef(0);
     const lastRaycastTimeRef = useRef(0);
     const wasDraggingRef = useRef(false);
     const dragDistanceRef = useRef(0);
+    const isPointerPressedRef = useRef(false);
     const processedTimestampsRef = useRef(new Set<number>());
     const inputProcessingLock = useRef(false);
 
@@ -132,6 +138,17 @@ export const UnifiedMapScene = React.memo(
     }, [mode, map, combatState]);
 
     const activeMap = mode === 'combat' ? gameMap : map;
+
+    useEffect(() => {
+      hasReportedSceneReadyRef.current = false;
+    }, [activeMap, mode]);
+
+    useFrame(() => {
+      if (!activeMap || hasReportedSceneReadyRef.current) return;
+
+      hasReportedSceneReadyRef.current = true;
+      onSceneReady?.();
+    });
 
     // Global time of day sync
     const { timeOfDay } = useControls('Background Shader', {
@@ -220,11 +237,54 @@ export const UnifiedMapScene = React.memo(
       return combatState.players[currentUserId] || null;
     }, [combatState, currentUserId]);
 
+    const clearHoveredTile = useCallback(() => {
+      if (!hoveredTileRef.current) return;
+
+      hoveredTileRef.current = null;
+      setHoveredTile(null);
+      if (mode === 'farming') {
+        onTileHover?.(null);
+      }
+    }, [mode, onTileHover]);
+
+    const updateFarmingHoveredTile = useCallback(
+      (uv: { x: number; y: number }) => {
+        if (!activeMap) return;
+
+        lastFarmingHoverUvRef.current = { x: uv.x, y: uv.y };
+
+        if (isCameraMoving || isPointerPressedRef.current) {
+          clearHoveredTile();
+          return;
+        }
+
+        const gx = Math.min(activeMap.width - 1, Math.floor(uv.x * activeMap.width));
+        const gz = Math.min(activeMap.height - 1, Math.floor((1 - uv.y) * activeMap.height));
+
+        if (gx < 0 || gx >= activeMap.width || gz < 0 || gz >= activeMap.height) {
+          clearHoveredTile();
+          return;
+        }
+
+        const previous = hoveredTileRef.current;
+        if (previous?.x === gx && previous.y === gz) return;
+
+        const terrain = activeMap.grid[gz][gx] as TerrainType;
+        hoveredTileRef.current = { x: gx, y: gz };
+        setHoveredTile({ x: gx, y: gz });
+        onTileHover?.({ x: gx, y: gz, terrain });
+      },
+      [activeMap, clearHoveredTile, isCameraMoving, onTileHover],
+    );
+
     const performRaycastHover = useCallback(() => {
       if (!activeMap) return;
+      if (mode === 'farming') {
+        return;
+      }
 
       raycaster.setFromCamera(mouse, camera);
-      
+
       // 1. Raycast against players (still need this for tooltips/selection)
       const target = mapGroupRef.current || scene;
       const intersects = raycaster.intersectObjects([target], true);
@@ -244,8 +304,7 @@ export const UnifiedMapScene = React.memo(
       );
 
       if (!planeIntersect) {
-        setHoveredTile(null);
-        if (mode === 'farming') onTileHover?.(null);
+        clearHoveredTile();
         return;
       }
 
@@ -258,30 +317,43 @@ export const UnifiedMapScene = React.memo(
       const gz = Math.min(activeMap.height - 1, Math.floor((1 - planeIntersect.uv.y) * activeMap.height));
 
       if (gx < 0 || gx >= activeMap.width || gz < 0 || gz >= activeMap.height) {
-        setHoveredTile(null);
-        if (mode === 'farming') onTileHover?.(null);
+        clearHoveredTile();
         return;
       }
 
       const terrain = activeMap.grid[gz][gx] as TerrainType;
       
       setHoveredTile((previous) => (previous?.x === gx && previous?.y === gz ? previous : { x: gx, y: gz, terrain }));
+    }, [activeMap, camera, clearHoveredTile, mode, mouse, raycaster, scene]);
 
+    const handlePointerMove = useCallback((event: ThreeEvent<PointerEvent>) => {
       if (mode === 'farming') {
-        onTileHover?.({ x: gx, y: gz, terrain });
+        if (event.uv) {
+          updateFarmingHoveredTile(event.uv);
+        } else {
+          lastFarmingHoverUvRef.current = null;
+          clearHoveredTile();
+        }
+        return;
       }
-    }, [activeMap, camera, mode, mouse, onTileHover, raycaster, scene]);
 
-    const handlePointerMove = useCallback(() => {
       const now = Date.now();
       if (now - lastRaycastTimeRef.current < 32) return;
       lastRaycastTimeRef.current = now;
       performRaycastHover();
-    }, [performRaycastHover]);
+    }, [clearHoveredTile, mode, performRaycastHover, updateFarmingHoveredTile]);
 
     useEffect(() => {
       performRaycastHover();
     }, [performRaycastHover, isMoving, playerPosition, playerPaths, isMyTurn, combatState]);
+
+    useEffect(() => {
+      if (mode !== 'farming' || isCameraMoving || isPointerPressedRef.current) return;
+      const lastHoverUv = lastFarmingHoverUvRef.current;
+      if (lastHoverUv) {
+        updateFarmingHoveredTile(lastHoverUv);
+      }
+    }, [isCameraMoving, mode, updateFarmingHoveredTile]);
 
     useEffect(() => {
       if (!lastSpellCast || !combatState) return;
@@ -711,11 +783,9 @@ export const UnifiedMapScene = React.memo(
     );
 
     const handleMapPointerLeave = useCallback(() => {
-      setHoveredTile(null);
-      if (mode === 'farming') {
-        onTileHover?.(null);
-      }
-    }, [mode, onTileHover]);
+      lastFarmingHoverUvRef.current = null;
+      clearHoveredTile();
+    }, [clearHoveredTile]);
 
     useEffect(() => {
       let isDragging = false;
@@ -723,6 +793,7 @@ export const UnifiedMapScene = React.memo(
 
       const onPointerDown = (event: PointerEvent) => {
         if (event.button === 0) {
+          isPointerPressedRef.current = true;
           isDragging = true;
           previousX = event.clientX;
           wasDraggingRef.current = false;
@@ -741,26 +812,39 @@ export const UnifiedMapScene = React.memo(
           wasDraggingRef.current = true;
         }
 
-        setMapRotation((current) => current + delta * 0.005);
+        if (mapGroupRef.current) {
+          mapGroupRef.current.rotation.y += delta * 0.005;
+        }
         previousX = event.clientX;
       };
 
       const onPointerUpWindow = (event: PointerEvent) => {
         if (event.button === 0) {
+          isPointerPressedRef.current = false;
           isDragging = false;
+          if (mode === 'farming' && !isCameraMoving && lastFarmingHoverUvRef.current) {
+            updateFarmingHoveredTile(lastFarmingHoverUvRef.current);
+          }
         }
+      };
+
+      const onPointerCancelWindow = () => {
+        isPointerPressedRef.current = false;
+        isDragging = false;
       };
 
       window.addEventListener('pointerdown', onPointerDown);
       window.addEventListener('pointermove', onPointerMoveWindow);
       window.addEventListener('pointerup', onPointerUpWindow);
+      window.addEventListener('pointercancel', onPointerCancelWindow);
 
       return () => {
         window.removeEventListener('pointerdown', onPointerDown);
         window.removeEventListener('pointermove', onPointerMoveWindow);
         window.removeEventListener('pointerup', onPointerUpWindow);
+        window.removeEventListener('pointercancel', onPointerCancelWindow);
       };
-    }, []);
+    }, [isCameraMoving, mode, updateFarmingHoveredTile]);
 
     const setPawnRef = useCallback((playerId: string, handle: PlayerPawnHandle | null) => {
       if (handle) {
@@ -815,7 +899,7 @@ export const UnifiedMapScene = React.memo(
           <meshBasicMaterial transparent opacity={0} />
         </mesh>
 
-        <group ref={mapGroupRef} rotation={[0, mapRotation, 0]}>
+        <group ref={mapGroupRef}>
           {mode === 'combat' && (
             <Suspense fallback={null}>
               <Castle 

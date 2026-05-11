@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import '@testing-library/jest-dom/vitest';
+import React, { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -33,7 +34,12 @@ const mocks = vi.hoisted(() => ({
     pips: 4,
     spendableGold: 2,
   },
+  shopApi: {
+    getItems: vi.fn().mockResolvedValue({ data: [] }),
+    buyItem: vi.fn().mockResolvedValue({ data: {} }),
+  },
   activeSession: null as { id: string; status: string; phase: string } | null,
+  latestMapProps: null as { onTileReached?: unknown } | null,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -58,6 +64,7 @@ vi.mock('@react-three/fiber', () => ({
 vi.mock('@react-three/drei', () => ({
   CameraControls: () => null,
   OrthographicCamera: () => null,
+  useProgress: () => ({ active: false, progress: 100 }),
 }));
 
 vi.mock('camera-controls', () => ({
@@ -70,17 +77,40 @@ vi.mock('camera-controls', () => ({
 }));
 
 vi.mock('../game/UnifiedMap/UnifiedMapScene', () => ({
-  UnifiedMapScene: ({ onTileClick }: { onTileClick?: (x: number, y: number, terrain: string) => void }) => (
-    <div data-testid="map-scene">
-      <button type="button" onClick={() => onTileClick?.(0, 1, 'HERB')}>
-        Harvest tile
-      </button>
-    </div>
-  ),
+  UnifiedMapScene: (props: {
+    onTileClick?: (x: number, y: number, terrain: string) => void;
+    onTileReached?: unknown;
+    onSceneReady?: () => void;
+  }) => {
+    mocks.latestMapProps = props;
+    React.useEffect(() => {
+      props.onSceneReady?.();
+    }, [props]);
+
+    return (
+      <div data-testid="map-scene">
+        <button type="button" onClick={() => props.onTileClick?.(0, 1, 'HERB')}>
+          Harvest tile
+        </button>
+      </div>
+    );
+  },
 }));
 
 vi.mock('../game/UnifiedMap/hooks/useAutoHarvest', () => ({
   useAutoHarvest: () => undefined,
+}));
+
+vi.mock('../game/Combat/CombatBackgroundShader', () => ({
+  CombatBackgroundShader: () => null,
+}));
+
+vi.mock('../game/Combat/CameraEffects', () => ({
+  CameraEffects: () => null,
+}));
+
+vi.mock('../perf/CanvasPerfOverlay', () => ({
+  CanvasPerfOverlay: () => null,
 }));
 
 vi.mock('../api/game-session.api', () => ({
@@ -106,7 +136,7 @@ vi.mock('../api/equipment.api', () => ({
 }));
 
 vi.mock('../api/shop.api', () => ({
-  shopApi: { getItems: vi.fn().mockResolvedValue({ data: [] }) },
+  shopApi: mocks.shopApi,
 }));
 
 vi.mock('../api/crafting.api', () => ({
@@ -182,11 +212,22 @@ describe('FarmingPage', () => {
       ],
     };
     mocks.farmingState.playerPosition = { x: 0, y: 0 };
+    mocks.latestMapProps = null;
     mocks.farmingState.gatherNode.mockResolvedValue({
       pips: 3,
       round: 1,
       spendableGold: 2,
     });
+    mocks.shopApi.getItems.mockResolvedValue({ data: [] });
+    mocks.shopApi.buyItem.mockResolvedValue({ data: {} });
+  });
+
+  it('does not update the farming position on intermediate path tiles', async () => {
+    renderFarmingPage();
+
+    await screen.findByTestId('map-scene');
+
+    expect(mocks.latestMapProps?.onTileReached).toBeUndefined();
   });
 
   it('does not render the end round button in normal game flow', async () => {
@@ -268,6 +309,30 @@ describe('FarmingPage', () => {
 
     await waitFor(() => {
       expect(container.querySelectorAll('.res-counter')).toHaveLength(0);
+    });
+  });
+
+  it('refreshes farming state and session after buying from the embedded shop', async () => {
+    mocks.shopApi.getItems.mockResolvedValue({
+      data: [{
+        id: 'item-1',
+        name: 'Épée test',
+        type: 'WEAPON',
+        shopPrice: 1,
+        iconPath: '/sword.png',
+      }],
+    });
+
+    renderFarmingPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Boutique/i }));
+    fireEvent.doubleClick(await screen.findByAltText('Épée test'));
+
+    await waitFor(() => {
+      expect(mocks.shopApi.buyItem).toHaveBeenCalledWith({ itemId: 'item-1', quantity: 1 });
+      expect(mocks.farmingState.fetchState).toHaveBeenCalledTimes(2);
+      expect(mocks.refreshPlayer).toHaveBeenCalled();
+      expect(mocks.refreshSession).toHaveBeenCalledWith({ silent: true });
     });
   });
 });

@@ -15,7 +15,7 @@
 
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
+  border-radius: 8px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow:
@@ -77,7 +77,7 @@
   font-weight: 700;
   letter-spacing: 0.15em;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 5px;
   border: 1px solid rgb(var(--glass-accent-rgb) / 0.45);
   background: rgb(var(--glass-accent-rgb) / 0.15);
   color: var(--glass-accent-light);
@@ -112,7 +112,7 @@
 .cpp-portrait {
   width: 92px;
   height: 92px;
-  border-radius: 12px;
+  border-radius: 6px;
   background: linear-gradient(135deg,
     rgb(var(--glass-accent-rgb) / 0.3),
     rgb(var(--glass-accent-rgb) / 0.08));
@@ -184,7 +184,7 @@
   flex-direction: column;
   align-items: center;
   padding: 4px 2px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -238,7 +238,7 @@
 .cpp-hp-bar {
   height: 6px;
   background: rgba(0, 0, 0, 0.35);
-  border-radius: 999px;
+  border-radius: 4px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -246,7 +246,7 @@
 .cpp-hp-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--enemy-red), var(--hp-red));
-  border-radius: 999px;
+  border-radius: 4px;
   box-shadow: 0 0 8px rgb(var(--enemy-red-rgb) / 0.45);
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
