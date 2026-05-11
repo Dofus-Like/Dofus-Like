@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/auth.store';
 import { getSessionPo } from '../utils/sessionPo';
 
 import { GlobalBackground } from './GlobalBackground';
+import { useTranslation } from '../store/language.store';
 import './GameLayout.css';
 
 const CLASS_META: Record<'soldier' | 'orc', { label: string; color: string }> = {
@@ -20,6 +21,7 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
   const [searchParams] = useSearchParams();
   const isDebugMode = searchParams.get('debug') === 'true';
   const tunnelQuery = isDebugMode ? '?debug=true' : '';
+  const { t } = useTranslation();
   
   const { player, logout } = useAuthStore();
   const { activeSession } = useGameSession();
@@ -32,14 +34,14 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
     : (player?.gold ?? 0);
 
   const navItems = [
-    { label: 'Lobby', path: '/' },
-    {
-      label: (location.pathname === '/farming' || (activeSession?.phase === 'FARMING')) ? 'Récolte' : 'Combat',
-      path: '/farming',
+    { label: '🏛️ Lobby', path: '/' },
+    { 
+      label: (location.pathname === '/farming' || (activeSession?.phase === 'FARMING')) ? `🚜 ${t('harvest')}` : `⚔️ ${t('combat')}`,
+      path: '/farming' 
     },
-    { label: 'Boutique', path: '/shop' },
-    { label: 'Inventaire', path: '/inventory' },
-    { label: 'Forge', path: '/crafting' },
+    { label: `💰 ${t('shop')}`, path: '/shop' },
+    { label: `🎒 ${t('bag')}`, path: '/inventory' },
+    { label: `🔨 ${t('forge')}`, path: '/crafting' },
   ];
 
   const activeSkin = player?.skin ? getSkinById(player.skin) : null;
@@ -94,7 +96,7 @@ export function GameLayout({ children }: { children: React.ReactNode }) {
             {activeSession && <span className="user-gold">💰 {spendableGold}</span>}
             <span className="user-name">{player?.username}</span>
           </div>
-          <button className="nav-logout-btn" onClick={handleLogout} title="Se déconnecter">
+          <button className="nav-logout-btn" onClick={handleLogout} title={t('logout')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

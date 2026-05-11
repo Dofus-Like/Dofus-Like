@@ -1,5 +1,6 @@
 import React from 'react';
 import mannequinBg from '../../assets/mannequin-bg.gif';
+import { useTranslation } from '../../store/language.store';
 import './Mannequin.css';
 
 interface EquipmentSlotProps {
@@ -28,6 +29,7 @@ export const Mannequin = ({
   equipment?: any;
   onUnequip?: (slot: any) => void;
 }) => {
+  const { t } = useTranslation();
   const [bgZoom] = React.useState(167);
 
   return (
@@ -47,7 +49,7 @@ export const Mannequin = ({
         <div className="grid-row row-head">
           <EquipmentSlot 
             type="head" 
-            label="Tête" 
+            label={t('head')}
             item={equipment.head} 
             onDoubleClick={() => onUnequip?.('ARMOR_HEAD')}
           />
@@ -57,19 +59,19 @@ export const Mannequin = ({
         <div className="grid-row row-middle">
           <EquipmentSlot 
             type="weapon" 
-            label="Main Gauche" 
+            label={t('leftHand')}
             item={equipment.weaponLeft} 
             onDoubleClick={() => onUnequip?.('WEAPON_LEFT')}
           />
           <EquipmentSlot 
             type="chest" 
-            label="Torse" 
+            label={t('chest')}
             item={equipment.chest} 
             onDoubleClick={() => onUnequip?.('ARMOR_CHEST')}
           />
           <EquipmentSlot 
             type="weapon2" 
-            label="Main Droite" 
+            label={t('rightHand')}
             item={equipment.weaponRight} 
             onDoubleClick={() => onUnequip?.('WEAPON_RIGHT')}
           />
@@ -89,7 +91,7 @@ export const Mannequin = ({
         <div className="grid-row row-accessory">
           <EquipmentSlot 
             type="accessory" 
-            label="Accessoire" 
+            label={t('accessory')}
             item={equipment.ring1 || equipment.amulet} 
             onDoubleClick={() => onUnequip?.('ACCESSORY')}
           />

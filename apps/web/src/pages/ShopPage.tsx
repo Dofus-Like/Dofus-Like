@@ -9,9 +9,8 @@ import { useAuthStore } from '../store/auth.store';
 import { useFarmingStore } from '../store/farming.store';
 import { getItemVisualMeta } from '../utils/itemVisual';
 import { getSessionPo } from '../utils/sessionPo';
-
+import { useTranslation } from '../store/language.store';
 import { useGameSession } from './GameTunnel';
-
 import './ShopPage.css';
 
 type FilterType = 'ALL' | 'WEAPON' | 'ARMOR' | 'OTHER';
@@ -32,6 +31,7 @@ export function ShopPage() {
   const { player, refreshPlayer } = useAuthStore();
   const { activeSession, refreshSession } = useGameSession();
   const { fetchState, seedId } = useFarmingStore();
+  const { t } = useTranslation();
 
   const { data: items, isLoading } = useQuery({
     queryKey: ['shop-items'],
@@ -70,21 +70,34 @@ export function ShopPage() {
       .join(', ');
   };
 
+  const shopItems = (items?.data || []).filter((item: any) => item.shopPrice != null);
+
   return (
     <div className="shop-container">
+      <header className="shop-wallet-header">
+        <div>
+          <h1 className="shop-title">💰 {t('shop')}</h1>
+          <p className="shop-wallet-hint">{t('currentBalance')}</p>
+        </div>
+        <div className="shop-wallet-balance">
+          <span className="shop-wallet-icon">💰</span>
+          <strong>{spendableGold}</strong>
+          <span>{t('goldUnit')}</span>
+        </div>
+      </header>
 
       <div className="item-filters">
         <div className="filter-group">
-          <button className={`filter-btn ${activeFilter === 'ALL' ? 'active' : ''}`} onClick={() => setActiveFilter('ALL')}>Tout</button>
-          <button className={`filter-btn ${activeFilter === 'WEAPON' ? 'active' : ''}`} onClick={() => setActiveFilter('WEAPON')}>⚔️ Armes</button>
-          <button className={`filter-btn ${activeFilter === 'ARMOR' ? 'active' : ''}`} onClick={() => setActiveFilter('ARMOR')}>🛡️ Armures</button>
-          <button className={`filter-btn ${activeFilter === 'OTHER' ? 'active' : ''}`} onClick={() => setActiveFilter('OTHER')}>🎒 Autres</button>
+          <button className={`filter-btn ${activeFilter === 'ALL' ? 'active' : ''}`} onClick={() => setActiveFilter('ALL')}>{t('all')}</button>
+          <button className={`filter-btn ${activeFilter === 'WEAPON' ? 'active' : ''}`} onClick={() => setActiveFilter('WEAPON')}>⚔️ {t('weapons')}</button>
+          <button className={`filter-btn ${activeFilter === 'ARMOR' ? 'active' : ''}`} onClick={() => setActiveFilter('ARMOR')}>🛡️ {t('armors')}</button>
+          <button className={`filter-btn ${activeFilter === 'OTHER' ? 'active' : ''}`} onClick={() => setActiveFilter('OTHER')}>🎒 {t('others')}</button>
         </div>
       </div>
 
       <div className="shop-grid compact">
-        {isLoading && <p className="shop-loading">Chargement...</p>}
-        {(items?.data as ShopItem[] | undefined)?.filter((item) => {
+        {isLoading && <p className="shop-loading">{t('loading')}</p>}
+        {shopItems.filter((item: any) => {
           if (activeFilter === 'ALL') return true;
           if (activeFilter === 'WEAPON' && item.type === 'WEAPON') return true;
           if (activeFilter === 'ARMOR' && ['ARMOR_HEAD', 'ARMOR_CHEST', 'ARMOR_LEGS'].includes(item.type)) return true;
@@ -109,20 +122,18 @@ export function ShopPage() {
                 <h3 className="shop-item-name">{item.name}</h3>
                 
                 <div className="shop-item-stats-compact">
-                  {renderStats(item.statsBonus) || 'Pas de bonus'}
+                  {renderStats(item.statsBonus) || t('noBonus')}
                 </div>
 
                 <div className="shop-item-footer">
-                  <p className="shop-item-price">💰 {item.shopPrice} Po</p>
+                  <p className="shop-item-price">💰 {price} {t('goldUnit')}</p>
                   <button
                     type="button"
                     className="shop-buy-button"
                     onClick={() => buyMutation.mutate({ itemId: item.id, quantity: 1 })}
                     disabled={buyMutation.isPending || spendableGold < price}
                   >
-                    {buyMutation.isPending && 'Achat...'}
-                    {!buyMutation.isPending && spendableGold < price && 'Or insuffisant'}
-                    {!buyMutation.isPending && spendableGold >= price && 'Acheter'}
+                    {buyMutation.isPending ? t('buying') : spendableGold < price ? t('notEnoughGold') : t('buy')}
                   </button>
                 </div>
               </div>

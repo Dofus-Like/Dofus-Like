@@ -154,9 +154,20 @@ const queryClient = new QueryClient({
   },
 });
 
+function renderFarmingPage() {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/farming']}>
+        <FarmingPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 describe('FarmingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
     mocks.activeSession = null;
     mocks.farmingState.round = 1;
     mocks.farmingState.pips = 4;
@@ -179,13 +190,7 @@ describe('FarmingPage', () => {
   });
 
   it('does not render the end round button in normal game flow', async () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/farming']}>
-          <FarmingPage />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    renderFarmingPage();
 
     await screen.findByText(/ROUND/i);
     expect(screen.queryByRole('button', { name: 'Terminer la manche' })).not.toBeInTheDocument();
@@ -195,16 +200,20 @@ describe('FarmingPage', () => {
   it('does not auto-advance when the page loads with no pips remaining', async () => {
     mocks.farmingState.pips = 0;
 
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/farming']}>
-          <FarmingPage />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    renderFarmingPage();
 
     await screen.findByText(/ROUND/i);
     await waitFor(() => expect(mocks.navigate).not.toHaveBeenCalled());
+  });
+
+  it('spawns the player near the center of the resource map on page load', async () => {
+    mocks.farmingState.playerPosition = { x: 0, y: 0 };
+
+    renderFarmingPage();
+
+    await waitFor(() => {
+      expect(mocks.farmingState.movePlayer).toHaveBeenCalledWith({ x: 1, y: 1 });
+    });
   });
 
   it('does NOT navigate after the last successful harvest', async () => {
@@ -217,13 +226,7 @@ describe('FarmingPage', () => {
       };
     });
 
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/farming']}>
-          <FarmingPage />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    renderFarmingPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Harvest tile' }));
 
@@ -236,53 +239,35 @@ describe('FarmingPage', () => {
   it('shows inventory resource names from the farming store', async () => {
     mocks.farmingState.inventory = { Bois: 3 };
 
-    render(
-      <MemoryRouter initialEntries={['/farming']}>
-        <FarmingPage />
-      </MemoryRouter>,
-    );
+    renderFarmingPage();
 
-    await screen.findByText('Récoltes');
-    // "Bois" appears in the inventory list AND the legend — verify it shows up at least once
-    expect(screen.getAllByText('Bois').length).toBeGreaterThan(0);
-    // The inventory count should be visible
+    expect(await screen.findByAltText('Bois')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
   it('calls fetchState on mount to hydrate the map', async () => {
-    render(
-      <MemoryRouter initialEntries={['/farming']}>
-        <FarmingPage />
-      </MemoryRouter>,
-    );
+    renderFarmingPage();
 
-    await screen.findByText('Récoltes');
-    expect(mocks.farmingState.fetchState).toHaveBeenCalled();
+    await waitFor(() => expect(mocks.farmingState.fetchState).toHaveBeenCalled());
   });
 
   it('shows pips remaining text from the store', async () => {
     mocks.farmingState.pips = 2;
 
-    render(
-      <MemoryRouter initialEntries={['/farming']}>
-        <FarmingPage />
-      </MemoryRouter>,
-    );
+    const { container } = renderFarmingPage();
 
-    await screen.findByText('Récoltes');
-    expect(screen.getByText('2 / 4 récoltes')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelectorAll('.pip-diamond.filled')).toHaveLength(2);
+    });
   });
 
   it('shows "Aucune ressource" when inventory is empty', async () => {
     mocks.farmingState.inventory = {};
 
-    render(
-      <MemoryRouter initialEntries={['/farming']}>
-        <FarmingPage />
-      </MemoryRouter>,
-    );
+    const { container } = renderFarmingPage();
 
-    await screen.findByText('Récoltes');
-    expect(screen.getByText('Aucune ressource récoltée.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelectorAll('.res-counter')).toHaveLength(0);
+    });
   });
 });

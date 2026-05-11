@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../store/language.store';
 import './FarmingActionBar.css';
 
 interface Spell {
@@ -19,6 +20,7 @@ export const FarmingActionBar = ({
   onSpellClick,
   selectedSpellId 
 }: FarmingActionBarProps) => {
+  const { t } = useTranslation();
   const [hoveredSpellId, setHoveredSpellId] = React.useState<string | null>(null);
 
   // Ensure we have 8 slots for that classic Dofus look
@@ -70,7 +72,7 @@ export const FarmingActionBar = ({
         <button
           type="button"
           className="spell-bar-action grimoire"
-          title="Grimoire / Équipement"
+          title={t('grimoireEquipment')}
         >
           📖
         </button>
@@ -79,10 +81,10 @@ export const FarmingActionBar = ({
         <button
           type="button"
           className="spell-bar-action pass ready"
-          title="Terminer la récolte"
+          title={t('goShopCrafting')}
         >
           <span className="pass-icon">⏭</span>
-          <span className="pass-label">Passer</span>
+          <span className="pass-label">{t('pass')}</span>
         </button>
       </div>
     </div>

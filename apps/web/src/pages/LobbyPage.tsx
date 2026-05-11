@@ -11,7 +11,7 @@ import { readOnboardingDismissed, writeOnboardingDismissed } from '../game/Hub3D
 import { deriveActivePoiList, derivePoiStateLabels } from '../game/Hub3D/poiState';
 import { SKINS } from '../game/constants/skins';
 import { useAuthStore } from '../store/auth.store';
-
+import { useTranslation } from '../store/language.store';
 import { useGameSession } from './GameTunnel';
 import { HubPoiModal } from './HubPoiModal';
 import { getApiErrorMessage, useHubActionState } from './useHubActionState';
@@ -35,6 +35,7 @@ export function LobbyPage() {
   const { player, initialize, setSkin } = useAuthStore();
   const { activeSession, refreshSession } = useGameSession();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [rooms, setRooms] = React.useState<Room[]>([]);
   const [loadingRooms, setLoadingRooms] = React.useState(true);
   const [isInQueue, setIsInQueue] = React.useState(false);
@@ -115,7 +116,7 @@ export function LobbyPage() {
       await gameSessionApi.createPrivateSession();
       await refreshSession({ silent: true });
       await fetchLobbyState();
-    }, 'Impossible de créer la room.');
+    }, t('createRoom'));
   };
 
   const handleCancelOpenSession = async () => {
@@ -124,7 +125,7 @@ export function LobbyPage() {
       await gameSessionApi.endSession(activeSession.id);
       await refreshSession({ silent: true });
       await fetchLobbyState();
-    }, "Impossible d'annuler la room.");
+    }, t('cancelRoom'));
   };
 
   const handleJoinRoom = async (sessionId: string) => {
@@ -134,7 +135,7 @@ export function LobbyPage() {
         await refreshSession({ silent: true });
         navigate('/farming');
       } catch (error) {
-        const msg = getApiErrorMessage(error, 'Impossible de rejoindre la room.');
+        const msg = getApiErrorMessage(error, t('join'));
         if (msg.includes('deja une room ouverte')) {
           await refreshSession({ silent: true });
           navigate('/farming');
@@ -142,18 +143,19 @@ export function LobbyPage() {
         }
         throw error;
       }
-    }, 'Impossible de rejoindre la room.');
+    }, t('join'));
   };
 
   const handleResetSession = async () => {
-    if (!window.confirm('Êtes-vous sûr de vouloir réinitialiser votre session ? Toute progression non sauvegardée sera perdue.')) {
+    if (!window.confirm(t('resetSessionConfirm'))) {
       return;
     }
     await action.runAction('vsAi', async () => {
       await gameSessionApi.resetSession();
       await refreshSession({ silent: true });
       await fetchLobbyState();
-    }, 'Impossible de réinitialiser la session.');
+      window.alert(t('resetSessionSuccess'));
+    }, t('reset'));
   };
 
   const handleStartVsAiCombat = async () => {
@@ -161,7 +163,7 @@ export function LobbyPage() {
       await gameSessionApi.startVsAi();
       await refreshSession({ silent: true });
       navigate('/farming');
-    }, 'Impossible de lancer le combat VS AI.');
+    }, t('startVsAi'));
   };
 
   const handleJoinQueue = async () => {
@@ -174,14 +176,14 @@ export function LobbyPage() {
         return;
       }
       setIsInQueue(true);
-    }, 'Impossible de rejoindre la file.');
+    }, t('startSearch'));
   };
 
   const handleLeaveQueue = async () => {
     await action.runAction('combat', async () => {
       await gameSessionApi.leaveQueue();
       setIsInQueue(false);
-    }, 'Impossible de quitter la file.');
+    }, t('cancel'));
   };
 
   const handleSetSkin = async (id: string) => {
@@ -323,7 +325,7 @@ export function LobbyPage() {
 
       <section className="lobby-skins">
         <div className="lobby-section-header">
-          <h2>🎭 Choisissez votre apparence</h2>
+          <h2>🎭 {t('chooseAppearance')}</h2>
         </div>
         <div className="skins-grid">
           {SKINS.map((skin) => (
@@ -345,7 +347,7 @@ export function LobbyPage() {
                 <span className="skin-name">{skin.name}</span>
                 <span className="skin-desc">{skin.description}</span>
               </div>
-              {player?.skin === skin.id && <div className="skin-current-badge">ACTIF</div>}
+              {player?.skin === skin.id && <div className="skin-current-badge">{t('active')}</div>}
             </div>
           ))}
         </div>
@@ -354,8 +356,8 @@ export function LobbyPage() {
       <section className="lobby-matchmaking">
         <div className="matchmaking-card">
           <div className="matchmaking-info">
-            <h3>🎮 Match aléatoire</h3>
-            <p>Affrontez un adversaire dans le tunnel de jeu.</p>
+            <h3>🎮 {t('randomMatch')}</h3>
+            <p>{t('randomMatchDesc')}</p>
           </div>
           {isInQueue && (
             <div className="queue-status">
@@ -364,17 +366,17 @@ export function LobbyPage() {
                 <span>.</span>
                 <span>.</span>
               </div>
-              <span>Recherche d&apos;un adversaire...</span>
+              <span>{t('searchingOpponent')}</span>
               <button type="button" className="leave-queue-btn" onClick={handleLeaveQueue}>
-                Annuler
+                {t('cancel')}
               </button>
             </div>
           )}
           {!isInQueue && isWaitingPrivateSession && (
             <div className="queue-status">
-              <span>Votre room privée est en attente d&apos;un adversaire.</span>
+              <span>{t('privateRoomWaiting')}</span>
               <button type="button" className="leave-queue-btn" onClick={handleCancelOpenSession}>
-                Annuler la room
+                {t('cancelRoom')}
               </button>
             </div>
           )}
@@ -385,7 +387,7 @@ export function LobbyPage() {
               onClick={handleJoinQueue}
               disabled={hasOpenSession}
             >
-              Lancer une recherche
+              {t('startSearch')}
             </button>
           )}
         </div>
@@ -393,7 +395,7 @@ export function LobbyPage() {
 
       <section className="lobby-combat">
         <div className="lobby-section-header">
-          <h2>⚔️ Rooms personnalisées</h2>
+          <h2>⚔️ {t('customRooms')}</h2>
           <div className="lobby-combat-actions">
             <button
               type="button"
@@ -401,17 +403,17 @@ export function LobbyPage() {
               onClick={isWaitingPrivateSession ? handleCancelOpenSession : handleCreateRoom}
               disabled={isInQueue || (hasOpenSession && !isWaitingPrivateSession)}
             >
-              {isWaitingPrivateSession ? 'Annuler la room' : 'Créer une room'}
+              {isWaitingPrivateSession ? t('cancelRoom') : t('createRoom')}
             </button>
           </div>
         </div>
 
         <div className="rooms-grid">
-          {loadingRooms && <div className="no-rooms">Chargement des rooms...</div>}
-          {!loadingRooms && visibleRooms.length === 0 && (
-            <div className="no-rooms">Aucune room ouverte. Créez-en une !</div>
-          )}
-          {!loadingRooms && visibleRooms.length > 0 && (
+          {loadingRooms ? (
+            <div className="no-rooms">{t('loadingRooms')}</div>
+          ) : visibleRooms.length === 0 ? (
+            <div className="no-rooms">{t('noRooms')}</div>
+          ) : (
             visibleRooms.map((room) => (
               <div key={room.id} className="room-card">
                 <div className="room-info">
@@ -424,7 +426,7 @@ export function LobbyPage() {
                   onClick={() => void handleJoinRoom(room.id)}
                   disabled={room.player1Id === player?.id || hasOpenSession || isInQueue}
                 >
-                  {room.player1Id === player?.id ? 'Votre room' : 'Rejoindre'}
+                  {room.player1Id === player?.id ? t('yourRoom') : t('join')}
                 </button>
               </div>
             ))
@@ -436,7 +438,7 @@ export function LobbyPage() {
             <h3>
               🤖 VS AI <span className="hot-badge">PROG</span>
             </h3>
-            <p>Lancez un combat solo contre l&apos;IA depuis le lobby.</p>
+            <p>{t('vsAiDesc')}</p>
           </div>
           <button
             type="button"
@@ -444,7 +446,7 @@ export function LobbyPage() {
             onClick={hasOpenSession ? () => navigate('/farming') : handleStartVsAiCombat}
             disabled={isInQueue}
           >
-            {hasOpenSession ? 'Reprendre la partie' : 'Lancer VS AI'}
+            {hasOpenSession ? t('resumeGame') : t('startVsAi')}
           </button>
 
           {hasOpenSession && (
@@ -453,7 +455,7 @@ export function LobbyPage() {
               className="reset-session-link"
               onClick={handleResetSession}
             >
-              🔄 Réinitialiser
+              🔄 {t('reset')}
             </button>
           )}
         </div>

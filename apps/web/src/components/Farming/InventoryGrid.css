@@ -1,6 +1,8 @@
 .inventory-grid-container {
+  box-sizing: border-box;
   padding: 16px;
   height: 100%;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   /* Firefox */
@@ -12,9 +14,11 @@
 .inventory-grid-container::-webkit-scrollbar {
   width: 4px;
 }
+
 .inventory-grid-container::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .inventory-grid-container::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
@@ -24,6 +28,12 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+  overflow: visible;
+  scrollbar-width: none;
+}
+
+.inventory-grid::-webkit-scrollbar {
+  display: none;
 }
 
 .inventory-slot {
@@ -54,6 +64,34 @@
   z-index: 10;
   pointer-events: none;
   border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.item-price {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 8px);
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: #fbbf24;
+  font-size: 0.55rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+
+.inventory-slot.unaffordable {
+  opacity: 0.62;
+}
+
+.inventory-slot.unaffordable .item-price {
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #fca5a5;
 }
 
 .inventory-slot:hover {

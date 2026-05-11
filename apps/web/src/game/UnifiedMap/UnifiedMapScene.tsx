@@ -710,6 +710,13 @@ export const UnifiedMapScene = React.memo(
       [mode, selectedSpellId, setSelectedSpell],
     );
 
+    const handleMapPointerLeave = useCallback(() => {
+      setHoveredTile(null);
+      if (mode === 'farming') {
+        onTileHover?.(null);
+      }
+    }, [mode, onTileHover]);
+
     useEffect(() => {
       let isDragging = false;
       let previousX = 0;
@@ -835,7 +842,7 @@ export const UnifiedMapScene = React.memo(
             position={[0, 0, 0]}
             onPointerMove={handlePointerMove}
             onClick={handlePointerDown}
-            onPointerLeave={() => setHoveredTile(null)}
+            onPointerLeave={handleMapPointerLeave}
             visible={true}
           >
             <planeGeometry args={[activeMap.width, activeMap.height]} />

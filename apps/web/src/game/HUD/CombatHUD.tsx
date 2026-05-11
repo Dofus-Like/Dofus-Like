@@ -8,6 +8,7 @@ import { SpellBar, type SpellBarItem } from '../../components/SpellBar/SpellBar'
 import { useGameSession } from '../../pages/GameTunnel';
 import { useAuthStore } from '../../store/auth.store';
 import { useCombatStore } from '../../store/combat.store';
+import { useTranslation } from '../../store/language.store';
 import { CombatPlayerPanel } from './CombatPlayerPanel';
 
 import './CombatHUD.css';
@@ -37,6 +38,7 @@ function getCombatErrorMessage(error: unknown, fallback: string) {
 }
 
 export function CombatHUD() {
+  const { t } = useTranslation();
   const combatState = useCombatStore((s) => s.combatState);
   const sessionId = useCombatStore((s) => s.sessionId);
   const selectedSpellId = useCombatStore((s) => s.selectedSpellId);
@@ -107,7 +109,7 @@ export function CombatHUD() {
       setSelectedSpell(null);
     } catch (err) {
       console.error('CombatHUD: End turn failed', err);
-      setUiMessage(getCombatErrorMessage(err, 'Impossible de terminer le tour.'), 'error');
+      setUiMessage(getCombatErrorMessage(err, t('endTurn')), 'error');
     }
   };
 
@@ -128,11 +130,11 @@ export function CombatHUD() {
       {showCombatEnd && (
         <div className={`combat-end-overlay ${isWinner ? 'victory' : 'defeat'}`}>
           <div className="end-modal">
-            <h1>{isWinner ? '🏆 VICTOIRE' : '💀 DÉFAITE'}</h1>
-            <p>{isWinner ? 'Félicitations, vous avez terrassé votre adversaire !' : 'Dommage... Vous ferez mieux la prochaine fois !'}</p>
+            <h1>{isWinner ? `🏆 ${t('victory')}` : `💀 ${t('defeat')}`}</h1>
+            <p>{isWinner ? t('victoryText') : t('defeatText')}</p>
             <div className="end-modal-actions">
               <button className="exit-button" onClick={handleCombatExit}>
-                {activeSession?.status === 'ACTIVE' ? 'Continuer' : 'Retour au Lobby'}
+                {activeSession?.status === 'ACTIVE' ? t('continue') : t('backToLobby')}
               </button>
             </div>
           </div>
@@ -141,7 +143,7 @@ export function CombatHUD() {
 
       {/* TOP LEFT: Initiative panel */}
       <div className="hud-initiative glass">
-        <div className="hud-initiative-title">Tour {combatState.turnNumber}</div>
+        <div className="hud-initiative-title">{t('turn', { turn: combatState.turnNumber })}</div>
         {orderedFighters.map((f) => {
           const active = combatState.currentTurnPlayerId === f.playerId;
           const self = f.playerId === user.id;
@@ -182,7 +184,7 @@ export function CombatHUD() {
         {/* Targeting prompt when a spell is selected */}
         {selectedSpellId && (
           <div className="spell-targeting-prompt glass">
-            🎯 Cliquez une case pour <strong>{sortedSpells.find(s => s.id === selectedSpellId)?.name}</strong>
+            🎯 {t('targetPrompt', { spell: sortedSpells.find(s => s.id === selectedSpellId)?.name ?? '' })}
           </div>
         )}
       </div>

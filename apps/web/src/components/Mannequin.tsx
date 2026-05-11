@@ -2,6 +2,7 @@ import type { InventoryItem } from '@game/shared-types';
 import { EquipmentSlotType } from '@game/shared-types';
 
 import mannequinBg from '../assets/mannequin-bg.gif';
+import { useTranslation } from '../store/language.store';
 import './Mannequin.css';
 
 
@@ -13,13 +14,14 @@ interface MannequinProps {
 }
 
 export const Mannequin: React.FC<MannequinProps> = ({ equipment, onEquip, onUnequip }) => {
+  const { t } = useTranslation();
   const slots = [
-    { type: EquipmentSlotType.ARMOR_HEAD, label: 'Tête', className: 'slot-head' },
-    { type: EquipmentSlotType.ARMOR_CHEST, label: 'Torse', className: 'slot-chest' },
-    { type: EquipmentSlotType.ARMOR_LEGS, label: 'Jambes', className: 'slot-legs' },
-    { type: EquipmentSlotType.WEAPON_LEFT, label: 'Main Gauche', className: 'slot-weapon-left' },
-    { type: EquipmentSlotType.WEAPON_RIGHT, label: 'Main Droite', className: 'slot-weapon-right' },
-    { type: EquipmentSlotType.ACCESSORY, label: 'Accessoire', className: 'slot-accessory' },
+    { type: EquipmentSlotType.ARMOR_HEAD, label: t('head'), className: 'slot-head' },
+    { type: EquipmentSlotType.ARMOR_CHEST, label: t('chest'), className: 'slot-chest' },
+    { type: EquipmentSlotType.ARMOR_LEGS, label: t('legs'), className: 'slot-legs' },
+    { type: EquipmentSlotType.WEAPON_LEFT, label: t('leftHand'), className: 'slot-weapon-left' },
+    { type: EquipmentSlotType.WEAPON_RIGHT, label: t('rightHand'), className: 'slot-weapon-right' },
+    { type: EquipmentSlotType.ACCESSORY, label: t('accessory'), className: 'slot-accessory' },
   ];
 
   const handleDrop = (e: React.DragEvent, slot: EquipmentSlotType) => {

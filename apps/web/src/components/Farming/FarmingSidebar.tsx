@@ -3,6 +3,7 @@ import { InventoryGrid } from './InventoryGrid';
 import { ForgeList } from './ForgeList';
 import { Mannequin } from './Mannequin';
 import { ItemDetail } from './ItemDetail';
+import { useTranslation } from '../../store/language.store';
 import './FarmingSidebar.css';
 
 interface FarmingSidebarProps {
@@ -12,6 +13,7 @@ interface FarmingSidebarProps {
   allItems?: any[];
   equipment: any;
   resources: Record<string, number>;
+  spendableGold?: number;
   onEquip: (item: any) => void;
   onUnequip: (slot: any) => void;
   onCraft: (item: any) => void;
@@ -25,11 +27,13 @@ export const FarmingSidebar = ({
   allItems = [],
   equipment = {}, 
   resources = {},
+  spendableGold = 0,
   onEquip,
   onUnequip,
   onCraft,
   onBuy
 }: FarmingSidebarProps) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'inventory' | 'forge' | 'boutique'>('inventory');
   const [bottomMode, setBottomMode] = useState<'mannequin' | 'detail'>('mannequin');
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
@@ -62,6 +66,18 @@ export const FarmingSidebar = ({
     setBottomMode('detail');
   };
 
+  const getAvailableQuantity = (resourceItemId: string) => {
+    const resource = allItems.find((item) => item.id === resourceItemId);
+    if (resource?.name === 'Or') return spendableGold;
+
+    const inventoryQuantity = inventory
+      .filter((entry) => entry.itemId === resourceItemId)
+      .reduce((total, entry) => total + (entry.quantity || 0), 0);
+
+    if (inventoryQuantity > 0) return inventoryQuantity;
+    return resource?.name ? (resources[resource.name] || 0) : (resources[resourceItemId] || 0);
+  };
+
   return (
     <aside className="farming-sidebar">
       <div className="sidebar-section section-top">
@@ -70,28 +86,28 @@ export const FarmingSidebar = ({
             className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`}
             onClick={() => setActiveTab('inventory')}
           >
-            🎒 Sac
+            🎒 {t('bag')}
           </button>
           <button 
             className={`tab-btn ${activeTab === 'forge' ? 'active' : ''}`}
             onClick={() => setActiveTab('forge')}
           >
-            🔨 Forge
+            🔨 {t('forge')}
           </button>
           <button 
             className={`tab-btn ${activeTab === 'boutique' ? 'active' : ''}`}
             onClick={() => setActiveTab('boutique')}
           >
-            💰 Shop
+            💰 {t('shop')}
           </button>
         </header>
 
         <div className="filter-bar">
           <div className="filter-group">
-            <button className={`filter-btn ${typeFilter === 'ALL' ? 'active' : ''}`} onClick={() => setTypeFilter('ALL')}>Tous</button>
-            <button className={`filter-btn ${typeFilter === 'WEAPON' ? 'active' : ''}`} onClick={() => setTypeFilter('WEAPON')}>Armes</button>
-            <button className={`filter-btn ${typeFilter === 'ARMOR' ? 'active' : ''}`} onClick={() => setTypeFilter('ARMOR')}>Armures</button>
-            <button className={`filter-btn ${typeFilter === 'ACCESSORY' ? 'active' : ''}`} onClick={() => setTypeFilter('ACCESSORY')}>Acc.</button>
+            <button className={`filter-btn ${typeFilter === 'ALL' ? 'active' : ''}`} onClick={() => setTypeFilter('ALL')}>{t('all')}</button>
+            <button className={`filter-btn ${typeFilter === 'WEAPON' ? 'active' : ''}`} onClick={() => setTypeFilter('WEAPON')}>{t('weapons')}</button>
+            <button className={`filter-btn ${typeFilter === 'ARMOR' ? 'active' : ''}`} onClick={() => setTypeFilter('ARMOR')}>{t('armors')}</button>
+            <button className={`filter-btn ${typeFilter === 'ACCESSORY' ? 'active' : ''}`} onClick={() => setTypeFilter('ACCESSORY')}>{t('accessoriesShort')}</button>
           </div>
           {activeTab === 'forge' && (
             <div className="filter-group">
@@ -99,6 +115,14 @@ export const FarmingSidebar = ({
             </div>
           )}
         </div>
+
+        {activeTab === 'boutique' && (
+          <div className="sidebar-wallet">
+            <span className="sidebar-wallet-label">{t('currentBalance')}</span>
+            <strong>💰 {spendableGold}</strong>
+            <span>{t('goldUnit')}</span>
+          </div>
+        )}
         
         <div className="sidebar-content">
           {(() => {
@@ -110,7 +134,7 @@ export const FarmingSidebar = ({
               
               if (activeTab === 'forge' && craftableFilter === 'YES') {
                 const costs = it.craftCost || {};
-                const canCraft = Object.entries(costs).every(([resId, qty]) => (resources[resId] || 0) >= (qty as number));
+                const canCraft = Object.entries(costs).every(([resId, qty]) => getAvailableQuantity(resId) >= (qty as number));
                 if (!canCraft) return false;
               }
               return true;
@@ -144,6 +168,9 @@ export const FarmingSidebar = ({
                   onItemHover={handleItemHover}
                   onItemClick={handleItemClick}
                   onItemDoubleClick={(item) => handleAction(onBuy, item)}
+                  showPrice
+                  spendableGold={spendableGold}
+                  goldLabel={t('goldUnit')}
                 />
               );
             }

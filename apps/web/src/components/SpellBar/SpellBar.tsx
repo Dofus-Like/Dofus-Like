@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { SpellFamily, SpellEffectKind, PlayerStats } from '@game/shared-types';
+import { useTranslation } from '../../store/language.store';
 import './SpellBar.css';
 
 const SPELL_FAMILY_ORDER: Record<SpellFamily, number> = {
@@ -10,8 +11,15 @@ const SPELL_FAMILY_ORDER: Record<SpellFamily, number> = {
   [SpellFamily.NINJA]: 4,
 };
 
+const SPELL_HOTKEYS = ['a', 'z', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'] as const;
+
 function toFamilyClassName(family: SpellFamily | null | undefined) {
   return `family-${(family ?? SpellFamily.COMMON).toLowerCase()}`;
+}
+
+function isTextInputTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 }
 
 export interface SpellBarItem {
@@ -56,6 +64,7 @@ const SpellTooltip = ({
   attackerStats?: PlayerStats; 
   targetStats?: PlayerStats;
 }) => {
+  const { t } = useTranslation();
   const isMagical = spell.effectKind === SpellEffectKind.DAMAGE_MAGICAL;
   const isHeal = spell.effectKind === SpellEffectKind.HEAL;
   const isDamage = spell.effectKind === SpellEffectKind.DAMAGE_PHYSICAL || isMagical;
@@ -77,7 +86,7 @@ const SpellTooltip = ({
 
       calculationText = `(${spell.damage.min}~${spell.damage.max} + ${power}) - ${defense}`;
       resultText = `${minTotal}~${maxTotal}`;
-      typeLabel = isMagical ? 'Dégâts Magiques' : 'Dégâts Physiques';
+      typeLabel = isMagical ? t('damageMagical') : t('damagePhysical');
     } else if (isHeal && spell.damage) {
       const power = Math.floor(attackerStats.mag * 0.5);
       const minHeal = spell.damage.min + power;
@@ -85,7 +94,7 @@ const SpellTooltip = ({
 
       calculationText = `(${spell.damage.min}~${spell.damage.max} + ${power})`;
       resultText = `${minHeal}~${maxHeal}`;
-      typeLabel = 'Soins';
+      typeLabel = t('healing');
     }
   }
 
@@ -110,10 +119,10 @@ const SpellTooltip = ({
 
       <div className="tooltip-footer">
         {spell.minRange !== undefined && (
-          <div className="tooltip-range">Portée: {spell.minRange}-{spell.maxRange}</div>
+          <div className="tooltip-range">{t('range')}: {spell.minRange}-{spell.maxRange}</div>
         )}
         {spell.cooldown !== undefined && spell.cooldown > 0 && (
-          <div className="tooltip-cooldown">Relance: {spell.cooldown} tr.</div>
+          <div className="tooltip-cooldown">{t('cooldown')}: {spell.cooldown} tr.</div>
         )}
       </div>
     </div>
@@ -132,29 +141,55 @@ export const SpellBar = ({
   onToggleMannequins,
   onPassTurn,
   canPassTurn = true,
-  passLabel = 'Passer',
+  passLabel,
   isReadyMode = false,
   isReady = false,
   disableGrimoire = false,
 }: SpellBarProps) => {
+  const { t } = useTranslation();
   const [hoveredSpellId, setHoveredSpellId] = React.useState<string | null>(null);
+  const effectivePassLabel = passLabel ?? t('pass');
 
-  const sortedSpells = [...spells].sort((a, b) => {
+  const sortedSpells = React.useMemo(() => [...spells].sort((a, b) => {
     const familyOrder = SPELL_FAMILY_ORDER[a.family] - SPELL_FAMILY_ORDER[b.family];
     if (familyOrder !== 0) return familyOrder;
     if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
     return a.name.localeCompare(b.name);
-  });
+  }), [spells]);
+
+  const isSpellDisabled = React.useCallback((spell: SpellBarItem) => {
+    const onCooldown = (spell.cooldown ?? 0) > 0;
+    const notEnoughPa = remainingPa < spell.paCost;
+    return !isMyTurn || onCooldown || notEnoughPa;
+  }, [isMyTurn, remainingPa]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat || event.altKey || event.ctrlKey || event.metaKey || isTextInputTarget(event.target)) return;
+
+      const spellIndex = SPELL_HOTKEYS.indexOf(event.key.toLowerCase() as (typeof SPELL_HOTKEYS)[number]);
+      if (spellIndex === -1) return;
+
+      const spell = sortedSpells[spellIndex];
+      if (!spell || isSpellDisabled(spell)) return;
+
+      event.preventDefault();
+      onSpellClick(selectedSpellId === spell.id ? '' : spell.id);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSpellDisabled, onSpellClick, selectedSpellId, sortedSpells]);
 
   return (
     <div className="spell-bar glass">
       {sortedSpells.map((spell, index) => {
         const onCooldown = (spell.cooldown ?? 0) > 0;
-        const notEnoughPa = remainingPa < spell.paCost;
         const isActive = selectedSpellId === spell.id;
-        const disabled = !isMyTurn || onCooldown || notEnoughPa;
+        const disabled = isSpellDisabled(spell);
         const familyClassName = toFamilyClassName(spell.family);
         const isHovered = hoveredSpellId === spell.id;
+        const hotkey = SPELL_HOTKEYS[index]?.toUpperCase() ?? index + 1;
 
         return (
           <div
@@ -172,7 +207,7 @@ export const SpellBar = ({
               />
             )}
 
-            <span className="spell-index-badge">{index + 1}</span>
+            <span className="spell-index-badge">{hotkey}</span>
             <span className="spell-pa-cost">{spell.paCost}</span>
 
             <img
@@ -199,7 +234,7 @@ export const SpellBar = ({
         className={`spell-bar-action grimoire ${showMannequins ? 'active' : ''}`}
         onClick={onToggleMannequins}
         disabled={disableGrimoire}
-        title={disableGrimoire ? 'Grimoire indisponible' : 'Grimoire / Équipement'}
+        title={disableGrimoire ? t('grimoireUnavailable') : t('grimoireEquipment')}
       >
         📖
       </button>
@@ -210,10 +245,10 @@ export const SpellBar = ({
         className={`spell-bar-action pass ${((isMyTurn && canPassTurn) || isReadyMode) ? 'ready' : ''} ${isReady ? 'is-ready' : ''}`}
         disabled={(!isMyTurn || !canPassTurn) && !isReadyMode}
         onClick={onPassTurn}
-        title={isReadyMode ? 'Prêt' : 'Terminer le tour'}
+        title={isReadyMode ? t('ready') : t('endTurn')}
       >
         <span className="pass-icon">{isReadyMode ? '✓' : '⏭'}</span>
-        <span className="pass-label">{passLabel}</span>
+        <span className="pass-label">{effectivePassLabel}</span>
       </button>
     </div>
   );

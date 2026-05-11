@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { authApi } from '../api/auth.api';
 import { useAuthStore } from '../store/auth.store';
+import { useTranslation } from '../store/language.store';
 import './LoginPage.css';
 
 export function LoginPage() {
@@ -12,6 +13,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { setToken, setPlayer } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,7 +35,7 @@ export function LoginPage() {
 
       navigate('/');
     } catch {
-      setError('Erreur d\'authentification. Vérifiez vos identifiants.');
+      setError(t('authError'));
     }
   };
 
@@ -41,20 +43,20 @@ export function LoginPage() {
     <div className="login-container">
       <div className="login-card">
         <h1 className="login-title">⚔️ Moyenax</h1>
-        <p className="login-subtitle">Jeu de stratégie au tour par tour</p>
+        <p className="login-subtitle">{t('loginSubtitle')}</p>
 
         <div className="login-tabs">
           <button
             className={`login-tab ${!isRegister ? 'active' : ''}`}
             onClick={() => setIsRegister(false)}
           >
-            Connexion
+            {t('login')}
           </button>
           <button
             className={`login-tab ${isRegister ? 'active' : ''}`}
             onClick={() => setIsRegister(true)}
           >
-            Inscription
+            {t('register')}
           </button>
         </div>
 
@@ -62,7 +64,7 @@ export function LoginPage() {
           {isRegister && (
             <input
               type="text"
-              placeholder="Pseudo"
+              placeholder={t('username')}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="login-input"
@@ -80,7 +82,7 @@ export function LoginPage() {
           />
           <input
             type="password"
-            placeholder="Mot de passe"
+            placeholder={t('password')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="login-input"
@@ -90,13 +92,13 @@ export function LoginPage() {
 
           {error && <p className="login-error">{error}</p>}
           <button type="submit" className="login-button">
-            {isRegister ? 'Créer un compte' : 'Se connecter'}
+            {isRegister ? t('createAccount') : t('signIn')}
           </button>
         </form>
 
         {!isRegister && (
             <div className="quick-login">
-                <p className="quick-login-title">⚡ Test: Connexion Rapide</p>
+                <p className="quick-login-title">⚡ {t('quickLogin')}</p>
                 <div className="quick-login-buttons">
                     {[
                         { name: 'Warrior', emoji: '🛡️', email: 'warrior@test.com', class: 'warrior' },
@@ -117,7 +119,7 @@ export function LoginPage() {
                                     navigate('/');
                                 } catch (e) { 
                                     console.error('Quick login error:', e);
-                                    setError('Seed non effectuée ou API hors ligne ?'); 
+                                    setError(t('seedMissing')); 
                                 }
                             }}
                         >
@@ -125,7 +127,7 @@ export function LoginPage() {
                         </button>
                     ))}
                 </div>
-                <p className="quick-login-tip">💡 Pour jouer à deux, utilisez un <strong>onglet navigation privée</strong> pour la 2ème instance.</p>
+                <p className="quick-login-tip">💡 {t('quickLoginTip')}</p>
             </div>
         )}
       </div>

@@ -3,7 +3,6 @@ import { Leva } from 'leva';
 import React, { Profiler, Suspense, lazy, useEffect, useState, type ProfilerOnRenderCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-
 import { GameLayout } from './components/GameLayout';
 import { DebugPage } from './pages/DebugPage';
 import { GameSessionProvider, GameTunnelGuard } from './pages/GameTunnel';
@@ -12,6 +11,7 @@ import { LobbyPage } from './pages/LobbyPage';
 import { LoginPage } from './pages/LoginPage';
 import { ShopPage } from './pages/ShopPage';
 import { useAuthStore } from './store/auth.store';
+import { useTranslation } from './store/language.store';
 import './styles/global.css';
 
 const SHOW_DEBUG = ['1', 'true', 'on', 'yes'].includes(
@@ -50,10 +50,11 @@ const FarmingPage = lazy(() => import('./pages/FarmingPage').then((module) => ({
 const CombatPage = lazy(() => import('./pages/CombatPage').then((module) => ({ default: module.CombatPage })));
 const CraftingPage = lazy(() => import('./pages/CraftingPage').then((module) => ({ default: module.CraftingPage })));
 
-function PageLoader({ message = 'Chargement...' }: { message?: string }) {
+function PageLoader({ message }: { message?: string }) {
+  const { t } = useTranslation();
   return (
     <div className="loading-screen">
-      <span>⚔️ {message}</span>
+      <span>⚔️ {message ?? t('loading')}</span>
     </div>
   );
 }
@@ -64,6 +65,7 @@ function LazyPage({ children }: { children: React.ReactNode }) {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token, initialize } = useAuthStore();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -74,7 +76,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     init();
   }, [initialize]);
 
-  if (loading) return <PageLoader message="Authentification..." />;
+  if (loading) return <PageLoader message={t('authenticating')} />;
   if (!token) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }

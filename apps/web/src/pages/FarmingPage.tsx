@@ -17,6 +17,7 @@ import { shopApi } from '../api/shop.api';
 import { craftingApi } from '../api/crafting.api';
 import {
   type PathNode,
+  type PlayerStats,
   type SeedId,
   findPath,
   findPathToAdjacent,
@@ -32,13 +33,27 @@ import { PortraitPawn } from '../components/PortraitPawn';
 import { playerApi } from '../api/player.api';
 import { CombatBackgroundShader } from '../game/Combat/CombatBackgroundShader';
 import { CameraEffects } from '../game/Combat/CameraEffects';
+import { useTranslation } from '../store/language.store';
 import './ResourceMapPage.css';
 
 function findSpawnPosition(grid: TerrainType[][]): PathNode {
-  for (let y = 0; y < grid.length; y += 1) {
-    for (let x = 0; x < grid[0].length; x += 1) {
-      if (TERRAIN_PROPERTIES[grid[y][x]].traversable) {
-        return { x, y };
+  const height = grid.length;
+  const width = grid[0]?.length ?? 0;
+  const center = { x: Math.floor(width / 2), y: Math.floor(height / 2) };
+
+  if (width === 0 || height === 0) {
+    return { x: 0, y: 0 };
+  }
+
+  const maxRadius = Math.max(width, height);
+  for (let radius = 0; radius <= maxRadius; radius += 1) {
+    for (let y = center.y - radius; y <= center.y + radius; y += 1) {
+      for (let x = center.x - radius; x <= center.x + radius; x += 1) {
+        if (x < 0 || x >= width || y < 0 || y >= height) continue;
+        if (Math.abs(x - center.x) + Math.abs(y - center.y) > radius) continue;
+        if (TERRAIN_PROPERTIES[grid[y][x]].traversable) {
+          return { x, y };
+        }
       }
     }
   }
@@ -57,9 +72,57 @@ function CameraSync({ zoom, x, y }: { zoom: number; x: number; y: number }) {
   return null;
 }
 
+type FarmingStatKey = keyof Pick<PlayerStats, 'vit' | 'atk' | 'mag' | 'def' | 'res' | 'ini' | 'pa' | 'pm'>;
+type FarmingBaseStatKey = `base${Capitalize<FarmingStatKey>}`;
+
+const FARMING_STAT_ROWS: Array<{ key: FarmingStatKey; baseKey: FarmingBaseStatKey; label: string }> = [
+  { key: 'vit', baseKey: 'baseVit', label: 'PV' },
+  { key: 'atk', baseKey: 'baseAtk', label: 'ATK' },
+  { key: 'mag', baseKey: 'baseMag', label: 'MAG' },
+  { key: 'def', baseKey: 'baseDef', label: 'DEF' },
+  { key: 'res', baseKey: 'baseRes', label: 'RES' },
+  { key: 'ini', baseKey: 'baseIni', label: 'INI' },
+  { key: 'pa', baseKey: 'basePa', label: 'PA' },
+  { key: 'pm', baseKey: 'basePm', label: 'PM' },
+];
+
+function formatStatModifier(modifier: number): string {
+  return modifier >= 0 ? `+${modifier}` : `${modifier}`;
+}
+
+const TILE_TOOLTIP_OFFSET = 14;
+const TILE_TOOLTIP_VIEWPORT_MARGIN = 8;
+const TILE_TOOLTIP_DEFAULT_SIZE = { width: 252, height: 150 };
+const TILE_TOOLTIP_UI_SELECTOR = [
+  '.top-left-utility',
+  '.top-center-container',
+  '.farming-sidebar',
+  '.bottom-left-card',
+  '.bottom-center-actions',
+  '.settings-overlay',
+  '.map-action-toast',
+].join(',');
+
+function isPointerOverFarmingUi(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest(TILE_TOOLTIP_UI_SELECTOR));
+}
+
+function getOverlapArea(a: DOMRect, b: DOMRect) {
+  const width = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+  const height = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+  return width * height;
+}
+
+function getViewportOverflowArea(rect: DOMRect, viewportWidth: number, viewportHeight: number) {
+  const overflowX = Math.max(0, -rect.left) + Math.max(0, rect.right - viewportWidth);
+  const overflowY = Math.max(0, -rect.top) + Math.max(0, rect.bottom - viewportHeight);
+  return overflowX * rect.height + overflowY * rect.width;
+}
+
 export function FarmingPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { language, languages, setLanguage, t } = useTranslation();
   const [searchParams] = useSearchParams();
   const player = useAuthStore((s) => s.player);
   const refreshPlayer = useAuthStore((s) => s.refreshPlayer);
@@ -78,8 +141,13 @@ export function FarmingPage() {
   const [portraitX, setPortraitX] = useState(0.02);
   const [portraitY, setPortraitY] = useState(0.05);
   const isActionInProgressRef = useRef(false);
+  const tileTooltipRef = useRef<HTMLDivElement | null>(null);
+  const tileTooltipRafRef = useRef<number | null>(null);
   const [queuedAction, setQueuedAction] = useState<{ type: 'gather'; x: number; y: number } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [tileTooltipPosition, setTileTooltipPosition] = useState({ x: 24, y: 100 });
+  const [isTileTooltipBlocked, setIsTileTooltipBlocked] = useState(false);
+  const didSpawnOnPageLoadRef = useRef(false);
 
   const map = useFarmingStore((s) => s.map);
   const playerPosition = useFarmingStore((s) => s.playerPosition);
@@ -88,6 +156,7 @@ export function FarmingPage() {
   const round = useFarmingStore((s) => s.round);
   const pips = useFarmingStore((s) => s.pips);
   const inventoryCounts = useFarmingStore((s) => s.inventory);
+  const spendableGold = useFarmingStore((s) => s.spendableGold);
   const fetchState = useFarmingStore((s) => s.fetchState);
 
   const [controls, setControls] = useState<CameraControlsImpl | null>(null);
@@ -162,11 +231,11 @@ export function FarmingPage() {
       await shopApi.buyItem({ itemId: item.id, quantity: 1 });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       refreshPlayer();
-      setActionMessage({ text: `${item.name} acheté !`, type: 'info' });
+      setActionMessage({ text: t('bought', { name: item.name }), type: 'info' });
     } catch (e) {
-      setActionMessage({ text: "Pièces insuffisantes", type: 'error' });
+      setActionMessage({ text: t('notEnoughCoins'), type: 'error' });
     }
-  }, [queryClient, refreshPlayer]);
+  }, [queryClient, refreshPlayer, t]);
 
   const mappedSpells = useMemo((): SpellBarItem[] => {
     return (Array.isArray(spellData) ? spellData : []).map((s: any) => ({
@@ -262,13 +331,14 @@ export function FarmingPage() {
     try {
       await craftingApi.craftItem(item.id);
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      await fetchState();
       refreshPlayer();
-      setActionMessage({ text: `${item.name} forgé !`, type: 'info' });
+      setActionMessage({ text: t('crafted', { name: item.name }), type: 'info' });
     } catch (e: any) {
-      const errorMsg = e.response?.data?.message || "Ressources insuffisantes";
+      const errorMsg = e.response?.data?.message || t('notEnoughResources');
       setActionMessage({ text: errorMsg, type: 'error' });
     }
-  }, [queryClient, refreshPlayer]);
+  }, [fetchState, queryClient, refreshPlayer, t]);
 
   const handleToggleReady = useCallback(async () => {
     if (!activeSession) return;
@@ -292,7 +362,7 @@ export function FarmingPage() {
 
   const handleEndSession = useCallback(async () => {
     if (!activeSession) return;
-    if (!window.confirm('Abandonner la partie ?')) return;
+    if (!window.confirm(t('abandonGameConfirm'))) return;
     try {
       await gameSessionApi.endSession(activeSession.id);
       navigate('/');
@@ -300,7 +370,7 @@ export function FarmingPage() {
       console.error(e);
       navigate('/');
     }
-  }, [activeSession, navigate]);
+  }, [activeSession, navigate, t]);
 
   const performGather = useCallback(async (x: number, y: number) => {
     if (isGathering) return;
@@ -351,10 +421,43 @@ export function FarmingPage() {
   }, []);
 
   useEffect(() => {
-    if (map && !playerPosition) {
+    if (map && !didSpawnOnPageLoadRef.current) {
+      didSpawnOnPageLoadRef.current = true;
       movePlayer(findSpawnPosition(map.grid));
     }
-  }, [map, playerPosition, movePlayer]);
+  }, [map, movePlayer]);
+
+  useEffect(() => {
+    if (!actionMessage) return;
+    const timeout = window.setTimeout(() => setActionMessage(null), 2600);
+    return () => window.clearTimeout(timeout);
+  }, [actionMessage]);
+
+  useEffect(() => {
+    if (!hoverInfo) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (tileTooltipRafRef.current !== null) return;
+
+      tileTooltipRafRef.current = window.requestAnimationFrame(() => {
+        tileTooltipRafRef.current = null;
+        const target = document.elementFromPoint(event.clientX, event.clientY);
+
+        setIsTileTooltipBlocked(isPointerOverFarmingUi(target));
+        setTileTooltipPosition({ x: event.clientX, y: event.clientY });
+      });
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      if (tileTooltipRafRef.current !== null) {
+        window.cancelAnimationFrame(tileTooltipRafRef.current);
+        tileTooltipRafRef.current = null;
+      }
+      setIsTileTooltipBlocked(false);
+    };
+  }, [hoverInfo]);
 
   const handleTileHover = useCallback((info: { x: number; y: number; terrain: TerrainType } | null) => {
     setHoverInfo(info);
@@ -371,6 +474,45 @@ export function FarmingPage() {
     return [];
   }, [map, hoverInfo, isMoving, playerPosition]);
 
+  const tileTooltipStyle = useMemo<React.CSSProperties>(() => {
+    const tooltipWidth = tileTooltipRef.current?.offsetWidth ?? TILE_TOOLTIP_DEFAULT_SIZE.width;
+    const tooltipHeight = tileTooltipRef.current?.offsetHeight ?? TILE_TOOLTIP_DEFAULT_SIZE.height;
+    const viewportWidth = typeof window === 'undefined' ? Number.POSITIVE_INFINITY : window.innerWidth;
+    const viewportHeight = typeof window === 'undefined' ? Number.POSITIVE_INFINITY : window.innerHeight;
+    const blockers = typeof document === 'undefined'
+      ? []
+      : Array.from(document.querySelectorAll(TILE_TOOLTIP_UI_SELECTOR)).map((element) => element.getBoundingClientRect());
+
+    const rawCandidates = [
+      { left: tileTooltipPosition.x + TILE_TOOLTIP_OFFSET, top: tileTooltipPosition.y + TILE_TOOLTIP_OFFSET },
+      { left: tileTooltipPosition.x - tooltipWidth - TILE_TOOLTIP_OFFSET, top: tileTooltipPosition.y + TILE_TOOLTIP_OFFSET },
+      { left: tileTooltipPosition.x + TILE_TOOLTIP_OFFSET, top: tileTooltipPosition.y - tooltipHeight - TILE_TOOLTIP_OFFSET },
+      { left: tileTooltipPosition.x - tooltipWidth - TILE_TOOLTIP_OFFSET, top: tileTooltipPosition.y - tooltipHeight - TILE_TOOLTIP_OFFSET },
+    ];
+
+    const candidates = rawCandidates.map((candidate, priority) => {
+      const left = Math.min(
+        Math.max(TILE_TOOLTIP_VIEWPORT_MARGIN, candidate.left),
+        viewportWidth - tooltipWidth - TILE_TOOLTIP_VIEWPORT_MARGIN,
+      );
+      const top = Math.min(
+        Math.max(TILE_TOOLTIP_VIEWPORT_MARGIN, candidate.top),
+        viewportHeight - tooltipHeight - TILE_TOOLTIP_VIEWPORT_MARGIN,
+      );
+      const rect = new DOMRect(left, top, tooltipWidth, tooltipHeight);
+      const uiOverlap = blockers.reduce((total, blocker) => total + getOverlapArea(rect, blocker), 0);
+      const overflow = getViewportOverflowArea(rect, viewportWidth, viewportHeight);
+
+      return { left, top, score: uiOverlap + overflow * 100 + priority * 0.01 };
+    });
+
+    const best = candidates.reduce((bestCandidate, candidate) =>
+      candidate.score < bestCandidate.score ? candidate : bestCandidate,
+    );
+
+    return { left: best.left, top: best.top };
+  }, [tileTooltipPosition]);
+
   const p1IsMe = activeSession?.player1Id === currentPlayerId;
   const amIReady = p1IsMe ? activeSession?.player1Ready : activeSession?.player2Ready;
 
@@ -380,10 +522,27 @@ export function FarmingPage() {
       {showSettings && (
         <div className="settings-overlay" onClick={() => setShowSettings(false)}>
           <div className="settings-menu" onClick={e => e.stopPropagation()}>
-            <h3>Options</h3>
-            <button className="menu-btn" onClick={() => navigate('/')}>Retour au Lobby</button>
-            <button className="menu-btn danger" onClick={handleEndSession}>Abandonner</button>
-            <button className="menu-btn close" onClick={() => setShowSettings(false)}>Fermer</button>
+            <h3>{t('settings')}</h3>
+            <div className="language-picker" aria-label={t('language')}>
+              <span className="language-picker-label">{t('language')}</span>
+              <div className="language-flags">
+                {languages.map((candidate) => (
+                  <button
+                    key={candidate.code}
+                    type="button"
+                    className={`language-flag ${language === candidate.code ? 'active' : ''}`}
+                    onClick={() => setLanguage(candidate.code)}
+                    title={candidate.label}
+                    aria-label={candidate.label}
+                  >
+                    {candidate.flag}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button className="menu-btn" onClick={() => navigate('/')}>{t('backToLobby')}</button>
+            <button className="menu-btn danger" onClick={handleEndSession}>{t('abandon')}</button>
+            <button className="menu-btn close" onClick={() => setShowSettings(false)}>{t('close')}</button>
           </div>
         </div>
       )}
@@ -391,21 +550,21 @@ export function FarmingPage() {
       {/* 🏷️ Top Utility Bar */}
       <div className="top-left-utility">
         <button className="gear-btn" onClick={() => setShowSettings(true)}>⚙️</button>
-        <div className="round-badge">ROUND {activeSession?.currentRound || round}/5</div>
+        <div className="round-badge">{t('round', { round: activeSession?.currentRound || round })}</div>
       </div>
 
       {/* 📊 Tooltip Overlay */}
-      {hoverInfo && (
-        <div className="floating-tile-tooltip">
+      {hoverInfo && !isTileTooltipBlocked && (
+        <div ref={tileTooltipRef} className="floating-tile-tooltip" style={tileTooltipStyle}>
           <div className="tooltip-header">
             <strong>{hoverInfo.terrain}</strong>
             <span className="coords">({hoverInfo.x}, {hoverInfo.y})</span>
           </div>
           <div className="tooltip-body">
-            {previewPath.length > 0 && <p className="distance">Distance: {previewPath.length} cases</p>}
+            {previewPath.length > 0 && <p className="distance">{t('tileDistance', { count: previewPath.length })}</p>}
             {TERRAIN_PROPERTIES[hoverInfo.terrain].harvestable && (
               <p className="resource">
-                Ressource: 
+                {t('tileResource')}
                 <img 
                   src={getResourceIconPath(TERRAIN_PROPERTIES[hoverInfo.terrain].resourceName)} 
                   alt="" 
@@ -414,7 +573,7 @@ export function FarmingPage() {
                 <strong>{TERRAIN_PROPERTIES[hoverInfo.terrain].resourceName}</strong>
               </p>
             )}
-            {!TERRAIN_PROPERTIES[hoverInfo.terrain].traversable && <p className="warning">Inaccessible</p>}
+            {!TERRAIN_PROPERTIES[hoverInfo.terrain].traversable && <p className="warning">{t('inaccessible')}</p>}
           </div>
         </div>
       )}
@@ -492,6 +651,7 @@ export function FarmingPage() {
         allItems={shopItemsData?.data || []}
         equipment={mappedEquipment}
         resources={inventoryCounts}
+        spendableGold={spendableGold}
         onEquip={handleEquip}
         onUnequip={handleUnequip}
         onCraft={handleCraft}
@@ -528,8 +688,24 @@ export function FarmingPage() {
           <div className="portrait-info">
             <span className="player-name">{player?.username}</span>
             <div className="mini-stats">
-               <span>❤️ 200</span>
-               <span>⚔️ 45</span>
+              {statsData?.data ? (
+                FARMING_STAT_ROWS.map(({ key, baseKey, label }) => {
+                  const value = statsData.data[key];
+                  const modifier = value - statsData.data[baseKey];
+
+                  return (
+                    <span className="mini-stat" key={key}>
+                      <span className="mini-stat-label">{label}</span>
+                      <strong>{value}</strong>
+                      <span className={`mini-stat-mod ${modifier > 0 ? 'is-positive' : modifier < 0 ? 'is-negative' : ''}`}>
+                        ({formatStatModifier(modifier)})
+                      </span>
+                    </span>
+                  );
+                })
+              ) : (
+                <span className="mini-stat-loading">Stats...</span>
+              )}
             </div>
           </div>
         </div>
@@ -545,7 +721,7 @@ export function FarmingPage() {
           }} 
           onToggleMannequins={() => setShowSettings(true)}
           onPassTurn={handleToggleReady}
-          passLabel="PRÊT !"
+          passLabel={t('ready')}
           isReadyMode={true}
           canPassTurn={!isTransitioning}
           isReady={amIReady}

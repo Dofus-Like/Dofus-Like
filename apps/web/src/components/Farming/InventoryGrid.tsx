@@ -6,11 +6,21 @@ interface InventoryGridProps {
   onItemHover: (item: any | null) => void;
   onItemClick: (item: any) => void;
   onItemDoubleClick: (item: any) => void;
+  showPrice?: boolean;
+  spendableGold?: number;
+  goldLabel?: string;
 }
 
-export const InventoryGrid = ({ items = [], onItemHover, onItemClick, onItemDoubleClick }: InventoryGridProps) => {
-  // Create 12 slots (4x3 or similar)
-  const slots = Array(15).fill(null);
+export const InventoryGrid = ({
+  items = [],
+  onItemHover,
+  onItemClick,
+  onItemDoubleClick,
+  showPrice = false,
+  spendableGold = 0,
+  goldLabel = 'Po',
+}: InventoryGridProps) => {
+  const slots = Array(Math.max(15, items.length)).fill(null);
   items.forEach((item, index) => {
     if (index < slots.length) slots[index] = item;
   });
@@ -21,7 +31,7 @@ export const InventoryGrid = ({ items = [], onItemHover, onItemClick, onItemDoub
         {slots.map((item, index) => (
           <div 
             key={`slot-${index}`}
-            className={`inventory-slot ${item ? 'has-item' : 'empty'}`}
+            className={`inventory-slot ${item ? 'has-item' : 'empty'} ${showPrice && item && spendableGold < (item.shopPrice ?? 0) ? 'unaffordable' : ''}`}
             onMouseEnter={() => onItemHover(item)}
             onMouseLeave={() => onItemHover(null)}
             onClick={() => item && onItemClick(item)}
@@ -40,6 +50,9 @@ export const InventoryGrid = ({ items = [], onItemHover, onItemClick, onItemDoub
                 <img src={item.iconPath} alt={item.name} className="item-icon" />
                 {item.quantity > 1 && (
                   <span className="item-quantity">x{item.quantity}</span>
+                )}
+                {showPrice && item.shopPrice != null && (
+                  <span className="item-price">💰 {item.shopPrice} {goldLabel}</span>
                 )}
               </>
             )}

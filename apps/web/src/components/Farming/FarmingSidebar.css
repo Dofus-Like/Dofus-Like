@@ -1,13 +1,17 @@
 .farming-sidebar {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 14px;
   height: 100%;
-  width: 320px;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
   pointer-events: auto;
 }
 
 .sidebar-section {
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--rm-surface);
@@ -20,10 +24,12 @@
 
 .section-top {
   flex: 1.2;
+  min-height: 0;
 }
 
 .section-bottom {
   flex: 1;
+  min-height: 0;
 }
 
 .sidebar-header, .section-bottom-header {
@@ -67,23 +73,15 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  scrollbar-width: none;
 }
 
 .sidebar-content::-webkit-scrollbar, .sidebar-content-bottom::-webkit-scrollbar {
-  width: 5px;
+  display: none;
 }
 
-.sidebar-content::-webkit-scrollbar-track, .sidebar-content-bottom::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sidebar-content::-webkit-scrollbar-thumb, .sidebar-content-bottom::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-}
-
-.sidebar-content::-webkit-scrollbar-thumb:hover, .sidebar-content-bottom::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.1);
+.sidebar-content > .inventory-grid-container {
+  height: 100%;
 }
 
 .filter-bar {
@@ -125,4 +123,27 @@
   color: #000;
   border-color: transparent;
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+}
+
+.sidebar-wallet {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(251, 191, 36, 0.1);
+  border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.sidebar-wallet-label {
+  color: rgba(255, 255, 255, 0.62);
+  font-weight: 700;
+  margin-right: auto;
+}
+
+.sidebar-wallet strong {
+  color: #fde68a;
+  font-size: 0.95rem;
 }

@@ -10,7 +10,7 @@ import { inventoryApi } from '../api/inventory.api';
 import { playerApi } from '../api/player.api';
 import { Mannequin } from '../components/Mannequin';
 import { getItemVisualMeta } from '../utils/itemVisual';
-
+import { useTranslation } from '../store/language.store';
 import { useGameSession } from './GameTunnel';
 import './InventoryPage.css';
 
@@ -19,7 +19,7 @@ type FilterType = 'ALL' | 'WEAPON' | 'ARMOR' | 'OTHER';
 export function InventoryPage() {
   const [activeFilter, setActiveFilter] = React.useState<FilterType>('ALL');
   const queryClient = useQueryClient();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { t } = useTranslation();
   const { activeSession } = useGameSession();
   const [selectedItem, setSelectedItem] = React.useState<InventoryItem | null>(null);
 
@@ -110,7 +110,7 @@ export function InventoryPage() {
       <div className="inventory-main-content">
         <aside className="hero-section">
           <div className="stats-column main-stats">
-            <h3>Stats</h3>
+            <h3>{t('stats')}</h3>
             {statsLoading ? (
               <p>...</p>
             ) : (
@@ -147,7 +147,7 @@ export function InventoryPage() {
 
           <div className="mannequin-container">
             {eqLoading ? (
-              <p>Chargement...</p>
+              <p>{t('loading')}</p>
             ) : (
               <Mannequin
                 equipment={equipment?.data || {}}
@@ -160,12 +160,12 @@ export function InventoryPage() {
 
         <main className="inventory-list-section">
           <div className="list-header">
-            <h3>Inventaire</h3>
+            <h3>{t('inventory')}</h3>
             <div className="item-filters">
-              <button className={`filter-btn ${activeFilter === 'ALL' ? 'active' : ''}`} onClick={() => setActiveFilter('ALL')}>Tout</button>
-              <button className={`filter-btn ${activeFilter === 'WEAPON' ? 'active' : ''}`} onClick={() => setActiveFilter('WEAPON')}>⚔️ Armes</button>
-              <button className={`filter-btn ${activeFilter === 'ARMOR' ? 'active' : ''}`} onClick={() => setActiveFilter('ARMOR')}>🛡️ Armures</button>
-              <button className={`filter-btn ${activeFilter === 'OTHER' ? 'active' : ''}`} onClick={() => setActiveFilter('OTHER')}>🎒 Autres</button>
+              <button className={`filter-btn ${activeFilter === 'ALL' ? 'active' : ''}`} onClick={() => setActiveFilter('ALL')}>{t('all')}</button>
+              <button className={`filter-btn ${activeFilter === 'WEAPON' ? 'active' : ''}`} onClick={() => setActiveFilter('WEAPON')}>⚔️ {t('weapons')}</button>
+              <button className={`filter-btn ${activeFilter === 'ARMOR' ? 'active' : ''}`} onClick={() => setActiveFilter('ARMOR')}>🛡️ {t('armors')}</button>
+              <button className={`filter-btn ${activeFilter === 'OTHER' ? 'active' : ''}`} onClick={() => setActiveFilter('OTHER')}>🎒 {t('others')}</button>
             </div>
           </div>
           <div 
@@ -173,7 +173,7 @@ export function InventoryPage() {
             onDrop={handleDropUnequip}
             onDragOver={handleDragOver}
           >
-            {invLoading && <p className="inventory-loading">Chargement...</p>}
+            {invLoading && <p className="inventory-loading">{t('loading')}</p>}
             {inventory?.data?.filter((inv: InventoryItem) => {
               if (activeFilter === 'ALL') return true;
               if (activeFilter === 'WEAPON' && inv.item.type === 'WEAPON') return true;
@@ -194,7 +194,7 @@ export function InventoryPage() {
                   onClick={() => setSelectedItem(inv)}
                   onDoubleClick={() => handleDoubleClick(inv)}
                 >
-                  {isCurrentlyEquipped && <div className="equipped-badge">EQUIPÉ</div>}
+                  {isCurrentlyEquipped && <div className="equipped-badge">{t('equipped')}</div>}
                   <div className="item-icon">
                     {(() => { const v = getItemVisualMeta(inv.item); return v.iconPath ? <img src={v.iconPath} alt={inv.item.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <span>{v.icon}</span>; })()}
                   </div>
@@ -210,7 +210,7 @@ export function InventoryPage() {
         </main>
 
         <aside className="item-details-column">
-          <h3>Détails</h3>
+          <h3>{t('details')}</h3>
           {selectedItem ? (
             <div className="item-details-card">
               <div className="item-details-header">
@@ -223,13 +223,13 @@ export function InventoryPage() {
 
               <div className="item-details-description">
                 <p>
-                  &quot;{selectedItem.item.description || 'Un objet mystérieux sans description...'}&quot;
+                  &quot;{selectedItem.item.description || t('mysteriousItem')}&quot;
                 </p>
               </div>
 
               {selectedItem.item.statsBonus && (
                 <div className="item-details-stats">
-                  <h5>Bonus</h5>
+                  <h5>{t('bonus')}</h5>
                   <ul>
                     {Object.entries(selectedItem.item.statsBonus).map(([stat, val]) => (
                       <li key={stat}>
@@ -251,14 +251,14 @@ export function InventoryPage() {
                   }
                 >
                   {Object.values(equipment?.data || {}).some((e) => (e as InventoryItem | null)?.id === selectedItem.id)
-                    ? '📤 Déséquiper'
-                    : '🚀 Équiper'}
+                    ? `📤 ${t('unequip')}`
+                    : `🚀 ${t('equip')}`}
                 </button>
               </div>
             </div>
           ) : (
             <div className="empty-details">
-              <p>Cliquez sur un objet pour voir ses détails</p>
+              <p>{t('clickItemDetails')}</p>
             </div>
           )}
         </aside>
