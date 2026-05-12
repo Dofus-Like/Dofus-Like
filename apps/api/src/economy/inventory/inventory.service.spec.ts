@@ -5,6 +5,7 @@ describe('InventoryService', () => {
     sessionItem: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       create: jest.fn(),
     },
@@ -71,7 +72,7 @@ describe('InventoryService', () => {
   describe('equip', () => {
     it('equips a session item and emits ITEM_EQUIPPED event', async () => {
       gameSession.getActiveSession.mockResolvedValue({ id: 'session-1' });
-      prisma.sessionItem.findUnique.mockResolvedValue({ id: 'si-1' });
+      prisma.sessionItem.findFirst.mockResolvedValue({ id: 'si-1' });
       prisma.sessionItem.update.mockResolvedValue({ id: 'si-1', equipped: true, item: {} });
 
       const result = await service.equip('player-1', 'item-1');
@@ -94,7 +95,7 @@ describe('InventoryService', () => {
 
     it('throws NotFoundException when session item does not exist', async () => {
       gameSession.getActiveSession.mockResolvedValue({ id: 'session-1' });
-      prisma.sessionItem.findUnique.mockResolvedValue(null);
+      prisma.sessionItem.findFirst.mockResolvedValue(null);
 
       await expect(service.equip('player-1', 'item-1')).rejects.toThrow('Item non trouvé');
     });
@@ -103,7 +104,7 @@ describe('InventoryService', () => {
   describe('unequip', () => {
     it('unequips a session item and emits ITEM_UNEQUIPPED event', async () => {
       gameSession.getActiveSession.mockResolvedValue({ id: 'session-1' });
-      prisma.sessionItem.findUnique.mockResolvedValue({ id: 'si-1' });
+      prisma.sessionItem.findFirst.mockResolvedValue({ id: 'si-1' });
       prisma.sessionItem.update.mockResolvedValue({ id: 'si-1', equipped: false, item: {} });
 
       const result = await service.unequip('player-1', 'item-1');
@@ -126,7 +127,7 @@ describe('InventoryService', () => {
 
     it('throws NotFoundException when session item not found', async () => {
       gameSession.getActiveSession.mockResolvedValue({ id: 'session-1' });
-      prisma.sessionItem.findUnique.mockResolvedValue(null);
+      prisma.sessionItem.findFirst.mockResolvedValue(null);
 
       await expect(service.unequip('player-1', 'item-1')).rejects.toThrow('Item non trouvé');
     });
@@ -173,7 +174,7 @@ describe('InventoryService', () => {
     it('increments existing session item during active session', async () => {
       prisma.item.findFirst.mockResolvedValue({ id: 'item-bois' });
       gameSession.getActiveSession.mockResolvedValue({ id: 'session-1' });
-      prisma.sessionItem.findUnique.mockResolvedValue({ id: 'si-1', quantity: 1 });
+      prisma.sessionItem.findFirst.mockResolvedValue({ id: 'si-1', quantity: 1 });
       prisma.sessionItem.update.mockResolvedValue({ id: 'si-1', quantity: 2 });
 
       const result = await service.addResourceByName('player-1', 'Bois');
@@ -188,7 +189,7 @@ describe('InventoryService', () => {
     it('creates a new session item when none exists during active session', async () => {
       prisma.item.findFirst.mockResolvedValue({ id: 'item-bois' });
       gameSession.getActiveSession.mockResolvedValue({ id: 'session-1' });
-      prisma.sessionItem.findUnique.mockResolvedValue(null);
+      prisma.sessionItem.findFirst.mockResolvedValue(null);
       prisma.sessionItem.create.mockResolvedValue({ id: 'si-new', quantity: 1 });
 
       const result = await service.addResourceByName('player-1', 'Bois');

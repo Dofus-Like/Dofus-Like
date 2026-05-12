@@ -14,9 +14,7 @@ export class ShopService {
   ) {}
 
   async getAvailableItems() {
-    return this.prisma.item.findMany({
-      where: { shopPrice: { not: null } },
-    });
+    return this.prisma.item.findMany();
   }
 
   async buy(playerId: string, itemId: string, quantity: number) {
@@ -39,8 +37,8 @@ export class ShopService {
       );
 
       if (session) {
-        const existing = await (tx as any).sessionItem.findUnique({
-          where: { sessionId_playerId_itemId: { sessionId: session.id, playerId, itemId } },
+        const existing = await (tx as any).sessionItem.findFirst({
+          where: { sessionId: session.id, playerId, itemId },
         });
 
         if (existing) {
@@ -57,8 +55,8 @@ export class ShopService {
         });
       }
 
-      const existing = await tx.inventoryItem.findUnique({
-        where: { playerId_itemId_rank: { playerId, itemId, rank: 1 } },
+      const existing = await tx.inventoryItem.findFirst({
+        where: { playerId, itemId, rank: 1 },
       });
 
       if (existing) {

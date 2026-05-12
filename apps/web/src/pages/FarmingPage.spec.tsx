@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import '@testing-library/jest-dom/vitest';
+import React, { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -32,7 +34,12 @@ const mocks = vi.hoisted(() => ({
     pips: 4,
     spendableGold: 2,
   },
+  shopApi: {
+    getItems: vi.fn().mockResolvedValue({ data: [] }),
+    buyItem: vi.fn().mockResolvedValue({ data: {} }),
+  },
   activeSession: null as { id: string; status: string; phase: string } | null,
+  latestMapProps: null as { onTileReached?: unknown } | null,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -45,11 +52,19 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@react-three/fiber', () => ({
   Canvas: ({ children }: { children: ReactNode }) => <div data-testid="canvas">{children}</div>,
+  useThree: () => ({ camera: {} }),
+  useLoader: () => ({
+    repeat: { set: vi.fn() },
+    offset: { set: vi.fn() },
+    center: { set: vi.fn() },
+  }),
+  useFrame: vi.fn(),
 }));
 
 vi.mock('@react-three/drei', () => ({
   CameraControls: () => null,
   OrthographicCamera: () => null,
+  useProgress: () => ({ active: false, progress: 100 }),
 }));
 
 vi.mock('camera-controls', () => ({
@@ -62,17 +77,40 @@ vi.mock('camera-controls', () => ({
 }));
 
 vi.mock('../game/UnifiedMap/UnifiedMapScene', () => ({
-  UnifiedMapScene: ({ onTileClick }: { onTileClick?: (x: number, y: number, terrain: string) => void }) => (
-    <div data-testid="map-scene">
-      <button type="button" onClick={() => onTileClick?.(0, 1, 'HERB')}>
-        Harvest tile
-      </button>
-    </div>
-  ),
+  UnifiedMapScene: (props: {
+    onTileClick?: (x: number, y: number, terrain: string) => void;
+    onTileReached?: unknown;
+    onSceneReady?: () => void;
+  }) => {
+    mocks.latestMapProps = props;
+    React.useEffect(() => {
+      props.onSceneReady?.();
+    }, [props]);
+
+    return (
+      <div data-testid="map-scene">
+        <button type="button" onClick={() => props.onTileClick?.(0, 1, 'HERB')}>
+          Harvest tile
+        </button>
+      </div>
+    );
+  },
 }));
 
 vi.mock('../game/UnifiedMap/hooks/useAutoHarvest', () => ({
   useAutoHarvest: () => undefined,
+}));
+
+vi.mock('../game/Combat/CombatBackgroundShader', () => ({
+  CombatBackgroundShader: () => null,
+}));
+
+vi.mock('../game/Combat/CameraEffects', () => ({
+  CameraEffects: () => null,
+}));
+
+vi.mock('../perf/CanvasPerfOverlay', () => ({
+  CanvasPerfOverlay: () => null,
 }));
 
 vi.mock('../api/game-session.api', () => ({
@@ -82,15 +120,43 @@ vi.mock('../api/game-session.api', () => ({
   },
 }));
 
-vi.mock('../store/auth.store', () => ({
-  useAuthStore: (selector?: (state: unknown) => unknown) => {
-    const state = {
-      player: { id: 'player-1' },
-      refreshPlayer: mocks.refreshPlayer,
-    };
-    return selector ? selector(state) : state;
+vi.mock('../api/inventory.api', () => ({
+  inventoryApi: { getInventory: vi.fn().mockResolvedValue({ data: [] }) },
+}));
+
+vi.mock('../api/player.api', () => ({
+  playerApi: { getSpells: vi.fn().mockResolvedValue([]) },
+}));
+
+vi.mock('../api/equipment.api', () => ({
+  equipmentApi: {
+    getEquipment: vi.fn().mockResolvedValue({ data: [] }),
+    equip: vi.fn().mockResolvedValue({ data: {} }),
   },
 }));
+
+vi.mock('../api/shop.api', () => ({
+  shopApi: mocks.shopApi,
+}));
+
+vi.mock('../api/crafting.api', () => ({
+  craftingApi: { craft: vi.fn().mockResolvedValue({ data: {} }) },
+}));
+
+vi.mock('../store/auth.store', () => {
+  const state = {
+    player: { id: 'player-1' },
+    token: 'fake-token',
+    refreshPlayer: mocks.refreshPlayer,
+    logout: vi.fn(),
+  };
+  const hook = (selector?: (state: any) => unknown) => (selector ? selector(state) : state);
+  return {
+    useAuthStore: Object.assign(hook, {
+      getState: () => state,
+    }),
+  };
+});
 
 vi.mock('./GameTunnel', () => ({
   useGameSession: () => ({
@@ -110,9 +176,28 @@ vi.mock('../store/farming.store', () => {
 
 import { FarmingPage } from './FarmingPage';
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
+});
+
+function renderFarmingPage() {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/farming']}>
+        <FarmingPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 describe('FarmingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
     mocks.activeSession = null;
     mocks.farmingState.round = 1;
     mocks.farmingState.pips = 4;
@@ -127,21 +212,28 @@ describe('FarmingPage', () => {
       ],
     };
     mocks.farmingState.playerPosition = { x: 0, y: 0 };
+    mocks.latestMapProps = null;
     mocks.farmingState.gatherNode.mockResolvedValue({
       pips: 3,
       round: 1,
       spendableGold: 2,
     });
+    mocks.shopApi.getItems.mockResolvedValue({ data: [] });
+    mocks.shopApi.buyItem.mockResolvedValue({ data: {} });
+  });
+
+  it('does not update the farming position on intermediate path tiles', async () => {
+    renderFarmingPage();
+
+    await screen.findByTestId('map-scene');
+
+    expect(mocks.latestMapProps?.onTileReached).toBeUndefined();
   });
 
   it('does not render the end round button in normal game flow', async () => {
-    render(
-      <MemoryRouter initialEntries={['/farming']}>
-        <FarmingPage />
-      </MemoryRouter>,
-    );
+    renderFarmingPage();
 
-    await screen.findByText('Récoltes');
+    await screen.findByText(/ROUND/i);
     expect(screen.queryByRole('button', { name: 'Terminer la manche' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Debug refill' })).not.toBeInTheDocument();
   });
@@ -149,17 +241,23 @@ describe('FarmingPage', () => {
   it('does not auto-advance when the page loads with no pips remaining', async () => {
     mocks.farmingState.pips = 0;
 
-    render(
-      <MemoryRouter initialEntries={['/farming']}>
-        <FarmingPage />
-      </MemoryRouter>,
-    );
+    renderFarmingPage();
 
-    await screen.findByText('Récoltes');
+    await screen.findByText(/ROUND/i);
     await waitFor(() => expect(mocks.navigate).not.toHaveBeenCalled());
   });
 
-  it('navigates to crafting once after the last successful harvest', async () => {
+  it('spawns the player near the center of the resource map on page load', async () => {
+    mocks.farmingState.playerPosition = { x: 0, y: 0 };
+
+    renderFarmingPage();
+
+    await waitFor(() => {
+      expect(mocks.farmingState.movePlayer).toHaveBeenCalledWith({ x: 1, y: 1 });
+    });
+  });
+
+  it('does NOT navigate after the last successful harvest', async () => {
     mocks.farmingState.gatherNode.mockImplementation(async () => {
       mocks.farmingState.pips = 0;
       return {
@@ -169,71 +267,72 @@ describe('FarmingPage', () => {
       };
     });
 
-    render(
-      <MemoryRouter initialEntries={['/farming']}>
-        <FarmingPage />
-      </MemoryRouter>,
-    );
+    renderFarmingPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Harvest tile' }));
 
     await waitFor(() => {
       expect(mocks.farmingState.gatherNode).toHaveBeenCalledWith(0, 1);
-      expect(mocks.navigate).toHaveBeenCalledTimes(1);
-      expect(mocks.navigate).toHaveBeenCalledWith('/crafting');
+      expect(mocks.navigate).not.toHaveBeenCalled();
     });
   });
 
   it('shows inventory resource names from the farming store', async () => {
     mocks.farmingState.inventory = { Bois: 3 };
 
-    render(
-      <MemoryRouter initialEntries={['/farming']}>
-        <FarmingPage />
-      </MemoryRouter>,
-    );
+    renderFarmingPage();
 
-    await screen.findByText('Récoltes');
-    // "Bois" appears in the inventory list AND the legend — verify it shows up at least once
-    expect(screen.getAllByText('Bois').length).toBeGreaterThan(0);
-    // The inventory count should be visible
+    expect(await screen.findByAltText('Bois')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
   it('calls fetchState on mount to hydrate the map', async () => {
-    render(
-      <MemoryRouter initialEntries={['/farming']}>
-        <FarmingPage />
-      </MemoryRouter>,
-    );
+    renderFarmingPage();
 
-    await screen.findByText('Récoltes');
-    expect(mocks.farmingState.fetchState).toHaveBeenCalled();
+    await waitFor(() => expect(mocks.farmingState.fetchState).toHaveBeenCalled());
   });
 
   it('shows pips remaining text from the store', async () => {
     mocks.farmingState.pips = 2;
 
-    render(
-      <MemoryRouter initialEntries={['/farming']}>
-        <FarmingPage />
-      </MemoryRouter>,
-    );
+    const { container } = renderFarmingPage();
 
-    await screen.findByText('Récoltes');
-    expect(screen.getByText('2 / 4 récoltes')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelectorAll('.pip-diamond.filled')).toHaveLength(2);
+    });
   });
 
   it('shows "Aucune ressource" when inventory is empty', async () => {
     mocks.farmingState.inventory = {};
 
-    render(
-      <MemoryRouter initialEntries={['/farming']}>
-        <FarmingPage />
-      </MemoryRouter>,
-    );
+    const { container } = renderFarmingPage();
 
-    await screen.findByText('Récoltes');
-    expect(screen.getByText('Aucune ressource récoltée.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelectorAll('.res-counter')).toHaveLength(0);
+    });
+  });
+
+  it('refreshes farming state and session after buying from the embedded shop', async () => {
+    mocks.shopApi.getItems.mockResolvedValue({
+      data: [{
+        id: 'item-1',
+        name: 'Épée test',
+        type: 'WEAPON',
+        shopPrice: 1,
+        iconPath: '/sword.png',
+      }],
+    });
+
+    renderFarmingPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Boutique/i }));
+    fireEvent.doubleClick(await screen.findByAltText('Épée test'));
+
+    await waitFor(() => {
+      expect(mocks.shopApi.buyItem).toHaveBeenCalledWith({ itemId: 'item-1', quantity: 1 });
+      expect(mocks.farmingState.fetchState).toHaveBeenCalledTimes(2);
+      expect(mocks.refreshPlayer).toHaveBeenCalled();
+      expect(mocks.refreshSession).toHaveBeenCalledWith({ silent: true });
+    });
   });
 });

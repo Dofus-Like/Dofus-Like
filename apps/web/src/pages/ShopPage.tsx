@@ -5,11 +5,11 @@ import type { SeedId } from '@game/shared-types';
 import { SEED_CONFIGS } from '@game/shared-types';
 
 import { shopApi } from '../api/shop.api';
-import { useAuthStore } from '../store/auth.store';
-import { useFarmingStore } from '../store/farming.store';
+import { useAuthStore, type AuthState } from '../store/auth.store';
+import { useFarmingStore, type FarmingStoreState } from '../store/farming.store';
+import { useTranslation } from '../store/language.store';
 import { getItemVisualMeta } from '../utils/itemVisual';
 import { getSessionPo } from '../utils/sessionPo';
-
 import { useGameSession } from './GameTunnel';
 
 import './ShopPage.css';
@@ -22,18 +22,19 @@ interface ShopItem {
   type: string;
   family: string | null;
   shopPrice?: number;
-  stats?: Record<string, number>;
+  statsBonus?: Record<string, number>;
   iconPath?: string;
 }
 
-export function ShopPage() {
+export function ShopPage(): React.ReactNode {
   const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
   const queryClient = useQueryClient();
-  const { player, refreshPlayer } = useAuthStore();
+  const { player, refreshPlayer } = useAuthStore((s: AuthState) => s);
   const { activeSession, refreshSession } = useGameSession();
-  const { fetchState, seedId } = useFarmingStore();
+  const { t } = useTranslation();
+  const fetchState = useFarmingStore((s: FarmingStoreState) => s.fetchState);
 
-  const { data: items, isLoading } = useQuery({
+  const items = useQuery({
     queryKey: ['shop-items'],
     queryFn: () => shopApi.getItems(),
   });
@@ -41,66 +42,89 @@ export function ShopPage() {
   const buyMutation = useMutation({
     mutationFn: ({ itemId, quantity }: { itemId: string; quantity: number }) =>
       shopApi.buyItem({ itemId, quantity }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      queryClient.invalidateQueries({ queryKey: ['shop-items'] });
-      void refreshPlayer();
-      void refreshSession({ silent: true });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['shop-items'] }),
+        fetchState(),
+        refreshPlayer(),
+        refreshSession({ silent: true }),
+      ]);
     },
   });
 
   useEffect(() => {
-    fetchState();
-  }, [fetchState]);
+    if (activeSession) {
+      void refreshSession({ silent: true });
+    }
+  }, [activeSession, refreshSession]);
 
-  const seedConfig = seedId ? SEED_CONFIGS[seedId as SeedId] : null;
+  const spendableGold = activeSession 
+    ? (getSessionPo(activeSession, player?.id) ?? 0) 
+    : (player?.gold ?? 0);
 
-  const isSeedItem = (family: string | null) => {
-    if (!seedConfig || !family) return true;
-    return (seedConfig.families as readonly string[]).includes(family);
+  const handleBuy = (itemId: string): void => {
+    buyMutation.mutate({ itemId, quantity: 1 });
   };
 
-  const sessionPo = getSessionPo(activeSession, player?.id);
-  const spendableGold = activeSession ? (sessionPo ?? 0) : (player?.gold ?? 0);
+  const isSeedItem = (family: string | null): boolean => {
+    if (!family) return true;
+    return true; 
+  };
 
-  const renderStats = (stats?: Record<string, number>) => {
+  const renderStats = (stats: Record<string, number> | undefined): string | null => {
     if (!stats) return null;
     return Object.entries(stats)
       .map(([key, value]) => `+${value} ${key.toUpperCase()}`)
       .join(', ');
   };
 
+  const shopItems = (items?.data || []).filter((item: ShopItem) => item.shopPrice != null);
+
   return (
     <div className="shop-container">
-
-      <div className="item-filters">
-        <div className="filter-group">
-          <button className={`filter-btn ${activeFilter === 'ALL' ? 'active' : ''}`} onClick={() => setActiveFilter('ALL')}>Tout</button>
-          <button className={`filter-btn ${activeFilter === 'WEAPON' ? 'active' : ''}`} onClick={() => setActiveFilter('WEAPON')}>⚔️ Armes</button>
-          <button className={`filter-btn ${activeFilter === 'ARMOR' ? 'active' : ''}`} onClick={() => setActiveFilter('ARMOR')}>🛡️ Armures</button>
-          <button className={`filter-btn ${activeFilter === 'OTHER' ? 'active' : ''}`} onClick={() => setActiveFilter('OTHER')}>🎒 Autres</button>
+      <header className="shop-wallet-header">
+        <div>
+          <h1 className="shop-title">💰 {t('shop')}</h1>
+          <p className="shop-wallet-hint">{t('currentBalance')}</p>
         </div>
-      </div>
+        <div className="shop-wallet-balance">
+          <span className="gold-amount">{spendableGold.toLocaleString()}</span>
+          <span className="gold-icon">🪙</span>
+        </div>
+      </header>
+
+      <nav className="shop-filters">
+        {(['ALL', 'WEAPON', 'ARMOR', 'OTHER'] as const).map((f) => (
+          <button
+            key={f}
+            className={`filter-pill ${activeFilter === f ? 'active' : ''}`}
+            onClick={() => setActiveFilter(f)}
+          >
+            {t(f.toLowerCase() as any)}
+          </button>
+        ))}
+      </nav>
 
       <div className="shop-grid compact">
-        {isLoading && <p className="shop-loading">Chargement...</p>}
-        {(items?.data as ShopItem[] | undefined)?.filter((item) => {
+        {items.isLoading && <p className="shop-loading">{t('loading')}</p>}
+        {shopItems.filter((item: ShopItem) => {
           if (activeFilter === 'ALL') return true;
           if (activeFilter === 'WEAPON' && item.type === 'WEAPON') return true;
           if (activeFilter === 'ARMOR' && ['ARMOR_HEAD', 'ARMOR_CHEST', 'ARMOR_LEGS'].includes(item.type)) return true;
           if (activeFilter === 'OTHER' && !['WEAPON', 'ARMOR_HEAD', 'ARMOR_CHEST', 'ARMOR_LEGS'].includes(item.type)) return true;
           return false;
-        }).map((item) => {
+        }).map((item: ShopItem) => {
           const inSeed = isSeedItem(item.family);
           const price = item.shopPrice ?? 0;
-          const visual = getItemVisualMeta(item);
+          const visual = getItemVisualMeta(item as unknown as { iconPath?: string; type: string });
           return (
             <div key={item.id} className={`shop-item-card compact ${!inSeed ? 'out-of-seed' : ''}`}>
               <div className="shop-item-visual">
                 {visual.iconPath ? (
-                  <img src={visual.iconPath} alt={item.name} />
+                  <img src={visual.iconPath} alt={item.name} className="item-icon-img" />
                 ) : (
-                  <span className="shop-item-emoji">{visual.icon}</span>
+                  <span className="item-icon-emoji">{visual.icon}</span>
                 )}
               </div>
 
@@ -109,20 +133,24 @@ export function ShopPage() {
                 <h3 className="shop-item-name">{item.name}</h3>
                 
                 <div className="shop-item-stats-compact">
-                  {renderStats(item.statsBonus) || 'Pas de bonus'}
+                  {renderStats(item.statsBonus) || t('noBonus')}
                 </div>
 
                 <div className="shop-item-footer">
-                  <p className="shop-item-price">💰 {item.shopPrice} Po</p>
+                  <div className="item-price">
+                    <span className="price-val">{price}</span>
+                    <span className="price-unit">🪙</span>
+                  </div>
                   <button
-                    type="button"
-                    className="shop-buy-button"
-                    onClick={() => buyMutation.mutate({ itemId: item.id, quantity: 1 })}
-                    disabled={buyMutation.isPending || spendableGold < price}
+                    className="buy-btn-sm"
+                    disabled={spendableGold < price || buyMutation.isPending}
+                    onClick={() => handleBuy(item.id)}
                   >
-                    {buyMutation.isPending && 'Achat...'}
-                    {!buyMutation.isPending && spendableGold < price && 'Or insuffisant'}
-                    {!buyMutation.isPending && spendableGold >= price && 'Acheter'}
+                    {(() => { 
+                      if (buyMutation.isPending) return t('buying'); 
+                      if (spendableGold < price) return t('notEnoughGold'); 
+                      return t('buy'); 
+                    })()}
                   </button>
                 </div>
               </div>

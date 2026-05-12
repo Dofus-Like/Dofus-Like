@@ -8,7 +8,7 @@ describe('ResourcesService', () => {
   let prisma: {
     item: { findMany: jest.Mock; findUnique: jest.Mock };
     inventoryItem: { findFirst: jest.Mock; create: jest.Mock; update: jest.Mock };
-    sessionItem: { findUnique: jest.Mock; create: jest.Mock; update: jest.Mock };
+    sessionItem: { findFirst: jest.Mock; create: jest.Mock; update: jest.Mock };
   };
   let gameSession: { getActiveSession: jest.Mock };
 
@@ -16,7 +16,7 @@ describe('ResourcesService', () => {
     prisma = {
       item: { findMany: jest.fn(), findUnique: jest.fn() },
       inventoryItem: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
-      sessionItem: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+      sessionItem: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
     };
     gameSession = { getActiveSession: jest.fn() };
     const module: TestingModule = await Test.createTestingModule({
@@ -72,7 +72,7 @@ describe('ResourcesService', () => {
     it('en session: crée sessionItem', async () => {
       prisma.item.findUnique.mockResolvedValue({ id: 'wood' });
       gameSession.getActiveSession.mockResolvedValue({ id: 'gs-1' });
-      prisma.sessionItem.findUnique.mockResolvedValue(null);
+      prisma.sessionItem.findFirst.mockResolvedValue(null);
       prisma.sessionItem.create.mockResolvedValue({ id: 'si-new' });
 
       await service.gather('wood', 'p1');
@@ -82,7 +82,7 @@ describe('ResourcesService', () => {
     it('en session: increment sessionItem existant', async () => {
       prisma.item.findUnique.mockResolvedValue({ id: 'wood' });
       gameSession.getActiveSession.mockResolvedValue({ id: 'gs-1' });
-      prisma.sessionItem.findUnique.mockResolvedValue({ id: 'si-1' });
+      prisma.sessionItem.findFirst.mockResolvedValue({ id: 'si-1' });
 
       await service.gather('wood', 'p1');
       expect(prisma.sessionItem.update).toHaveBeenCalledWith({

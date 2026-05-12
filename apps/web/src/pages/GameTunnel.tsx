@@ -5,6 +5,7 @@ import { gameSessionApi } from '../api/game-session.api';
 import { useAuthStore } from '../store/auth.store';
 import { useCombatStore } from '../store/combat.store';
 import { useFarmingStore } from '../store/farming.store';
+import { useTranslation } from '../store/language.store';
 
 interface GameSession {
   id: string;
@@ -267,9 +268,10 @@ export const useGameSession = () => {
 
 export function GameTunnelGuard({ children }: { children: React.ReactNode }) {
   const { activeSession, loading } = useGameSession();
+  const { t } = useTranslation();
   const location = useLocation();
 
-  if (loading) return <div className="loading-screen">Chargement de la session...</div>;
+  if (loading) return <div className="loading-screen">{t('loadingSession')}</div>;
 
   if (activeSession && activeSession.status === 'ACTIVE' && location.pathname === '/') {
     return <Navigate to="/farming" replace />;

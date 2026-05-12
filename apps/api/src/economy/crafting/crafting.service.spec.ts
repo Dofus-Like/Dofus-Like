@@ -10,7 +10,7 @@ describe('CraftingService', () => {
       create: jest.fn(),
     },
     sessionItem: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
       delete: jest.fn(),
       update: jest.fn(),
       create: jest.fn(),
@@ -23,7 +23,7 @@ describe('CraftingService', () => {
       findMany: jest.fn(),
     },
     inventoryItem: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
     equipmentSlot: {
       findFirst: jest.fn(),
@@ -65,8 +65,8 @@ describe('CraftingService', () => {
     gameSession.getActiveSession.mockResolvedValue(null);
     tx.inventoryItem.findFirst
       .mockResolvedValueOnce({ id: 'inv-iron', quantity: 2 })
-      .mockResolvedValueOnce({ id: 'inv-iron', quantity: 2 });
-    tx.inventoryItem.findUnique.mockResolvedValue(null);
+      .mockResolvedValueOnce({ id: 'inv-iron', quantity: 2 })
+      .mockResolvedValueOnce(null);
     tx.inventoryItem.create.mockResolvedValue({ id: 'crafted-row' });
 
     await service.craft('player-1', 'crafted-item');
@@ -78,7 +78,7 @@ describe('CraftingService', () => {
       null,
       'Or insuffisant pour le craft',
     );
-    expect(tx.inventoryItem.findFirst).toHaveBeenCalledTimes(2);
+    expect(tx.inventoryItem.findFirst).toHaveBeenCalledTimes(3);
     expect(tx.inventoryItem.create).toHaveBeenCalledWith({
       data: { playerId: 'player-1', itemId: 'crafted-item', quantity: 1, rank: 1 },
       include: { item: true },
@@ -106,10 +106,11 @@ describe('CraftingService', () => {
       { id: 'gold-item', name: 'Or' },
     ]);
     gameSession.getActiveSession.mockResolvedValue(session);
-    tx.sessionItem.findUnique
+    tx.sessionItem.findFirst
       .mockResolvedValueOnce({ id: 'session-iron', quantity: 1 })
       .mockResolvedValueOnce({ id: 'session-iron', quantity: 1 })
       .mockResolvedValueOnce(null);
+    tx.inventoryItem.findFirst.mockResolvedValueOnce(null);
     tx.sessionItem.create.mockResolvedValue({ id: 'crafted-session-row' });
 
     await service.craft('player-1', 'crafted-item');
@@ -179,7 +180,7 @@ describe('CraftingService', () => {
       prisma.item.findUnique.mockResolvedValue({ id: 'crafted-item', craftCost: { 'gold-item': 2 } });
       prisma.item.findMany.mockResolvedValue([{ id: 'gold-item', name: 'Or' }]);
       gameSession.getActiveSession.mockResolvedValue(null);
-      tx.inventoryItem.findUnique.mockResolvedValue({ id: 'existing-crafted', quantity: 1 });
+      tx.inventoryItem.findFirst.mockResolvedValueOnce({ id: 'existing-crafted', quantity: 1 });
       tx.inventoryItem.update.mockResolvedValue({ id: 'existing-crafted', quantity: 2 });
 
       const result = await service.craft('player-1', 'crafted-item');
@@ -197,7 +198,7 @@ describe('CraftingService', () => {
       tx.inventoryItem.findFirst
         .mockResolvedValueOnce({ id: 'inv-iron', quantity: 2 })
         .mockResolvedValueOnce({ id: 'inv-iron', quantity: 2 });
-      tx.inventoryItem.findUnique.mockResolvedValue(null);
+      tx.inventoryItem.findFirst.mockResolvedValueOnce(null);
       tx.inventoryItem.create.mockResolvedValue({ id: 'crafted-row' });
 
       await service.craft('player-1', 'crafted-item');
@@ -225,7 +226,7 @@ describe('CraftingService', () => {
 
     it('throws BadRequestException when inventory item not found or insufficient quantity', async () => {
       gameSession.getActiveSession.mockResolvedValue(null);
-      prisma.inventoryItem.findUnique.mockResolvedValue(null);
+      prisma.inventoryItem.findFirst.mockResolvedValue(null);
 
       await expect(service.merge('player-1', 'item-1', 1)).rejects.toThrow(
         'Quantité insuffisante pour la fusion',
@@ -234,7 +235,7 @@ describe('CraftingService', () => {
 
     it('throws BadRequestException when item is equipped', async () => {
       gameSession.getActiveSession.mockResolvedValue(null);
-      prisma.inventoryItem.findUnique.mockResolvedValue({ id: 'inv-1', quantity: 2, rank: 1 });
+      prisma.inventoryItem.findFirst.mockResolvedValue({ id: 'inv-1', quantity: 2, rank: 1 });
       prisma.equipmentSlot.findFirst.mockResolvedValue({ id: 'slot-1' });
 
       await expect(service.merge('player-1', 'item-1', 1)).rejects.toThrow(
@@ -244,9 +245,9 @@ describe('CraftingService', () => {
 
     it('deletes the source row and creates a rank+1 item when quantity is exactly 2', async () => {
       gameSession.getActiveSession.mockResolvedValue(null);
-      prisma.inventoryItem.findUnique.mockResolvedValue({ id: 'inv-1', quantity: 2, rank: 1 });
+      prisma.inventoryItem.findFirst.mockResolvedValue({ id: 'inv-1', quantity: 2, rank: 1 });
       prisma.equipmentSlot.findFirst.mockResolvedValue(null);
-      tx.inventoryItem.findUnique.mockResolvedValue(null);
+      tx.inventoryItem.findFirst.mockResolvedValue(null);
       tx.inventoryItem.create.mockResolvedValue({ id: 'rank2-item', rank: 2, quantity: 1 });
 
       const result = await service.merge('player-1', 'item-1', 1);
@@ -261,9 +262,9 @@ describe('CraftingService', () => {
 
     it('decrements by 2 and increments existing rank+1 item when quantity exceeds 2', async () => {
       gameSession.getActiveSession.mockResolvedValue(null);
-      prisma.inventoryItem.findUnique.mockResolvedValue({ id: 'inv-1', quantity: 4, rank: 1 });
+      prisma.inventoryItem.findFirst.mockResolvedValue({ id: 'inv-1', quantity: 4, rank: 1 });
       prisma.equipmentSlot.findFirst.mockResolvedValue(null);
-      tx.inventoryItem.findUnique.mockResolvedValue({ id: 'rank2-existing', quantity: 1 });
+      tx.inventoryItem.findFirst.mockResolvedValue({ id: 'rank2-existing', quantity: 1 });
       tx.inventoryItem.update.mockResolvedValue({ id: 'rank2-existing', quantity: 2 });
 
       const result = await service.merge('player-1', 'item-1', 1);

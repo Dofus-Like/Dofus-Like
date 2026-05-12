@@ -17,7 +17,7 @@ import { CanvasPerfOverlay } from '../perf/CanvasPerfOverlay';
 import { ProfiledRegion } from '../perf/render-profiler';
 import { useAuthStore } from '../store/auth.store';
 import { useCombatStore } from '../store/combat.store';
-
+import { useTranslation } from '../store/language.store';
 import { useGameSession } from './GameTunnel';
 import './CombatPage.css';
 
@@ -41,6 +41,7 @@ function CombatPreloader() {
 }
 
 export function CombatPage() {
+  const { t } = useTranslation();
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   
@@ -63,7 +64,7 @@ export function CombatPage() {
 
   const handleEndSession = React.useCallback(async () => {
     if (!activeSession) return;
-    const ok = window.confirm("Êtes-vous sûr de vouloir abandonner la partie ? Cela mettra fin au match pour tous les joueurs.");
+    const ok = window.confirm(t('abandonGameConfirm'));
     if (!ok) return;
 
     try {
@@ -73,7 +74,7 @@ export function CombatPage() {
     } catch (error) {
       console.error('Erreur fin session:', error);
     }
-  }, [activeSession, refreshSession, navigate]);
+  }, [activeSession, refreshSession, navigate, t]);
 
   useEffect(() => {
     authInitialize();
@@ -165,20 +166,20 @@ export function CombatPage() {
     <div className="combat-page-container">
       <header className="combat-toolbar">
         <button className="combat-toolbar-back" onClick={() => navigate('/farming')}>
-           Retour
+           {t('back')}
         </button>
-        <h2 className="combat-toolbar-title">Combat</h2>
+        <h2 className="combat-toolbar-title">{t('combat')}</h2>
         <div className="toolbar-actions">
           {combatState && (
-            <span className="combat-toolbar-turn">Tour {combatState.turnNumber}</span>
+            <span className="combat-toolbar-turn">{t('turn', { turn: combatState.turnNumber })}</span>
           )}
           {combatState && !winnerId && (
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="toolbar-btn surrender" onClick={surrender} title="Abandonner uniquement ce combat (défaite instantanée)">
-                🏳️ Abandonner combat
+              <button className="toolbar-btn surrender" onClick={surrender} title={t('abandonCombat')}>
+                🏳️ {t('abandonCombat')}
               </button>
-              <button className="toolbar-btn surrender" onClick={handleEndSession} title="Quitter la partie pour tout le monde" style={{ opacity: 0.7 }}>
-                🔴 Abandonner session
+              <button className="toolbar-btn surrender" onClick={handleEndSession} title={t('abandonSession')} style={{ opacity: 0.7 }}>
+                🔴 {t('abandonSession')}
               </button>
             </div>
           )}
@@ -187,7 +188,7 @@ export function CombatPage() {
       {!combatState && (
         <div className="combat-overlay">
           <div className="loading-spinner"></div>
-          <p>Chargement du combat...</p>
+          <p>{t('loadingCombat')}</p>
         </div>
       )}
 

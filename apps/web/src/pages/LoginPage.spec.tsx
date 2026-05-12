@@ -98,7 +98,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: /se connecter/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Erreur d'authentification/i)).toBeInTheDocument();
+      expect(screen.getByText(/Erreur d.authentification/i)).toBeInTheDocument();
     });
     expect(mockNavigate).not.toHaveBeenCalled();
   });

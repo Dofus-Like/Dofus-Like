@@ -4,10 +4,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { craftingApi } from '../api/crafting.api';
 import { inventoryApi } from '../api/inventory.api';
 import { itemsApi } from '../api/items.api';
-import { useAuthStore } from '../store/auth.store';
+import { useAuthStore, type AuthState } from '../store/auth.store';
+import { useTranslation } from '../store/language.store';
 import { getItemVisualMeta } from '../utils/itemVisual';
 import { getSessionPo } from '../utils/sessionPo';
-
 import { useGameSession } from './GameTunnel';
 import './CraftingPage.css';
 
@@ -62,16 +62,17 @@ function FusionSlot({
   label: string;
   onDrop: (inv: InventoryItem) => void;
   onRemove: () => void;
-}) {
+}): React.ReactNode {
+  const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
   const visual = item ? getItemVisualMeta(item.item) : null;
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragOver(true);
   };
-  const handleDragLeave = () => setIsDragOver(false);
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDragLeave = (): void => setIsDragOver(false);
+  const handleDrop = (e: React.DragEvent): void => {
     e.preventDefault();
     setIsDragOver(false);
     const raw = e.dataTransfer.getData('application/json');
@@ -97,7 +98,7 @@ function FusionSlot({
           </div>
           <div className="fusion-slot-info">
             <span className="fusion-slot-name">{item.item.name}</span>
-            <span className="fusion-slot-rank">Rang {item.rank}</span>
+            <span className="fusion-slot-rank">{t('rank', { rank: item.rank })}</span>
           </div>
           <button className="fusion-slot-remove" onClick={onRemove} title="Retirer">✕</button>
         </>
@@ -112,10 +113,11 @@ function FusionSlot({
 }
 
 // ── Main Component ──────────────────────────────────────────────────────────
-export function CraftingPage() {
+export function CraftingPage(): React.ReactNode {
   const { activeSession, refreshSession } = useGameSession();
-  const player = useAuthStore((s) => s.player);
-  const refreshPlayer = useAuthStore((s) => s.refreshPlayer);
+  const { t } = useTranslation();
+  const player = useAuthStore((s: AuthState) => s.player);
+  const refreshPlayer = useAuthStore((s: AuthState) => s.refreshPlayer);
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<'craft' | 'fusion'>('craft');
@@ -157,57 +159,59 @@ export function CraftingPage() {
     }
   }, [activeSession, refreshPlayer, refreshSession]);
 
-  const spendableGold = activeSession ? (getSessionPo(activeSession, player?.id) ?? 0) : (player?.gold ?? 0);
+  const spendableGold = activeSession 
+    ? (getSessionPo(activeSession, player?.id) ?? 0) 
+    : (player?.gold ?? 0);
 
-  const getAvailableQuantity = useCallback((resourceItemId: string) => {
+  const getAvailableQuantity = useCallback((resourceItemId: string): number => {
     const resource = allItems.find((i) => i.id === resourceItemId);
     if (resource?.name === 'Or') return spendableGold;
     return inventory.find((i) => i.itemId === resourceItemId)?.quantity || 0;
   }, [allItems, inventory, spendableGold]);
 
-  const isRecipeCraftable = useCallback((recipe: Recipe) => {
+  const isRecipeCraftable = useCallback((recipe: Recipe): boolean => {
     return Object.entries(recipe.craftCost).every(([resId, qty]) => 
       getAvailableQuantity(resId) >= qty
     );
   }, [getAvailableQuantity]);
 
-  const handleCraft = async (itemId: string) => {
+  const handleCraft = async (itemId: string): Promise<void> => {
     try {
       await craftingApi.craftItem(itemId);
       if (activeSession) await refreshSession({ silent: true });
       else await refreshPlayer();
-      setMessage({ text: 'Objet fabriqué avec succès !', type: 'success' });
+      setMessage({ text: t('craftedSuccess'), type: 'success' });
       void queryClient.invalidateQueries({ queryKey: ['inventory'] });
     } catch (error: unknown) {
       const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setMessage({ text: msg || 'Erreur lors du craft', type: 'error' });
+      setMessage({ text: msg || t('craftError'), type: 'error' });
     }
   };
 
-  const handleMerge = async (itemId: string, rank: number) => {
+  const handleMerge = async (itemId: string, rank: number): Promise<void> => {
     setIsMerging(true);
     try {
       await craftingApi.mergeItem(itemId, rank);
       if (activeSession) await refreshSession({ silent: true });
       else await refreshPlayer();
-      setMessage({ text: 'Fusion réussie ! Rang augmenté.', type: 'success' });
+      setMessage({ text: t('fusionSuccess'), type: 'success' });
       void queryClient.invalidateQueries({ queryKey: ['inventory'] });
       setFusionSlot1(null);
       setFusionSlot2(null);
     } catch (error: unknown) {
       const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setMessage({ text: msg || 'Erreur lors de la fusion', type: 'error' });
+      setMessage({ text: msg || t('fusionError'), type: 'error' });
     } finally {
       setIsMerging(false);
     }
   };
 
   // ── Fusion validation ────────────────────────────────────────────────────
-  const fusionValid = fusionSlot1 && fusionSlot2
+  const fusionValid = Boolean(fusionSlot1 && fusionSlot2
     && fusionSlot1.itemId === fusionSlot2.itemId
     && fusionSlot1.rank === fusionSlot2.rank
     && fusionSlot1.rank < 3
-    && fusionSlot1.id !== fusionSlot2.id;
+    && fusionSlot1.id !== fusionSlot2.id);
 
   const fusionError = computeFusionError(fusionSlot1, fusionSlot2, fusionValid);
 
@@ -218,12 +222,12 @@ export function CraftingPage() {
   
   // Compute boosted stats for preview (+30% per rank)
   const boostedStats = resultStats && resultRank
-    ? Object.fromEntries(
-        Object.entries(resultStats).map(([k, v]) => [
-          k,
-          Math.round(v * Math.pow(1.3, resultRank - 1)),
-        ])
-      )
+      ? Object.fromEntries(
+          Object.entries(resultStats).map(([k, v]) => [
+            k,
+            Math.round((v as number) * Math.pow(1.3, resultRank - 1)),
+          ])
+        )
     : null;
 
   // All items for slot selection — individual item instances for drag (qty≥1)
@@ -248,12 +252,12 @@ export function CraftingPage() {
   });
 
   const typeLabels: Record<string, string> = {
-    WEAPON: '⚔️ Armes',
-    ARMOR_HEAD: '🪖 Coiffes',
-    ARMOR_CHEST: '👕 Capes & Plastrons',
-    ARMOR_LEGS: '👢 Bottes',
-    ACCESSORY: '💍 Anneaux',
-    CONSUMABLE: '🧪 Consommables',
+    WEAPON: `⚔️ ${t('weapons')}`,
+    ARMOR_HEAD: `🪖 ${t('head')}`,
+    ARMOR_CHEST: `👕 ${t('chest')}`,
+    ARMOR_LEGS: `👢 ${t('legs')}`,
+    ACCESSORY: `💍 ${t('accessory')}`,
+    CONSUMABLE: `🧪 ${t('consumables')}`,
   };
 
   return (
@@ -267,32 +271,33 @@ export function CraftingPage() {
 
       <div className="crafting-tabs">
         <button className={activeTab === 'craft' ? 'active' : ''} onClick={() => setActiveTab('craft')}>
-          🔨 Forge (Craft)
+          🔨 {t('craftPageTitle')}
         </button>
         <button className={activeTab === 'fusion' ? 'active' : ''} onClick={() => setActiveTab('fusion')}>
-          ✨ Fusion (Rangs)
+          ✨ {t('fusionTitle')}
         </button>
       </div>
 
       <div className="item-filters">
-        <button className={`filter-btn ${activeFilter === 'ALL' ? 'active' : ''}`} onClick={() => setActiveFilter('ALL')}>Tout</button>
-        <button className={`filter-btn ${activeFilter === 'WEAPON' ? 'active' : ''}`} onClick={() => setActiveFilter('WEAPON')}>⚔️ Armes</button>
-        <button className={`filter-btn ${activeFilter === 'ARMOR' ? 'active' : ''}`} onClick={() => setActiveFilter('ARMOR')}>🛡️ Armures</button>
-        <button className={`filter-btn ${activeFilter === 'OTHER' ? 'active' : ''}`} onClick={() => setActiveFilter('OTHER')}>🎒 Autres</button>
+        <button className={`filter-btn ${activeFilter === 'ALL' ? 'active' : ''}`} onClick={() => setActiveFilter('ALL')}>{t('all')}</button>
+        <button className={`filter-btn ${activeFilter === 'WEAPON' ? 'active' : ''}`} onClick={() => setActiveFilter('WEAPON')}>⚔️ {t('weapons')}</button>
+        <button className={`filter-btn ${activeFilter === 'ARMOR' ? 'active' : ''}`} onClick={() => setActiveFilter('ARMOR')}>🛡️ {t('armors')}</button>
+        <button className={`filter-btn ${activeFilter === 'OTHER' ? 'active' : ''}`} onClick={() => setActiveFilter('OTHER')}>🎒 {t('others')}</button>
         <div className="filter-divider" />
         <button 
           className={`filter-btn craftable-filter ${onlyCraftable ? 'active' : ''}`} 
           onClick={() => setOnlyCraftable(!onlyCraftable)}
         >
-          {onlyCraftable ? '✅ Craftables' : '✨ Tout afficher'}
+          {onlyCraftable ? `✅ ${t('craftable')}` : `✨ ${t('showAll')}`}
         </button>
       </div>
 
       <div className="crafting-content">
-        {loading && <div className="loading">Chargement...</div>}
-        {!loading && activeTab === 'craft' && (
-          /* ───────────────────── FORGE TAB ─────────────────────── */
-          <div className="recipes-container">
+        {(() => {
+          if (loading) return <div className="loading">{t('loading')}</div>;
+          if (activeTab === 'craft') {
+            return (
+              <div className="recipes-container">
             {filteredCategories.map(type => {
               const categoryRecipes = recipes.filter(r => 
                 (r as Recipe & { type?: string }).type === type &&
@@ -319,7 +324,7 @@ export function CraftingPage() {
                           </div>
 
                           <div className="recipe-requirements">
-                            <h4>Matériaux requis</h4>
+                            <h4>{t('materialsRequired')}</h4>
                             <div className="cost-list">
                               {Object.entries(recipe.craftCost).map(([resId, qty]) => {
                                 const resItem = allItems.find(i => i.id === resId);
@@ -333,7 +338,7 @@ export function CraftingPage() {
                                         ? <img src={resVisual.iconPath} alt="" style={{ width: 20, height: 20, verticalAlign: 'middle', marginRight: 8 }} />
                                         : <span style={{ marginRight: 8 }}>{resVisual?.icon || '📦'}</span>
                                       }
-                                      {resItem?.name || 'Ressource'}: <strong>{qty}</strong>
+                                      {resItem?.name || t('resource')}: <strong>{qty}</strong>
                                     </span>
                                     <span className="owned-status">({userOwned})</span>
                                   </div>
@@ -349,7 +354,7 @@ export function CraftingPage() {
                               getAvailableQuantity(resId) < qty
                             )}
                           >
-                            {loading ? 'Forgeage...' : "Forger l'objet"}
+                            {loading ? t('forging') : t('forgeItem')}
                           </button>
                         </div>
                       );
@@ -358,17 +363,17 @@ export function CraftingPage() {
                 </div>
               );
             })}
-          </div>
-        )}
-        {!loading && activeTab !== 'craft' && (
-          /* ───────────────────── FUSION TAB ─────────────────────── */
-          <div className="fusion-workshop">
+            </div>
+          );
+        }
+        return (
+            <div className="fusion-workshop">
 
             {/* Left panel: draggable inventory list */}
             <aside className="fusion-inventory-panel">
-              <h3 className="fusion-panel-title">🎒 Inventaire</h3>
+              <h3 className="fusion-panel-title">🎒 {t('inventory')}</h3>
               {draggableInventory.length === 0 ? (
-                <p className="empty-state" style={{ padding: 32 }}>Aucun objet à fusionner.</p>
+                <p className="empty-state" style={{ padding: 32 }}>{t('noFusionItems')}</p>
               ) : (
                 <div className="fusion-item-list">
                   {draggableInventory.map(inv => {
@@ -397,9 +402,9 @@ export function CraftingPage() {
                         </div>
                         <div className="fusion-inv-info">
                           <span className="fusion-inv-name">{inv.item.name}</span>
-                          <span className="fusion-inv-meta">Rang {inv.rank} · x{inv.quantity}</span>
+                          <span className="fusion-inv-meta">{t('rank', { rank: inv.rank })} · x{inv.quantity}</span>
                         </div>
-                        {isInSlot && <span className="fusion-in-slot-badge">Sélectionné</span>}
+                        {isInSlot && <span className="fusion-in-slot-badge">{t('selected')}</span>}
                         {!isInSlot && inv.quantity < 2 && <span className="fusion-low-badge">x1</span>}
                       </div>
                     );
@@ -416,7 +421,7 @@ export function CraftingPage() {
                 <div className="fusion-slots-row">
                   <FusionSlot
                     item={fusionSlot1}
-                    label="Glisser un objet ici"
+                    label={t('dropItemHere')}
                     onDrop={inv => {
                       if (inv.id !== fusionSlot2?.id) setFusionSlot1(inv);
                     }}
@@ -427,7 +432,7 @@ export function CraftingPage() {
 
                   <FusionSlot
                     item={fusionSlot2}
-                    label="Glisser un objet ici"
+                    label={t('dropItemHere')}
                     onDrop={inv => {
                       if (inv.id !== fusionSlot1?.id) setFusionSlot2(inv);
                     }}
@@ -440,7 +445,7 @@ export function CraftingPage() {
                   {/* Placeholder for future image */}
                   <div className="fusion-anvil-placeholder">
                     <span>🔨</span>
-                    <span className="fusion-anvil-label">Enclume</span>
+                    <span className="fusion-anvil-label">{t('anvil')}</span>
                   </div>
                 </div>
 
@@ -453,7 +458,7 @@ export function CraftingPage() {
                 {resultItem && resultRank && (
                   <div className="fusion-preview">
                     <div className="fusion-preview-header">
-                      <span className="fusion-preview-label">✨ Résultat de la fusion</span>
+                      <span className="fusion-preview-label">✨ {t('fusionResult')}</span>
                     </div>
                     <div className="fusion-preview-card">
                       <div className="fusion-preview-icon">
@@ -464,7 +469,7 @@ export function CraftingPage() {
                       </div>
                       <div className="fusion-preview-info">
                         <h4>{resultItem.item.name}</h4>
-                        <span className={`fusion-rank-badge rank-${resultRank}`}>Rang {resultRank}</span>
+                        <span className={`fusion-rank-badge rank-${resultRank}`}>{t('rank', { rank: resultRank })}</span>
                         {boostedStats && (
                           <div className="fusion-preview-stats">
                             {Object.entries(boostedStats).map(([stat, val]) => (
@@ -489,15 +494,18 @@ export function CraftingPage() {
                     }
                   }}
                 >
-                  {isMerging && '⏳ Fusion en cours...'}
-                  {!isMerging && fusionValid && '✨ Fusionner'}
-                  {!isMerging && !fusionValid && 'Sélectionner 2 objets identiques'}
+                  {(() => {
+                    if (isMerging) return `⏳ ${t('merging')}`;
+                    if (fusionValid) return `✨ ${t('merge')}`;
+                    return t('selectTwoIdenticalItems');
+                  })()}
                 </button>
 
               </div>
             </main>
           </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
