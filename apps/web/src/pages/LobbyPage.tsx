@@ -5,7 +5,9 @@ import { gameSessionApi } from '../api/game-session.api';
 import { Hub3DLoader, type Hub3DLoaderState } from '../game/Hub3D/Hub3DLoader';
 import { Hub3DScene } from '../game/Hub3D/Hub3DScene';
 import { HubBackdrop } from '../game/Hub3D/HubBackdrop';
+import { HubChatPanel } from '../game/Hub3D/HubChatPanel';
 import { HubOnboardingHint } from '../game/Hub3D/HubOnboardingHint';
+import { useHubMultiplayer } from '../game/Hub3D/useHubMultiplayer';
 import { type PoiId } from '../game/Hub3D/constants';
 import { readOnboardingDismissed, writeOnboardingDismissed } from '../game/Hub3D/onboarding';
 import { deriveActivePoiList, derivePoiStateLabels } from '../game/Hub3D/poiState';
@@ -43,6 +45,7 @@ export function LobbyPage(): React.ReactNode {
   const [loaderState, setLoaderState] = React.useState<Hub3DLoaderState>('loading');
   const [onboardingDismissed, setOnboardingDismissed] = React.useState(readOnboardingDismissed);
   const action = useHubActionState();
+  useHubMultiplayer();
 
   const handleDismissOnboarding = React.useCallback((): void => {
     writeOnboardingDismissed();
@@ -270,6 +273,7 @@ export function LobbyPage(): React.ReactNode {
           onError={handleHubError}
         />
         <Hub3DLoader state={loaderState} />
+        <HubChatPanel />
         <HubOnboardingHint
           visible={!onboardingDismissed && activePoiId === null}
           onDismiss={handleDismissOnboarding}

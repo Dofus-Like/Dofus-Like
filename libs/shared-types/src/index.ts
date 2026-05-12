@@ -5,3 +5,4 @@ export * from './api.types';
 export * from './map.types';
 export * from './pathfinding';
 export * from './farming.types';
+export * from './hub.types';
