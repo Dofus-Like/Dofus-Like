@@ -1,0 +1,131 @@
+.turn-tracker {
+  position: absolute;
+  top: 16px;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: fit-content;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  max-width: 400px;
+  pointer-events: none;
+  font-family: var(--font-hud);
+
+  background: rgba(0, 0, 0, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  outline: 1.5px solid rgba(0, 0, 0, 0.85);
+  outline-offset: 0px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.75),
+    inset 0 0 36px rgba(0, 0, 0, 0.65);
+  animation: hud-fade-in 0.3s ease both;
+}
+
+.tt-turn-label {
+  font-size: 0.88rem;
+  font-weight: normal;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffffff;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tt-slots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tt-arrow {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.45);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* ── Avatar circle: 32×32 ── */
+.tt-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.7);
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.tt-avatar--active {
+  transform: scale(1.18);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 0 10px rgba(255, 255, 255, 0.25),
+    inset 0 0 6px rgba(0, 0, 0, 0.7);
+}
+
+.tt-avatar-sprite {
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  background-size: 900px auto;
+  background-position: -55px -50px;
+  animation: turn-avatar-idle 0.8s steps(6) infinite;
+}
+
+.tt-avatar-sprite.avatar-orc {
+  background-image: url("/assets/sprites/orc/idle.png");
+}
+
+.tt-avatar-sprite.avatar-soldier {
+  background-image: url("/assets/sprites/soldier/idle.png");
+}
+
+@keyframes turn-avatar-idle {
+  from {
+    background-position-x: -55px;
+  }
+  to {
+    background-position-x: -955px;
+  }
+}
+
+@keyframes hud-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .turn-tracker {
+    gap: 6px;
+    padding: 5px 10px;
+  }
+
+  .tt-avatar {
+    width: 26px;
+    height: 26px;
+  }
+
+  .tt-turn-label {
+    font-size: 0.6rem;
+  }
+}

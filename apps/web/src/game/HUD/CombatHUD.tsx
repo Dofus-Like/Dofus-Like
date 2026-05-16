@@ -1,17 +1,23 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from "react";
+import { useNavigate } from "react-router-dom";
 
-import { CombatActionType, SpellFamily } from '@game/shared-types';
+import type { CombatPlayer } from "@game/shared-types";
+import { CombatActionType, SpellFamily } from "@game/shared-types";
 
-import { combatApi } from '../../api/combat.api';
-import { SpellBar, type SpellBarItem } from '../../components/SpellBar/SpellBar';
-import { useGameSession } from '../../pages/GameTunnel';
-import { useAuthStore } from '../../store/auth.store';
-import { useCombatStore } from '../../store/combat.store';
-import { useTranslation } from '../../store/language.store';
-import { CombatPlayerPanel } from './CombatPlayerPanel';
+import { combatApi } from "../../api/combat.api";
+import {
+  SpellBar,
+  type SpellBarItem,
+} from "../../components/SpellBar/SpellBar";
+import { useGameSession } from "../../pages/GameTunnel";
+import { useAuthStore } from "../../store/auth.store";
+import { useCombatStore } from "../../store/combat.store";
+import { useTranslation } from "../../store/language.store";
+import { CombatPlayerPanel } from "./CombatPlayerPanel";
+import { EndTurnButton } from "./EndTurnButton";
+import { TurnTracker } from "./TurnTracker";
 
-import './CombatHUD.css';
+import "./CombatHUD.css";
 
 const SPELL_FAMILY_ORDER: Record<SpellFamily, number> = {
   [SpellFamily.COMMON]: 1,
@@ -20,21 +26,76 @@ const SPELL_FAMILY_ORDER: Record<SpellFamily, number> = {
   [SpellFamily.NINJA]: 4,
 };
 
-function getCombatErrorMessage(error: unknown, fallback: string) {
+function getCombatErrorMessage(error: unknown, fallback: string): string {
   if (
-    typeof error === 'object' &&
+    typeof error === "object" &&
     error !== null &&
-    'response' in error &&
-    typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === 'string'
+    "response" in error &&
+    typeof (error as { response?: { data?: { message?: string } } }).response
+      ?.data?.message === "string"
   ) {
-    return (error as { response?: { data?: { message?: string } } }).response?.data?.message ?? fallback;
+    return (
+      (error as { response?: { data?: { message?: string } } }).response?.data
+        ?.message ?? fallback
+    );
   }
-
   if (error instanceof Error && error.message) {
     return error.message;
   }
-
   return fallback;
+}
+
+function buildSpellItems(player: CombatPlayer): SpellBarItem[] {
+  const sorted = [...player.spells].sort((a, b) => {
+    const familyDiff =
+      SPELL_FAMILY_ORDER[a.family] - SPELL_FAMILY_ORDER[b.family];
+    if (familyDiff !== 0) return familyDiff;
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    return a.name.localeCompare(b.name);
+  });
+  return sorted.map((s) => ({
+    id: s.id,
+    name: s.name,
+    description: s.description,
+    iconPath: s.iconPath,
+    paCost: s.paCost,
+    family: s.family,
+    sortOrder: s.sortOrder,
+    cooldown: player.spellCooldowns[s.id],
+    damage: s.damage,
+    effectKind: s.effectKind,
+    minRange: s.minRange,
+    maxRange: s.maxRange,
+  }));
+}
+
+interface LogEntry {
+  id: string;
+  message: string;
+  type: "damage" | "info" | "victory";
+}
+
+function CombatLogPanel({ logs, open }: { logs: LogEntry[]; open: boolean }) {
+  const listRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (listRef.current) listRef.current.scrollTop = 0;
+  }, [logs.length]);
+
+  return (
+    <div className={`log-panel glass ${open ? "log-panel--open" : ""}`}>
+      <div className="log-panel-list" ref={listRef}>
+        {logs.length === 0 && (
+          <div className="log-entry type-info">Aucune action…</div>
+        )}
+        {logs.map((log) => (
+          <div key={log.id} className={`log-entry type-${log.type}`}>
+            {log.message}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function CombatHUD() {
@@ -45,19 +106,24 @@ export function CombatHUD() {
   const setSelectedSpell = useCombatStore((s) => s.setSelectedSpell);
   const setCombatState = useCombatStore((s) => s.setCombatState);
   const winnerId = useCombatStore((s) => s.winnerId);
-  const showMannequins = useCombatStore((s) => s.showMannequins);
-  const toggleShowMannequins = useCombatStore((s) => s.toggleShowMannequins);
   const disconnect = useCombatStore((s) => s.disconnect);
   const uiMessage = useCombatStore((s) => s.uiMessage);
   const setUiMessage = useCombatStore((s) => s.setUiMessage);
-  
+  const logs = useCombatStore((s) => s.logs);
+  const [logsOpen, setLogsOpen] = React.useState(false);
+
   const user = useAuthStore((s) => s.player);
   const navigate = useNavigate();
   const { activeSession } = useGameSession();
 
-  const currentPlayer = (combatState && user) ? combatState.players[user.id] : null;
-  const enemyId = combatState && user ? Object.keys(combatState.players).find(id => id !== user.id) : null;
-  const isMyTurn = (combatState && user) ? combatState.currentTurnPlayerId === user.id : false;
+  const currentPlayer =
+    combatState && user ? combatState.players[user.id] : null;
+  const enemyId =
+    combatState && user
+      ? Object.keys(combatState.players).find((id) => id !== user.id)
+      : null;
+  const isMyTurn =
+    combatState && user ? combatState.currentTurnPlayerId === user.id : false;
 
   React.useEffect(() => {
     if (!uiMessage) return;
@@ -69,124 +135,100 @@ export function CombatHUD() {
 
   const handleCombatExit = () => {
     disconnect();
-    if (activeSession?.status === 'ACTIVE') {
-      navigate('/farming', { replace: true });
+    if (activeSession?.status === "ACTIVE") {
+      navigate("/farming", { replace: true });
     } else {
-      navigate('/');
+      navigate("/");
+    }
+  };
+
+  const handleEndTurn = async () => {
+    if (!sessionId || !isMyTurn) return;
+    try {
+      const res = await combatApi.playAction(sessionId, {
+        type: CombatActionType.END_TURN,
+      });
+      if (res?.data) setCombatState(res.data);
+      setSelectedSpell(null);
+    } catch (err) {
+      setUiMessage(getCombatErrorMessage(err, t("endTurn")), "error");
     }
   };
 
   const isWinner = winnerId === user.id;
   const showCombatEnd = !!winnerId;
-
-  const sortedSpells = [...currentPlayer.spells].sort((a, b) => {
-    const familyOrder = SPELL_FAMILY_ORDER[a.family] - SPELL_FAMILY_ORDER[b.family];
-    if (familyOrder !== 0) return familyOrder;
-    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-    return a.name.localeCompare(b.name);
-  });
-
-  const mappedSpellItems: SpellBarItem[] = sortedSpells.map(s => ({
-    id: s.id,
-    name: s.name,
-    description: s.description,
-    iconPath: s.iconPath,
-    paCost: s.paCost,
-    family: s.family,
-    sortOrder: s.sortOrder,
-    cooldown: currentPlayer.spellCooldowns[s.id],
-    damage: s.damage,
-    effectKind: s.effectKind,
-    minRange: s.minRange,
-    maxRange: s.maxRange,
-  }));
-
-  const handleEndTurn = async () => {
-    if (!sessionId || !isMyTurn) return;
-    try {
-      const res = await combatApi.playAction(sessionId, { type: CombatActionType.END_TURN });
-      if (res?.data) setCombatState(res.data);
-      setSelectedSpell(null);
-    } catch (err) {
-      console.error('CombatHUD: End turn failed', err);
-      setUiMessage(getCombatErrorMessage(err, t('endTurn')), 'error');
-    }
-  };
-
-  // Initiative order (highest INI first)
-  const orderedFighters = Object.values(combatState.players)
-    .slice()
-    .sort((a, b) => (b.stats?.ini ?? 0) - (a.stats?.ini ?? 0));
+  const fighters = Object.values(combatState.players);
+  const mappedSpellItems = buildSpellItems(currentPlayer);
 
   return (
     <div className="combat-hud">
       {uiMessage && (
-        <div className={`combat-toast ${uiMessage.type}`}>
-          {uiMessage.text}
-        </div>
+        <div className={`combat-toast ${uiMessage.type}`}>{uiMessage.text}</div>
       )}
 
-      {/* HUD de fin de combat */}
       {showCombatEnd && (
-        <div className={`combat-end-overlay ${isWinner ? 'victory' : 'defeat'}`}>
+        <div
+          className={`combat-end-overlay ${isWinner ? "victory" : "defeat"}`}
+        >
           <div className="end-modal">
-            <h1>{isWinner ? `🏆 ${t('victory')}` : `💀 ${t('defeat')}`}</h1>
-            <p>{isWinner ? t('victoryText') : t('defeatText')}</p>
+            <h1>{isWinner ? `🏆 ${t("victory")}` : `💀 ${t("defeat")}`}</h1>
+            <p>{isWinner ? t("victoryText") : t("defeatText")}</p>
             <div className="end-modal-actions">
               <button className="exit-button" onClick={handleCombatExit}>
-                {activeSession?.status === 'ACTIVE' ? t('continue') : t('backToLobby')}
+                {activeSession?.status === "ACTIVE"
+                  ? t("continue")
+                  : t("backToLobby")}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* TOP LEFT: Initiative panel */}
-      <div className="hud-initiative glass">
-        <div className="hud-initiative-title">{t('turn', { turn: combatState.turnNumber })}</div>
-        {orderedFighters.map((f) => {
-          const active = combatState.currentTurnPlayerId === f.playerId;
-          const self = f.playerId === user.id;
-          return (
-            <div
-              key={f.playerId}
-              className={`hud-initiative-row ${active ? 'active' : ''} ${self ? 'self' : 'foe'}`}
-            >
-              <div className="hud-initiative-token" />
-              <div className="hud-initiative-info">
-                <div className="hud-initiative-name">{f.username}</div>
-                <div className="hud-initiative-ini">INI {f.stats?.ini ?? '—'}</div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {/* TOP CENTER: Turn tracker */}
+      <TurnTracker
+        fighters={fighters}
+        currentTurnPlayerId={combatState.currentTurnPlayerId}
+        turnNumber={combatState.turnNumber}
+        selfId={user.id}
+      />
 
       {/* BOTTOM PLAYER PANELS */}
       <CombatPlayerPanel playerId={user.id} side="left" />
       {enemyId && <CombatPlayerPanel playerId={enemyId} side="right" />}
 
-      {/* BOTTOM CENTER: SPELLS */}
+      {/* BOTTOM CENTER: SpellBar seule */}
       <div className="hud-bottom-anchor">
-        <SpellBar 
-          spells={mappedSpellItems}
-          selectedSpellId={selectedSpellId}
-          onSpellClick={(id) => setSelectedSpell(id)}
-          remainingPa={currentPlayer.remainingPa}
-          isMyTurn={isMyTurn}
-          showMannequins={showMannequins}
-          onToggleMannequins={toggleShowMannequins}
-          onPassTurn={handleEndTurn}
-          attackerStats={currentPlayer.stats}
-          targetStats={enemyId ? combatState.players[enemyId]?.stats : undefined}
-        />
+        <div className="hud-bottom-row">
+          <SpellBar
+            spells={mappedSpellItems}
+            selectedSpellId={selectedSpellId}
+            onSpellClick={(id) => setSelectedSpell(id)}
+            remainingPa={currentPlayer.remainingPa}
+            maxPa={currentPlayer.stats.pa}
+            isMyTurn={isMyTurn}
+            attackerStats={currentPlayer.stats}
+            targetStats={
+              enemyId ? combatState.players[enemyId]?.stats : undefined
+            }
+          />
+        </div>
+      </div>
 
-        {/* Targeting prompt when a spell is selected */}
-        {selectedSpellId && (
-          <div className="spell-targeting-prompt glass">
-            🎯 {t('targetPrompt', { spell: sortedSpells.find(s => s.id === selectedSpellId)?.name ?? '' })}
-          </div>
-        )}
+      {/* BOTTOM RIGHT: FIN + logs + chat */}
+      <div className="hud-right-anchor">
+        <EndTurnButton isMyTurn={isMyTurn} onEndTurn={handleEndTurn} />
+        <CombatLogPanel logs={logs} open={logsOpen} />
+        <button
+          type="button"
+          className={`hud-log-btn ${logsOpen ? "active" : ""}`}
+          onClick={() => setLogsOpen((v) => !v)}
+          aria-label="Journal de combat"
+        >
+          💬
+          {logs.length > 0 && (
+            <span className="hud-log-badge">{logs.length}</span>
+          )}
+        </button>
       </div>
     </div>
   );
