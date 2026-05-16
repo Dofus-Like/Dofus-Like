@@ -214,45 +214,71 @@
   bottom: 24px;
   left: 0;
   right: 0;
-  margin: 0 auto;
-  width: fit-content;
   display: flex;
   flex-direction: column;
-  align-items: center;
   pointer-events: none;
   z-index: 50;
 }
 
-/* Bottom row: SpellBar seule, centrée */
+/* Bottom row layout */
 .hud-bottom-row {
   display: flex;
   align-items: flex-end;
   gap: 16px;
   pointer-events: none;
+  width: 100%;
 }
 
-.hud-bottom-row > * {
-  pointer-events: auto;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   BOTTOM RIGHT ANCHOR
-═══════════════════════════════════════════════════════════════ */
-.hud-right-anchor {
-  position: absolute;
-  bottom: 28px;
-  right: 24px;
-  z-index: 70;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  gap: 10px;
+.hud-left-spacer {
+  flex: 1;
   pointer-events: none;
 }
 
-.hud-right-anchor > * {
+.hud-center-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  pointer-events: none;
+}
+.hud-center-group > * {
   pointer-events: auto;
 }
+
+.hud-right-group {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 16px;
+  pointer-events: none;
+  padding-right: 24px;
+  min-width: 0;
+}
+
+.hud-chat-area {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  pointer-events: none;
+  min-width: 0;
+}
+.hud-chat-area > * {
+  pointer-events: auto;
+}
+
+.hud-bottom-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+.hud-bottom-actions > * {
+  pointer-events: auto;
+}
+
 
 /* ═══════════════════════════════════════════════════════════════
    LOG BUTTON + PANEL
@@ -313,38 +339,51 @@
 /* Panel logs — largeur variable, s’étire vers la gauche */
 .log-panel {
   width: 0;
+  height: 92px;
   overflow: hidden;
   opacity: 0;
+  border-width: 0;
+  animation: none;
   align-self: flex-end;
   transition:
     width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.2s ease;
+    opacity 0.2s ease,
+    border-width 0.2s ease;
   pointer-events: none;
   flex-shrink: 0;
 }
 
 .log-panel--open {
-  width: 280px;
+  width: 100%;
   opacity: 1;
+  border-width: 2px;
   pointer-events: auto;
 }
 
 .log-panel-list {
-  width: 280px;
+  width: 100%;
+  height: 100%;
   padding: 8px 10px;
   display: flex;
   flex-direction: column-reverse;
   gap: 4px;
-  max-height: 180px;
   overflow-y: auto;
 }
 
 .log-panel-list::-webkit-scrollbar {
-  width: 3px;
+  width: 5px;
+}
+.log-panel-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  margin: 4px 0;
 }
 .log-panel-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 3px;
+}
+.log-panel-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .log-entry {
@@ -390,6 +429,8 @@
   .hud-bottom-anchor {
     min-height: 90px;
     padding: 20px 0 10px;
+    left: 10px;
+    right: 10px;
   }
 
   .hud-bottom-row {

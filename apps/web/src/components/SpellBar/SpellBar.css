@@ -67,8 +67,8 @@
 
 .pa-diamond {
   display: block;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   transition:
     background 0.2s ease,
@@ -89,8 +89,8 @@
 /* --- SPELL CARD --- */
 .spell-card {
   position: relative;
-  width: 76px;
-  height: 76px;
+  width: 58px;
+  height: 58px;
   display: flex;
   flex-direction: column;
   background: rgba(0, 0, 0, 0.75);
@@ -167,12 +167,12 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 22px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-hud);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: normal;
   letter-spacing: 0.04em;
   text-transform: uppercase;

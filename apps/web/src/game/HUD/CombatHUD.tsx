@@ -86,7 +86,14 @@ function CombatLogPanel({ logs, open }: { logs: LogEntry[]; open: boolean }) {
     <div className={`log-panel glass ${open ? "log-panel--open" : ""}`}>
       <div className="log-panel-list" ref={listRef}>
         {logs.length === 0 && (
-          <div className="log-entry type-info">Aucune action…</div>
+          <>
+            <div className="log-entry type-info">Combat initié…</div>
+            <div className="log-entry type-damage">Adversaire subit 14 dégâts</div>
+            <div className="log-entry type-info">Vous lancez Bouclier</div>
+            <div className="log-entry type-info">Combat initié…</div>
+            <div className="log-entry type-damage">Adversaire subit 14 dégâts</div>
+            <div className="log-entry type-info">Vous lancez Bouclier</div>
+          </>
         )}
         {logs.map((log) => (
           <div key={log.id} className={`log-entry type-${log.type}`}>
@@ -111,6 +118,7 @@ export function CombatHUD() {
   const setUiMessage = useCombatStore((s) => s.setUiMessage);
   const logs = useCombatStore((s) => s.logs);
   const [logsOpen, setLogsOpen] = React.useState(false);
+  const [statsOpen, setStatsOpen] = React.useState(false);
 
   const user = useAuthStore((s) => s.player);
   const navigate = useNavigate();
@@ -193,42 +201,57 @@ export function CombatHUD() {
       />
 
       {/* BOTTOM PLAYER PANELS */}
-      <CombatPlayerPanel playerId={user.id} side="left" />
-      {enemyId && <CombatPlayerPanel playerId={enemyId} side="right" />}
+      <CombatPlayerPanel playerId={user.id} side="left" showStats={statsOpen} />
+      {enemyId && <CombatPlayerPanel playerId={enemyId} side="right" showStats={statsOpen} />}
 
-      {/* BOTTOM CENTER: SpellBar seule */}
+      {/* BOTTOM ROW: SpellBar + Chat + Actions */}
       <div className="hud-bottom-anchor">
         <div className="hud-bottom-row">
-          <SpellBar
-            spells={mappedSpellItems}
-            selectedSpellId={selectedSpellId}
-            onSpellClick={(id) => setSelectedSpell(id)}
-            remainingPa={currentPlayer.remainingPa}
-            maxPa={currentPlayer.stats.pa}
-            isMyTurn={isMyTurn}
-            attackerStats={currentPlayer.stats}
-            targetStats={
-              enemyId ? combatState.players[enemyId]?.stats : undefined
-            }
-          />
-        </div>
-      </div>
+          <div className="hud-left-spacer" />
 
-      {/* BOTTOM RIGHT: FIN + logs + chat */}
-      <div className="hud-right-anchor">
-        <EndTurnButton isMyTurn={isMyTurn} onEndTurn={handleEndTurn} />
-        <CombatLogPanel logs={logs} open={logsOpen} />
-        <button
-          type="button"
-          className={`hud-log-btn ${logsOpen ? "active" : ""}`}
-          onClick={() => setLogsOpen((v) => !v)}
-          aria-label="Journal de combat"
-        >
-          💬
-          {logs.length > 0 && (
-            <span className="hud-log-badge">{logs.length}</span>
-          )}
-        </button>
+          <div className="hud-center-group">
+            <SpellBar
+              spells={mappedSpellItems}
+              selectedSpellId={selectedSpellId}
+              onSpellClick={(id) => setSelectedSpell(id)}
+              remainingPa={currentPlayer.remainingPa}
+              maxPa={currentPlayer.stats.pa}
+              isMyTurn={isMyTurn}
+              attackerStats={currentPlayer.stats}
+              targetStats={
+                enemyId ? combatState.players[enemyId]?.stats : undefined
+              }
+            />
+            <EndTurnButton isMyTurn={isMyTurn} onEndTurn={handleEndTurn} />
+          </div>
+
+          <div className="hud-right-group">
+            <div className="hud-chat-area">
+              <CombatLogPanel logs={logs} open={logsOpen} />
+            </div>
+            <div className="hud-bottom-actions">
+              <button
+                type="button"
+                className={`hud-log-btn ${statsOpen ? "active" : ""}`}
+                onClick={() => setStatsOpen((v) => !v)}
+                aria-label="Statistiques"
+              >
+                📊
+              </button>
+              <button
+                type="button"
+                className={`hud-log-btn ${logsOpen ? "active" : ""}`}
+                onClick={() => setLogsOpen((v) => !v)}
+                aria-label="Journal de combat"
+              >
+                💬
+                {logs.length > 0 && (
+                  <span className="hud-log-badge">{logs.length}</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
