@@ -19,6 +19,7 @@
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -55,21 +56,53 @@
   margin: 0 4px;
 }
 
-/* ── PA diamonds row ── */
+/* ── Resources row (PA/PM) ── */
+.spell-bar-resources {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding-top: 8px;
+}
+
 .spell-bar-pa {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 5px;
-  padding-top: 8px;
-  width: 100%;
+}
+
+.spell-bar-pm {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.pa-count-text {
+  font-family: var(--font-hud);
+  font-size: 0.85rem;
+  color: #fca800;
+  font-weight: 800;
+  margin-right: 4px;
+  text-shadow:
+    -1.5px -1.5px 0 #000,
+    1.5px -1.5px 0 #000,
+    -1.5px 1.5px 0 #000,
+    1.5px 1.5px 0 #000,
+    0px -1.5px 0 #000,
+    0px 1.5px 0 #000,
+    -1.5px 0px 0 #000,
+    1.5px 0px 0 #000;
+  letter-spacing: 0.05em;
 }
 
 .pa-diamond {
   display: block;
-  width: 8px;
-  height: 8px;
-  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  margin: 2px 3px;
   transition:
     background 0.2s ease,
     box-shadow 0.2s ease;
@@ -77,13 +110,110 @@
 }
 
 .pa-diamond--full {
-  background: var(--glass-accent, #a78bfa);
-  box-shadow: 0 0 6px rgb(167 139 250 / 0.65);
+  background: #fca800;
+  box-shadow:
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0px -1px 0 #000, 0px 1px 0 #000, -1px 0px 0 #000, 1px 0px 0 #000,
+    0 0 6px rgba(252, 168, 0, 0.65);
+}
+
+.pa-diamond--overflow {
+  background: #00e5ff;
+  /* Cyan for PA overflow */
+  box-shadow:
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0px -1px 0 #000, 0px 1px 0 #000, -1px 0px 0 #000, 1px 0px 0 #000,
+    0 0 6px rgba(0, 229, 255, 0.65);
+}
+
+.pa-diamond--overflow-2 {
+  background: #fbbf24;
+  /* Gold for PA overflow 2 */
+  box-shadow:
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0px -1px 0 #000, 0px 1px 0 #000, -1px 0px 0 #000, 1px 0px 0 #000,
+    0 0 6px rgba(251, 191, 36, 0.65);
 }
 
 .pa-diamond--empty {
   background: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.6);
+  box-shadow:
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0px -1px 0 #000, 0px 1px 0 #000, -1px 0px 0 #000, 1px 0px 0 #000,
+    inset 0 0 2px rgba(0, 0, 0, 0.6);
+}
+
+.pm-count-text {
+  font-family: var(--font-hud);
+  font-size: 0.85rem;
+  color: #9531ff;
+  font-weight: 800;
+  margin-left: 4px;
+  text-shadow:
+    -1.5px -1.5px 0 #000,
+    1.5px -1.5px 0 #000,
+    -1.5px 1.5px 0 #000,
+    1.5px 1.5px 0 #000,
+    0px -1.5px 0 #000,
+    0px 1.5px 0 #000,
+    -1.5px 0px 0 #000,
+    1.5px 0px 0 #000;
+  letter-spacing: 0.05em;
+}
+
+.pm-diamond {
+  display: block;
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  margin: 2px 3px;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+  flex-shrink: 0;
+}
+
+.pm-diamond--full {
+  background: #9531ff;
+  box-shadow:
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0px -1px 0 #000, 0px 1px 0 #000, -1px 0px 0 #000, 1px 0px 0 #000,
+    0 0 6px rgba(149, 49, 255, 0.65);
+}
+
+.pm-diamond--overflow {
+  background: #f43f5e;
+  /* Rose/Pink for PM overflow 1 (6-10) */
+  box-shadow:
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0px -1px 0 #000, 0px 1px 0 #000, -1px 0px 0 #000, 1px 0px 0 #000,
+    0 0 6px rgba(244, 63, 94, 0.65);
+}
+
+.pm-diamond--overflow-2 {
+  background: #00e5ff;
+  /* Cyan for PM overflow 2 (11-15) */
+  box-shadow:
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0px -1px 0 #000, 0px 1px 0 #000, -1px 0px 0 #000, 1px 0px 0 #000,
+    0 0 6px rgba(0, 229, 255, 0.65);
+}
+
+.pm-diamond--overflow-3 {
+  background: #fbbf24;
+  /* Gold for PM overflow 3 (16-20) */
+  box-shadow:
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0px -1px 0 #000, 0px 1px 0 #000, -1px 0px 0 #000, 1px 0px 0 #000,
+    0 0 6px rgba(251, 191, 36, 0.65);
+}
+
+.pm-diamond--empty {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0px -1px 0 #000, 0px 1px 0 #000, -1px 0px 0 #000, 1px 0px 0 #000,
+    inset 0 0 2px rgba(0, 0, 0, 0.6);
 }
 
 /* --- SPELL CARD --- */
@@ -261,7 +391,7 @@
   position: absolute;
   bottom: calc(100% + 14px);
   left: 50%;
-  transform: translateX(-50%);
+  margin-left: -120px;
   width: 240px;
   padding: 16px;
   background: rgba(2, 6, 23, 0.98);
@@ -281,11 +411,12 @@
 @keyframes tooltipFadeIn {
   from {
     opacity: 0;
-    transform: translate(-50%, 10px);
+    transform: translateY(10px);
   }
+
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateY(0);
   }
 }
 
@@ -308,8 +439,8 @@
 .tooltip-cost {
   font-size: 0.75rem;
   font-weight: 800;
-  color: #60a5fa;
-  background: rgba(96, 165, 250, 0.1);
+  color: #fca800;
+  background: rgba(252, 168, 0, 0.1);
   padding: 2px 8px;
   border-radius: 4px;
 }
@@ -435,10 +566,12 @@
 }
 
 @keyframes passPulse {
+
   0%,
   100% {
     box-shadow: 0 4px 16px rgba(96, 165, 250, 0.3);
   }
+
   50% {
     box-shadow: 0 4px 24px rgba(96, 165, 250, 0.55);
   }
@@ -450,6 +583,7 @@
     width: 66px;
     height: 66px;
   }
+
   .pa-diamond {
     width: 9px;
     height: 9px;

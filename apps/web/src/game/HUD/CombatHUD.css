@@ -234,10 +234,22 @@
   pointer-events: none;
 }
 
+.hud-left-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+.hud-left-actions > * {
+  pointer-events: auto;
+}
+
 .hud-center-group {
   display: flex;
   align-items: flex-end;
-  gap: 16px;
+  gap: 4px;
   pointer-events: none;
 }
 .hud-center-group > * {
@@ -270,7 +282,7 @@
 .hud-bottom-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
   align-items: flex-end;
   pointer-events: none;
   flex-shrink: 0;
@@ -294,16 +306,14 @@
   position: relative;
   font-family: var(--font-hud);
 
-  background: rgba(0, 0, 0, 0.55);
-  border: 2px solid rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid rgba(0, 0, 0, 0.85);
   border-radius: 6px;
-  outline: 1.5px solid rgba(0, 0, 0, 0.85);
-  outline-offset: 0px;
-  backdrop-filter: blur(6px);
+  outline: none;
+  backdrop-filter: blur(4px);
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.5),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.75),
-    inset 0 0 20px rgba(0, 0, 0, 0.55);
+    0 4px 12px rgba(0, 0, 0, 0.7),
+    inset 0 0 16px 4px rgba(0, 0, 0, 0.85);
   transition:
     border-color 0.2s ease,
     background 0.2s ease;
@@ -312,8 +322,11 @@
 
 .hud-log-btn:hover,
 .hud-log-btn.active {
-  border-color: rgba(255, 255, 255, 0.95);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.8),
+    inset 0 0 16px 4px rgba(0, 0, 0, 0.6);
 }
 
 .hud-log-badge {

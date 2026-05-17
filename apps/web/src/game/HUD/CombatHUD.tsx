@@ -167,6 +167,10 @@ export function CombatHUD() {
   const showCombatEnd = !!winnerId;
   const fighters = Object.values(combatState.players);
   const mappedSpellItems = buildSpellItems(currentPlayer);
+  const canCastSpell = mappedSpellItems.some(
+    (s) => s.paCost <= currentPlayer.remainingPa && (s.cooldown ?? 0) <= 0
+  );
+  const hasPm = currentPlayer.remainingPm > 0;
 
   return (
     <div className="combat-hud">
@@ -210,19 +214,49 @@ export function CombatHUD() {
           <div className="hud-left-spacer" />
 
           <div className="hud-center-group">
+            <div className="hud-left-actions">
+              <button
+                type="button"
+                className="hud-log-btn"
+                aria-label="Émotes"
+                title="Émotes"
+              >
+                😄
+              </button>
+              <button
+                type="button"
+                className="hud-log-btn"
+                aria-label="Abandonner"
+                title="Abandonner"
+                onClick={() => {
+                  if (window.confirm(t("confirmAbandon") || "Voulez-vous vraiment abandonner le combat ?")) {
+                    handleCombatExit();
+                  }
+                }}
+              >
+                🏳️
+              </button>
+            </div>
             <SpellBar
               spells={mappedSpellItems}
               selectedSpellId={selectedSpellId}
               onSpellClick={(id) => setSelectedSpell(id)}
               remainingPa={currentPlayer.remainingPa}
               maxPa={currentPlayer.stats.pa}
+              remainingPm={currentPlayer.remainingPm}
+              maxPm={currentPlayer.stats.pm}
               isMyTurn={isMyTurn}
               attackerStats={currentPlayer.stats}
               targetStats={
                 enemyId ? combatState.players[enemyId]?.stats : undefined
               }
             />
-            <EndTurnButton isMyTurn={isMyTurn} onEndTurn={handleEndTurn} />
+            <EndTurnButton 
+              isMyTurn={isMyTurn} 
+              onEndTurn={handleEndTurn} 
+              canCastSpell={canCastSpell}
+              hasPm={hasPm}
+            />
           </div>
 
           <div className="hud-right-group">

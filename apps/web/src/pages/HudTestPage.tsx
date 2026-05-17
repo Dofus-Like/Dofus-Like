@@ -118,10 +118,10 @@ function HpControl({ label, value, max, onChange }: { label: string; value: numb
   );
 }
 
-function PaControl({ value, max, onChange }: { value: number; max: number; onChange: (v: number) => void }) {
+function ResourceControl({ label, value, max, onChange }: { label: string; value: number; max: number; onChange: (v: number) => void }) {
   return (
     <div className="hud-test-group">
-      <span className="hud-test-label">PA héros</span>
+      <span className="hud-test-label">{label}</span>
       <input type="range" className="hud-test-slider" min={0} max={max} value={value}
         onChange={(e) => onChange(Number(e.target.value))} />
       <span className="hud-test-label">{value}/{max}</span>
@@ -180,6 +180,18 @@ export function HudTestPage() {
     combatState: { ...state, players: { ...state.players, 'player-1': { ...p1, remainingPa: v } } },
   });
 
+  const handleBasePa = (v: number) => useCombatStore.setState({
+    combatState: { ...state, players: { ...state.players, 'player-1': { ...p1, stats: { ...p1.stats, pa: v } } } },
+  });
+
+  const handlePm = (v: number) => useCombatStore.setState({
+    combatState: { ...state, players: { ...state.players, 'player-1': { ...p1, remainingPm: v } } },
+  });
+
+  const handleBasePm = (v: number) => useCombatStore.setState({
+    combatState: { ...state, players: { ...state.players, 'player-1': { ...p1, stats: { ...p1.stats, pm: v } } } },
+  });
+
   const handleVictory = () => useCombatStore.setState({ winnerId: 'player-1', combatState: { ...state, winnerId: 'player-1' } });
   const handleDefeat  = () => useCombatStore.setState({ winnerId: 'player-2', combatState: { ...state, winnerId: 'player-2' } });
   const handleReset   = () => useCombatStore.setState({ winnerId: null, combatState: { ...state, winnerId: undefined } });
@@ -195,7 +207,10 @@ export function HudTestPage() {
         <div className="hud-test-sep" />
         <HpControl label="HP Héros" value={p1.currentVit} max={p1.stats.vit} onChange={handleP1Hp} />
         <HpControl label="HP Ennemi" value={p2.currentVit} max={p2.stats.vit} onChange={handleP2Hp} />
-        <PaControl value={p1.remainingPa} max={p1.stats.pa} onChange={handlePa} />
+        <ResourceControl label="PA Actuels" value={p1.remainingPa} max={30} onChange={handlePa} />
+        <ResourceControl label="PA Base" value={p1.stats.pa} max={30} onChange={handleBasePa} />
+        <ResourceControl label="PM Actuels" value={p1.remainingPm} max={20} onChange={handlePm} />
+        <ResourceControl label="PM Base" value={p1.stats.pm} max={20} onChange={handleBasePm} />
         <div className="hud-test-sep" />
         <div className="hud-test-group">
           <span className="hud-test-label">Sort</span>

@@ -6,6 +6,8 @@ interface EndTurnButtonProps {
   isMyTurn: boolean;
   onEndTurn: () => void;
   turnDurationSec?: number;
+  canCastSpell?: boolean;
+  hasPm?: boolean;
 }
 
 // Losange : polygone 72×72, pointes aux 4 côtés — périmètre = 4 × côté
@@ -52,6 +54,8 @@ export function EndTurnButton({
   isMyTurn,
   onEndTurn,
   turnDurationSec = 60,
+  canCastSpell = false,
+  hasPm = false,
 }: EndTurnButtonProps) {
   const progress = useCountdown(isMyTurn, turnDurationSec);
   const dashOffset = PERIMETER * (1 - progress);
@@ -59,36 +63,49 @@ export function EndTurnButton({
     ? getStrokeColor(progress)
     : "rgba(255,255,255,0.18)";
   const isLow = isMyTurn && progress < 0.33;
+  const isNoActionsLeft = isMyTurn && !canCastSpell && !hasPm;
 
   return (
-    <button
-      type="button"
-      className={`end-turn-btn ${isMyTurn ? "is-my-turn" : ""} ${isLow ? "is-low" : ""}`}
-      disabled={!isMyTurn}
-      onClick={() => {
-        if (isMyTurn) onEndTurn();
-      }}
-      aria-label={isMyTurn ? "Terminer le tour" : "En attente"}
-    >
-      <svg className="end-turn-ring" viewBox="0 0 72 72" width="72" height="72">
-        {/* Contour noir extérieur */}
-        <polygon className="etb-border-outer" points="36,0 72,36 36,72 0,36" />
-        {/* Fond + contour blanc */}
-        <polygon className="end-turn-ring-bg" points={DIAMOND_POINTS} />
-        {/* Contour noir intérieur */}
-        <polygon className="etb-border-inner" points="36,5 67,36 36,67 5,36" />
-        {/* Timer progressif */}
-        <polygon
-          className="end-turn-ring-fill"
-          points={DIAMOND_POINTS}
-          style={{
-            strokeDasharray: PERIMETER,
-            strokeDashoffset: dashOffset,
-            stroke: strokeColor,
-          }}
-        />
-      </svg>
-      <span className="end-turn-label">{isMyTurn ? "FIN" : "…"}</span>
-    </button>
+    <div className="end-turn-wrapper">
+      <button
+        type="button"
+        className={`end-turn-btn ${isMyTurn ? "is-my-turn" : ""} ${isLow ? "is-low" : ""} ${isNoActionsLeft ? "no-actions-left" : ""}`}
+        disabled={!isMyTurn}
+        onClick={() => {
+          if (isMyTurn) onEndTurn();
+        }}
+        aria-label={isMyTurn ? "Terminer le tour" : "En attente"}
+      >
+        <svg className="end-turn-ring" viewBox="0 0 72 72" width="72" height="72">
+          {/* Contour noir extérieur */}
+          <polygon className="etb-border-outer" points="36,0 72,36 36,72 0,36" />
+          {/* Fond + contour blanc */}
+          <polygon className="end-turn-ring-bg" points={DIAMOND_POINTS} />
+          {/* Contour noir intérieur */}
+          <polygon className="etb-border-inner" points="36,5 67,36 36,67 5,36" />
+          {/* Timer progressif */}
+          <polygon
+            className="end-turn-ring-fill"
+            points={DIAMOND_POINTS}
+            style={{
+              strokeDasharray: PERIMETER,
+              strokeDashoffset: dashOffset,
+              stroke: strokeColor,
+            }}
+          />
+        </svg>
+        <span className="end-turn-label">
+          {isMyTurn ? (
+            isNoActionsLeft ? (
+              <>END<br />TURN</>
+            ) : (
+              <>PASS<br />TURN</>
+            )
+          ) : (
+            "…"
+          )}
+        </span>
+      </button>
+    </div>
   );
 }

@@ -76,8 +76,8 @@
   letter-spacing: 0.05em;
 }
 
-.bap-res-pa { color: #60a5fa; }
-.bap-res-pm { color: #c084fc; }
+.bap-res-pa { color: #fca800; }
+.bap-res-pm { color: #9531ff; }
 
 /* Main Frame (Glassmorphism border) */
 .bap-frame {
@@ -268,9 +268,9 @@
 /* ── Stats Grid (Pop-out) ── */
 .cpp-stats-grid {
   position: absolute;
-  top: 0;
-  left: calc(100% + 12px);
-  width: 170px;
+  bottom: calc(100% + 4px);
+  left: 0;
+  width: 176px;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
@@ -292,8 +292,10 @@
 }
 
 .blocky-avatar-panel.side-right .cpp-stats-grid {
+  bottom: auto;
+  top: calc(100% + 4px);
   left: auto;
-  right: calc(100% + 12px);
+  right: 0;
 }
 
 @keyframes stats-pop {

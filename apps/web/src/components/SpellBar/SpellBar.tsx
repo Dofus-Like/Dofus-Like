@@ -59,6 +59,8 @@ interface SpellBarProps {
   targetStats?: PlayerStats;
   remainingPa?: number;
   maxPa?: number;
+  remainingPm?: number;
+  maxPm?: number;
   isMyTurn?: boolean;
   showMannequins?: boolean;
   onToggleMannequins?: () => void;
@@ -171,14 +173,52 @@ function PaDiamonds({
   remainingPa: number;
   maxPa: number;
 }) {
+  const visualMax = Math.min(maxPa, 10);
   return (
     <div className="spell-bar-pa">
-      {Array.from({ length: maxPa }, (_, i) => (
-        <span
-          key={i}
-          className={`pa-diamond ${i < remainingPa ? "pa-diamond--full" : "pa-diamond--empty"}`}
-        />
-      ))}
+      <span className="pa-count-text">{remainingPa}/{maxPa}</span>
+      {Array.from({ length: visualMax }, (_, i) => {
+        let state = "empty";
+        if (i < remainingPa - 20) state = "overflow-2";
+        else if (i < remainingPa - 10) state = "overflow";
+        else if (i < remainingPa) state = "full";
+        
+        return (
+          <span
+            key={i}
+            className={`pa-diamond pa-diamond--${state}`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function PmDiamonds({
+  remainingPm,
+  maxPm,
+}: {
+  remainingPm: number;
+  maxPm: number;
+}) {
+  const visualMax = Math.min(maxPm, 5);
+  return (
+    <div className="spell-bar-pm">
+      {Array.from({ length: visualMax }, (_, i) => {
+        let state = "empty";
+        if (i < remainingPm - 15) state = "overflow-3";
+        else if (i < remainingPm - 10) state = "overflow-2";
+        else if (i < remainingPm - 5) state = "overflow";
+        else if (i < remainingPm) state = "full";
+        
+        return (
+          <span
+            key={i}
+            className={`pm-diamond pm-diamond--${state}`}
+          />
+        );
+      })}
+      <span className="pm-count-text">{remainingPm}/{maxPm}</span>
     </div>
   );
 }
@@ -191,6 +231,8 @@ export const SpellBar = ({
   targetStats,
   remainingPa = 999,
   maxPa,
+  remainingPm = 999,
+  maxPm,
   isMyTurn = true,
   showMannequins = false,
   onToggleMannequins,
@@ -260,6 +302,7 @@ export const SpellBar = ({
   const showActions =
     onPassTurn !== undefined || onToggleMannequins !== undefined;
   const effectiveMaxPa = maxPa ?? (remainingPa < 999 ? remainingPa : undefined);
+  const effectiveMaxPm = maxPm ?? (remainingPm < 999 ? remainingPm : undefined);
 
   return (
     <div className="spell-bar glass">
@@ -348,9 +391,14 @@ export const SpellBar = ({
         )}
       </div>
 
-      {effectiveMaxPa !== undefined && (
-        <PaDiamonds remainingPa={remainingPa} maxPa={effectiveMaxPa} />
-      )}
+      <div className="spell-bar-resources">
+        {effectiveMaxPa !== undefined && (
+          <PaDiamonds remainingPa={remainingPa} maxPa={effectiveMaxPa} />
+        )}
+        {effectiveMaxPm !== undefined && (
+          <PmDiamonds remainingPm={remainingPm} maxPm={effectiveMaxPm} />
+        )}
+      </div>
     </div>
   );
 };
