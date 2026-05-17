@@ -62,7 +62,8 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding-top: 8px;
+  padding-top: 10px;
+  /* increased gap to account for spell PA cost sticking out */
 }
 
 .spell-bar-pa {
@@ -280,6 +281,41 @@
   inset: 0;
   overflow: hidden;
   border-radius: 3px;
+  background: #1e1e1e;
+}
+
+.spell-card-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  transition: background-color 0.3s ease;
+}
+
+.family-warrior .spell-card-inner::before {
+  background-color: rgba(239, 68, 68, 0.45); /* Red tint */
+}
+
+.family-mage .spell-card-inner::before {
+  background-color: rgba(59, 130, 246, 0.45); /* Blue tint */
+}
+
+.family-ninja .spell-card-inner::before {
+  background-color: rgba(16, 185, 129, 0.45); /* Green tint */
+}
+
+.family-common .spell-card-inner::before {
+  background-color: transparent; /* No tint for common */
+}
+
+.spell-card-inner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 2;
 }
 
 /* --- ICON (FULL BLEED) --- */
@@ -290,36 +326,8 @@
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-.spell-name {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-hud);
-  font-size: 0.62rem;
-  font-weight: normal;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #ffffff;
-  padding: 0 3px;
-  text-align: center;
-  background: rgba(0, 0, 0, 0.72);
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.spell-card.active .spell-name {
-  background: rgba(0, 0, 0, 0.85);
-  border-top-color: rgba(255, 255, 255, 0.4);
+  filter: grayscale(100%) contrast(1.15);
+  z-index: 0;
 }
 
 /* --- BADGES (FLOATING OVER ICON) --- */
@@ -344,28 +352,41 @@
 
 .spell-pa-cost {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 22px;
-  height: 22px;
-  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-  background: rgba(0, 0, 0, 0.85);
-  color: #ffffff;
-  font-family: var(--font-hud);
-  font-size: 0.9rem;
-  font-weight: normal;
+  bottom: -8px;
+  left: 50%;
+  margin-left: -8px;
+  width: 16px;
+  height: 16px;
+  transform: rotate(45deg);
+  background: #fca800;
   display: flex;
   align-items: center;
   justify-content: center;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
   z-index: 10;
   box-shadow:
-    0 0 0 1.5px rgba(255, 255, 255, 0.5),
-    0 2px 8px rgba(0, 0, 0, 0.6);
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0px -1px 0 #000, 0px 1px 0 #000, -1px 0px 0 #000, 1px 0px 0 #000,
+    0 2px 6px rgba(0, 0, 0, 0.8);
 }
 
-.spell-card.active .spell-name {
+.spell-pa-cost-text {
+  transform: rotate(-45deg);
   color: #ffffff;
+  font-family: var(--font-hud);
+  font-size: 0.95rem;
+  font-weight: 900;
+  text-shadow:
+    -1.5px -1.5px 0 #000,
+    1.5px -1.5px 0 #000,
+    -1.5px 1.5px 0 #000,
+    1.5px 1.5px 0 #000,
+    0px -1.5px 0 #000,
+    0px 1.5px 0 #000,
+    -1.5px 0px 0 #000,
+    1.5px 0px 0 #000;
+  /* Slight optical adjustment to center properly */
+  margin-left: -1px;
+  margin-top: -1px;
 }
 
 /* Cooldown overlay */

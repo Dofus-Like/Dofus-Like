@@ -338,7 +338,9 @@ export const SpellBar = ({
               )}
 
               <span className="spell-index-badge">{hotkey}</span>
-              <span className="spell-pa-cost">{spell.paCost}</span>
+              <div className="spell-pa-cost">
+                <span className="spell-pa-cost-text">{spell.paCost}</span>
+              </div>
 
               <div className="spell-card-inner">
                 <img
@@ -346,7 +348,6 @@ export const SpellBar = ({
                   className="spell-icon-img"
                   alt={spell.name}
                 />
-                <span className="spell-name">{spell.name}</span>
                 {onCooldown && (
                   <div className="spell-cooldown-overlay">
                     <span className="spell-cooldown-value">

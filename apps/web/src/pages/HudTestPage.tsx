@@ -142,6 +142,27 @@ function OutcomeControl({ winnerId, onVictory, onDefeat, onReset }: {
   );
 }
 
+function SpellToggleControl({ allSpells, activeSpells, onToggle }: { allSpells: any[]; activeSpells: any[]; onToggle: (id: string) => void }) {
+  return (
+    <div className="hud-test-group" style={{ flexDirection: 'row', gap: 4 }}>
+      <span className="hud-test-label">Sorts Actifs:</span>
+      {allSpells.map(s => {
+        const isActive = activeSpells.some(active => active.id === s.id);
+        return (
+          <button
+            key={s.id}
+            className={`hud-test-btn ${isActive ? 'active' : ''}`}
+            onClick={() => onToggle(s.id)}
+            title={s.family}
+          >
+            {s.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export function HudTestPage() {
@@ -196,6 +217,21 @@ export function HudTestPage() {
   const handleDefeat  = () => useCombatStore.setState({ winnerId: 'player-2', combatState: { ...state, winnerId: 'player-2' } });
   const handleReset   = () => useCombatStore.setState({ winnerId: null, combatState: { ...state, winnerId: undefined } });
 
+  const handleToggleSpell = (spellId: string) => {
+    const currentSpells = p1.spells;
+    const hasSpell = currentSpells.some(s => s.id === spellId);
+    let newSpells;
+    if (hasSpell) {
+      newSpells = currentSpells.filter(s => s.id !== spellId);
+    } else {
+      const spellToAdd = SPELLS_P1.find(s => s.id === spellId)!;
+      newSpells = [...currentSpells, spellToAdd].sort((a, b) => a.sortOrder - b.sortOrder);
+    }
+    useCombatStore.setState({
+      combatState: { ...state, players: { ...state.players, 'player-1': { ...p1, spells: newSpells } } }
+    });
+  };
+
   if (!p1 || !p2) return null;
 
   return (
@@ -213,12 +249,13 @@ export function HudTestPage() {
         <ResourceControl label="PM Base" value={p1.stats.pm} max={20} onChange={handleBasePm} />
         <div className="hud-test-sep" />
         <div className="hud-test-group">
-          <span className="hud-test-label">Sort</span>
+          <span className="hud-test-label">Sélect. Sort</span>
           <button className={`hud-test-btn ${selectedSpellId ? 'active' : ''}`}
             onClick={() => setSelectedSpell(selectedSpellId ? null : 's1')}>
             {selectedSpellId ? '✦ Sélectionné' : '✧ Aucun'}
           </button>
         </div>
+        <SpellToggleControl allSpells={SPELLS_P1} activeSpells={p1.spells} onToggle={handleToggleSpell} />
         <div className="hud-test-sep" />
         <OutcomeControl winnerId={winnerId} onVictory={handleVictory} onDefeat={handleDefeat} onReset={handleReset} />
       </div>
