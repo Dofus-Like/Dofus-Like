@@ -70,6 +70,7 @@ interface SpellBarProps {
   isReadyMode?: boolean;
   isReady?: boolean;
   disableGrimoire?: boolean;
+  children?: React.ReactNode;
 }
 
 const SpellTooltip = ({
@@ -84,73 +85,85 @@ const SpellTooltip = ({
   const { t } = useTranslation();
   const isMagical = spell.effectKind === SpellEffectKind.DAMAGE_MAGICAL;
   const isHeal = spell.effectKind === SpellEffectKind.HEAL;
-  const isDamage =
-    spell.effectKind === SpellEffectKind.DAMAGE_PHYSICAL || isMagical;
+  const isDamage = spell.effectKind === SpellEffectKind.DAMAGE_PHYSICAL || isMagical;
+  const isPush = spell.effectKind === SpellEffectKind.PUSH_LINE;
 
-  let calculationText = "";
-  let resultText = "";
-  let typeLabel = "";
+  const lines: React.ReactNode[] = [];
+  let keywords: Array<{ name: string; desc: string }> = [];
 
-  if (attackerStats) {
-    if (isDamage && spell.damage) {
-      const power = isMagical ? attackerStats.mag : attackerStats.atk;
-      const defense = isMagical
-        ? (targetStats?.res ?? 0)
-        : (targetStats?.def ?? 0);
-
-      const minRaw = spell.damage.min + power;
-      const maxRaw = spell.damage.max + power;
-
-      const minTotal = Math.max(1, minRaw - defense);
-      const maxTotal = Math.max(1, maxRaw - defense);
-
-      calculationText = `(${spell.damage.min}~${spell.damage.max} + ${power}) - ${defense}`;
-      resultText = `${minTotal}~${maxTotal}`;
-      typeLabel = isMagical ? t("damageMagical") : t("damagePhysical");
-    } else if (isHeal && spell.damage) {
-      const power = Math.floor(attackerStats.mag * 0.5);
-      const minHeal = spell.damage.min + power;
-      const maxHeal = spell.damage.max + power;
-
-      calculationText = `(${spell.damage.min}~${spell.damage.max} + ${power})`;
-      resultText = `${minHeal}~${maxHeal}`;
-      typeLabel = t("healing");
+  if (isDamage && spell.damage) {
+    const power = attackerStats ? (isMagical ? attackerStats.mag : attackerStats.atk) : 0;
+    const defense = attackerStats ? (isMagical ? (targetStats?.res ?? 0) : (targetStats?.def ?? 0)) : 0;
+    const minTotal = Math.max(1, spell.damage.min + power - defense);
+    const maxTotal = Math.max(1, spell.damage.max + power - defense);
+    if (isMagical) {
+      lines.push(<div key="dmg">Inflige <span style={{ color: '#a855f7', fontWeight: 'bold' }}>{minTotal}-{maxTotal}</span> dégâts magiques.</div>);
+    } else {
+      lines.push(<div key="dmg">Inflige <span style={{ color: '#ef4444', fontWeight: 'bold' }}>{minTotal}-{maxTotal}</span> dégâts physiques.</div>);
     }
+  } else if (isHeal && spell.damage) {
+    const power = attackerStats ? Math.floor(attackerStats.mag * 0.5) : 0;
+    const minHeal = spell.damage.min + power;
+    const maxHeal = spell.damage.max + power;
+    lines.push(<div key="heal">Soigne <span style={{ color: '#22c55e', fontWeight: 'bold' }}>{minHeal}-{maxHeal}</span> PV.</div>);
+  }
+
+  const lowerDesc = spell.description?.toLowerCase() || "";
+  if (isPush || lowerDesc.includes("repouss") || lowerDesc.includes("pousse")) {
+    lines.push(<div key="push"><span style={{ color: '#fca800', fontWeight: 'bold' }}>REPOUSSE</span> la cible.</div>);
+    keywords.push({ name: "REPOUSSE", desc: "Déplace la cible dans la direction de l'impact." });
+  }
+  
+  if (lowerDesc.includes("brule") || lowerDesc.includes("brûle")) {
+    lines.push(<div key="burn"><span style={{ color: '#fca800', fontWeight: 'bold' }}>BRÛLE</span> la cible.</div>);
+    keywords.push({ name: "BRÛLURE", desc: "Inflige des dégâts à la fin de chaque tour." });
+  }
+
+  // Fallback if no lines generated
+  if (lines.length === 0 && spell.description) {
+    lines.push(<div key="desc">{spell.description}</div>);
   }
 
   return (
-    <div className="spell-tooltip glass">
-      <div className="tooltip-header">
-        <div className="tooltip-title">{spell.name}</div>
-        <div className="tooltip-cost">{spell.paCost} PA</div>
+    <div className="spell-tooltip-container">
+      <div className="spell-tooltip">
+        <div className="tooltip-header">
+          <div className="tooltip-title">{spell.name}</div>
+          <div className="tooltip-cost">{spell.paCost} PA</div>
+        </div>
+
+        <div className="tooltip-description" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {lines}
+        </div>
+
+        <div className="tooltip-footer">
+          {spell.minRange !== undefined && (
+            <div className="tooltip-range">
+              {t("range")}: {spell.minRange}-{spell.maxRange}
+            </div>
+          )}
+          {spell.cooldown !== undefined && spell.cooldown > 0 && (
+            <div className="tooltip-cooldown">
+              {t("cooldown")}: {spell.cooldown} tr.
+            </div>
+          )}
+        </div>
       </div>
 
-      {spell.description && (
-        <div className="tooltip-description">{spell.description}</div>
-      )}
-
-      {resultText && (
-        <div className="tooltip-calc-section">
-          <div className="tooltip-calc-row">
-            <span className="calc-label">{typeLabel}</span>
-            <span className="calc-result">{resultText}</span>
-          </div>
-          <div className="tooltip-formula">{calculationText}</div>
+      {keywords.length > 0 && (
+        <div className="spell-keywords-container">
+          {keywords.map((kw, idx) => (
+            <div 
+              key={idx} 
+              className="spell-keyword-tooltip"
+              style={{ animationDelay: `${0.2 + idx * 0.15}s` }}
+            >
+              <div className="tooltip-title" style={{ color: '#fca800' }}>{kw.name}</div>
+              <div className="tooltip-description">{kw.desc}</div>
+            </div>
+          ))}
         </div>
       )}
-
-      <div className="tooltip-footer">
-        {spell.minRange !== undefined && (
-          <div className="tooltip-range">
-            {t("range")}: {spell.minRange}-{spell.maxRange}
-          </div>
-        )}
-        {spell.cooldown !== undefined && spell.cooldown > 0 && (
-          <div className="tooltip-cooldown">
-            {t("cooldown")}: {spell.cooldown} tr.
-          </div>
-        )}
-      </div>
     </div>
   );
 };
@@ -242,6 +255,7 @@ export const SpellBar = ({
   isReadyMode = false,
   isReady = false,
   disableGrimoire = false,
+  children,
 }: SpellBarProps) => {
   const { t } = useTranslation();
   const [hoveredSpellId, setHoveredSpellId] = React.useState<string | null>(
@@ -390,6 +404,8 @@ export const SpellBar = ({
             <span className="pass-label">{effectivePassLabel}</span>
           </button>
         )}
+
+        {children}
       </div>
 
       <div className="spell-bar-resources">

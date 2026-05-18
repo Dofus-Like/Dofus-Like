@@ -17,10 +17,10 @@ const SIDE = Math.sqrt(36 * 36 + 36 * 36);
 const PERIMETER = 4 * SIDE;
 const TICK_MS = 100;
 
-function getStrokeColor(progress: number): string {
-  if (progress > 0.67) return "rgba(255, 255, 255, 0.9)";
-  if (progress > 0.33) return "#f97316";
-  return "#ef4444";
+function getStrokeColor(progress: number, durationSec: number): string {
+  const remainingSec = progress * durationSec;
+  if (remainingSec <= 5) return "#ef4444";
+  return "#fca800";
 }
 
 function useCountdown(isActive: boolean, durationSec: number) {
@@ -53,16 +53,16 @@ function useCountdown(isActive: boolean, durationSec: number) {
 export function EndTurnButton({
   isMyTurn,
   onEndTurn,
-  turnDurationSec = 60,
+  turnDurationSec = 30,
   canCastSpell = false,
   hasPm = false,
 }: EndTurnButtonProps) {
   const progress = useCountdown(isMyTurn, turnDurationSec);
   const dashOffset = PERIMETER * (1 - progress);
   const strokeColor = isMyTurn
-    ? getStrokeColor(progress)
+    ? getStrokeColor(progress, turnDurationSec)
     : "rgba(255,255,255,0.18)";
-  const isLow = isMyTurn && progress < 0.33;
+  const isLow = isMyTurn && (progress * turnDurationSec) <= 5;
   const isNoActionsLeft = isMyTurn && !canCastSpell && !hasPm;
 
   return (

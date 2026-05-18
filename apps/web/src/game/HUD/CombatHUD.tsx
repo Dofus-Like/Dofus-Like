@@ -221,7 +221,7 @@ export function CombatHUD() {
                 aria-label="Émotes"
                 title="Émotes"
               >
-                😄
+                <img src="/assets/pack/icons/emojis.png" alt="Émotes" style={{ width: '18px', height: '18px' }} />
               </button>
               <button
                 type="button"
@@ -234,7 +234,7 @@ export function CombatHUD() {
                   }
                 }}
               >
-                🏳️
+                <img src="/assets/pack/icons/flag.png" alt="Abandonner" style={{ width: '18px', height: '18px' }} />
               </button>
             </div>
             <SpellBar
@@ -250,13 +250,14 @@ export function CombatHUD() {
               targetStats={
                 enemyId ? combatState.players[enemyId]?.stats : undefined
               }
-            />
-            <EndTurnButton 
-              isMyTurn={isMyTurn} 
-              onEndTurn={handleEndTurn} 
-              canCastSpell={canCastSpell}
-              hasPm={hasPm}
-            />
+            >
+              <EndTurnButton 
+                isMyTurn={isMyTurn} 
+                onEndTurn={handleEndTurn} 
+                canCastSpell={canCastSpell}
+                hasPm={hasPm}
+              />
+            </SpellBar>
           </div>
 
           <div className="hud-right-group">
@@ -270,7 +271,7 @@ export function CombatHUD() {
                 onClick={() => setStatsOpen((v) => !v)}
                 aria-label="Statistiques"
               >
-                📊
+                <img src="/assets/pack/icons/graph.png" alt="Statistiques" style={{ width: '18px', height: '18px' }} />
               </button>
               <button
                 type="button"
@@ -278,7 +279,7 @@ export function CombatHUD() {
                 onClick={() => setLogsOpen((v) => !v)}
                 aria-label="Journal de combat"
               >
-                💬
+                <img src="/assets/pack/icons/chatting.png" alt="Journal de combat" style={{ width: '18px', height: '18px' }} />
                 {logs.length > 0 && (
                   <span className="hud-log-badge">{logs.length}</span>
                 )}

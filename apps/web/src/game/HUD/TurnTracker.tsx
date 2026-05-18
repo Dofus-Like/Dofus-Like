@@ -23,11 +23,8 @@ interface SlotInfo {
 
 function buildSlots(fighters: CombatPlayer[], currentTurnPlayerId: string): SlotInfo[] {
   if (fighters.length === 0) return [];
-  const activeIndex = fighters.findIndex((f) => f.playerId === currentTurnPlayerId);
-  const start = activeIndex === -1 ? 0 : activeIndex;
-  return Array.from({ length: SLOT_COUNT }, (_, i) => {
-    const fighter = fighters[(start + i) % fighters.length];
-    return { fighter, index: i, isActive: i === 0 };
+  return fighters.map((fighter, i) => {
+    return { fighter, index: i, isActive: fighter.playerId === currentTurnPlayerId };
   });
 }
 
@@ -35,9 +32,10 @@ interface AvatarCircleProps {
   fighter: CombatPlayer;
   isActive: boolean;
   isSelf: boolean;
+  index: number;
 }
 
-function AvatarCircle({ fighter, isActive, isSelf }: AvatarCircleProps) {
+function AvatarCircle({ fighter, isActive, isSelf, index }: AvatarCircleProps) {
   const skinConfig = getSkinById(fighter.skin ?? 'soldier-classic');
   const classes = [
     'tt-avatar',
@@ -46,11 +44,14 @@ function AvatarCircle({ fighter, isActive, isSelf }: AvatarCircleProps) {
   ].filter(Boolean).join(' ');
 
   return (
-    <div className={classes} title={fighter.username}>
-      <div
-        className={`tt-avatar-sprite avatar-${skinConfig.type}`}
-        style={{ filter: `hue-rotate(${skinConfig.hue}deg) saturate(${skinConfig.saturation})` }}
-      />
+    <div className="tt-slot-wrapper">
+      <div className={classes} title={fighter.username}>
+        <div
+          className={`tt-avatar-sprite avatar-${skinConfig.type}`}
+          style={{ filter: `hue-rotate(${skinConfig.hue}deg) saturate(${skinConfig.saturation})` }}
+        />
+      </div>
+      <div className="tt-slot-number">{index + 1}</div>
     </div>
   );
 }
@@ -64,18 +65,17 @@ export function TurnTracker({ fighters, currentTurnPlayerId, turnNumber, selfId 
   const slots = buildSlots(ordered, currentTurnPlayerId);
 
   return (
-    <div className="turn-tracker glass">
-      <span className="tt-turn-label">TOUR {turnNumber}</span>
+    <div className="turn-tracker">
+      <div className="tt-turn-label">TOUR {turnNumber}</div>
       <div className="tt-slots">
         {slots.map((slot, i) => (
-          <React.Fragment key={`${slot.fighter.playerId}-${slot.index}`}>
-            <AvatarCircle
-              fighter={slot.fighter}
-              isActive={slot.isActive}
-              isSelf={slot.fighter.playerId === selfId}
-            />
-            {i < slots.length - 1 && <span className="tt-arrow">›</span>}
-          </React.Fragment>
+          <AvatarCircle
+            key={`${slot.fighter.playerId}-${slot.index}`}
+            fighter={slot.fighter}
+            isActive={slot.isActive}
+            isSelf={slot.fighter.playerId === selfId}
+            index={i}
+          />
         ))}
       </div>
     </div>

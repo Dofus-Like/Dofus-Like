@@ -239,6 +239,7 @@
   flex-direction: column;
   gap: 4px;
   align-items: flex-end;
+  align-self: flex-end;
   pointer-events: none;
   flex-shrink: 0;
 }
@@ -248,7 +249,7 @@
 
 .hud-center-group {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 4px;
   pointer-events: none;
 }
@@ -296,8 +297,8 @@
    LOG BUTTON + PANEL
 ═══════════════════════════════════════════════════════════════ */
 .hud-log-btn {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -327,6 +328,10 @@
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.8),
     inset 0 0 16px 4px rgba(0, 0, 0, 0.6);
+}
+
+.hud-log-btn img {
+  filter: brightness(0) invert(1);
 }
 
 .hud-log-badge {
@@ -368,6 +373,7 @@
 
 .log-panel--open {
   width: 100%;
+  max-width: 400px;
   opacity: 1;
   border-width: 2px;
   pointer-events: auto;
